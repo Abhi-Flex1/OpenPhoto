@@ -528,6 +528,9 @@ pub struct UiState {
     /// Painting targets the active layer's mask instead of its pixels.
     #[serde(default)]
     pub mask_target: bool,
+    /// Brush Preset picker opened by a right-click on the canvas: its screen position (points).
+    #[serde(default)]
+    pub brush_picker: Option<[f32; 2]>,
     /// Pen path under construction.
     #[serde(default)]
     pub pen: Option<crate::vector_ui::PenPath>,
@@ -612,6 +615,7 @@ impl Default for UiState {
             text_edit: None,
             transform: None,
             mask_target: false,
+            brush_picker: None,
             clone_source: None,
             clone_offset: None,
             extras: Extras::default(),

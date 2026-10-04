@@ -47,6 +47,9 @@ fn always(_: &Session) -> std::result::Result<(), String> {
     Ok(())
 }
 
+/// Largest stroke coordinate accepted (a few times the largest document side, 300 000 px).
+const MAX_COORD: f64 = 1_000_000.0;
+
 /// Parse `points`: arrays `[x, y, pressure?, tiltX?, tiltY?, rotation?, timeMs?, wheel?]` or
 /// objects `{"x":…, "y":…, "pressure":…, "tiltX":…, …, "time":…}`.
 pub fn parse_points(p: &Value, cmd: &str) -> Result<Vec<StrokePoint>> {
@@ -70,6 +73,10 @@ pub fn parse_points(p: &Value, cmd: &str) -> Result<Vec<StrokePoint>> {
         .collect();
     if pts.is_empty() {
         return Err(bad(cmd, "`points` is empty"));
+    }
+    // A stroke runs dab by dab along its length: an absurd coordinate would mean billions of dabs.
+    if pts.iter().any(|q| !(q.x.abs() <= MAX_COORD && q.y.abs() <= MAX_COORD)) {
+        return Err(bad(cmd, format!("point coordinates must be finite and within ±{MAX_COORD}")));
     }
     Ok(pts)
 }

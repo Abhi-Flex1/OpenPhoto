@@ -37,6 +37,9 @@ pub struct Drag {
     pub start: [f64; 2],
     pub points: Vec<[f64; 3]>,
     pub modifiers: egui::Modifiers,
+    /// A Brush/Eraser stroke that erases: the Eraser, or a right-button Brush drag with
+    /// Preferences › Tools › Right-click with painting tools set to Erase.
+    pub erase: bool,
 }
 
 /// A Brush/Eraser stroke shown while it is drawn: the engine renders the real dabs onto a copy of
@@ -72,15 +75,15 @@ fn live_stroke(app: &PhotocraftApp, idx: usize) -> Option<&LiveStroke> {
 }
 
 /// `paint.stroke` params for a Brush/Eraser drag (shared by the live preview and the commit).
-fn stroke_params(app: &PhotocraftApp, tool: Tool, points: &[Vec<f64>]) -> serde_json::Value {
-    json!({ "points": points, "erase": tool == Tool::Eraser, "smoothing": 0.3, "target": paint_target(app) })
+fn stroke_params(app: &PhotocraftApp, erase: bool, points: &[Vec<f64>]) -> serde_json::Value {
+    json!({ "points": points, "erase": erase, "smoothing": 0.3, "target": paint_target(app) })
 }
 
-fn begin_live_stroke(app: &PhotocraftApp, tool: Tool) -> Option<LiveStroke> {
+fn begin_live_stroke(app: &PhotocraftApp) -> Option<LiveStroke> {
     static STROKES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let st = app.session.active()?;
     let d = app.drag.as_ref()?;
-    let stroke = photocraft_engine::brush_cmds::LiveStroke::begin(&app.session, &stroke_params(app, tool, &app.stylus.stroke_points(&d.points))).ok()?;
+    let stroke = photocraft_engine::brush_cmds::LiveStroke::begin(&app.session, &stroke_params(app, d.erase, &app.stylus.stroke_points(&d.points))).ok()?;
     let n = STROKES.fetch_add(1, std::sync::atomic::Ordering::Relaxed) & 0xff_ffff;
     let damage = vec![stroke.bounds()];
     Some(LiveStroke { stroke, doc: st.doc.id, revision: st.revision, key: (1 << 44) | (n << 20), damage, fed: d.points.len() })
@@ -1107,25 +1110,28 @@ pub fn canvas_view(app: &mut PhotocraftApp, ui: &mut egui::Ui, idx: usize, rect:
         view.center[1] -= d.y / view.zoom;
     } else if primary {
         let mods = ui.input(|i| i.modifiers);
-        if response.drag_started()
+        // Tools follow the left button; the right one opens the Brush Preset picker or erases
+        // (Preferences › Tools, `paint_mouse`).
+        let buttons = crate::paint_mouse::canvas_buttons(app, &response, tool);
+        if buttons.started
             && let Some(p) = response.interact_pointer_pos()
         {
             let d = xf.to_doc(p);
             tool_event(app, ToolEvent::Down { x: d[0], y: d[1], pressure: app.stylus.pressure() }, mods);
         }
-        if response.dragged()
+        if buttons.dragged
             && let Some(p) = response.interact_pointer_pos()
         {
             let d = xf.to_doc(p);
             tool_event(app, ToolEvent::Move { x: d[0], y: d[1], pressure: app.stylus.pressure() }, mods);
         }
-        if response.drag_stopped() {
+        if buttons.stopped {
             let p = response.interact_pointer_pos().map(|p| xf.to_doc(p)).or_else(|| app.drag.as_ref().and_then(|d| d.points.last().map(|q| [q[0], q[1]])));
             if let Some(d) = p {
                 tool_event(app, ToolEvent::Up { x: d[0], y: d[1] }, mods);
             }
         }
-        if response.clicked()
+        if buttons.clicked
             && let Some(p) = response.interact_pointer_pos()
         {
             let d = xf.to_doc(p);
@@ -1154,6 +1160,7 @@ pub fn canvas_view(app: &mut PhotocraftApp, ui: &mut egui::Ui, idx: usize, rect:
         }
         draw_drag_preview(app, &painter, &xf);
         draw_transform_controls(app, &painter, &xf);
+        crate::paint_mouse::show_picker(app, &ctx);
         crate::snap_ui::draw(app, &painter, &xf);
         if border == photocraft_engine::prefs::CanvasBorder::Line {
             painter.rect_stroke(img_rect, 0.0, Stroke::new(1.0, Color32::from_gray(20)), egui::StrokeKind::Outside);
@@ -1571,9 +1578,10 @@ pub fn tool_event(app: &mut PhotocraftApp, ev: ToolEvent, mods: egui::Modifiers)
                 Tool::Type if crate::type_tool::pointer_down(app, x, y, mods.shift) => return,
                 _ => {}
             }
-            app.drag = Some(Drag { tool, start: [x, y], points: vec![[x, y, pressure as f64]], modifiers: mods });
+            let erase = tool == Tool::Eraser || std::mem::take(&mut app.secondary_erase);
+            app.drag = Some(Drag { tool, start: [x, y], points: vec![[x, y, pressure as f64]], modifiers: mods, erase });
             app.stylus.begin_stroke();
-            app.live_stroke = if matches!(tool, Tool::Brush | Tool::Eraser) { begin_live_stroke(app, tool) } else { None };
+            app.live_stroke = if matches!(tool, Tool::Brush | Tool::Eraser) { begin_live_stroke(app) } else { None };
         }
         ToolEvent::Move { x, y, pressure } => {
             if tool == Tool::Type && app.drag.is_none() {
@@ -1621,7 +1629,7 @@ fn finish_gesture(app: &mut PhotocraftApp, d: Drag) {
         Tool::Type => crate::type_tool::pointer_up(app, d.start, [end[0], end[1]]),
         Tool::Brush | Tool::Eraser => {
             let live = app.live_stroke.take();
-            let mut p = stroke_params(app, d.tool, &app.stylus.stroke_points(&d.points));
+            let mut p = stroke_params(app, d.erase, &app.stylus.stroke_points(&d.points));
             if let Some(l) = &live {
                 p["seed"] = json!(l.stroke.seed);
             }
@@ -1877,6 +1885,40 @@ mod tests {
         assert!(a.rgba(500, 45)[3] > 0.5 && a.rgba(500, 45 + 12)[3] == 0.0);
         // (The smoothed tail catches up to the end point only when the stroke finishes.)
         assert!((0..90).all(|y| (0..700).all(|x| a.rgba(x, y) == b.rgba(x, y))), "commit matches the preview");
+    }
+
+    #[test]
+    fn release_hands_the_live_stroke_to_the_document_without_a_blank_frame() {
+        // #73: on release the canvas must go straight from the live stroke to the committed
+        // document: no frame showing neither (the pre-stroke image) or a stand-in segment.
+        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+        let ctx = egui::Context::default();
+        app.run("file.new", json!({"width": 200, "height": 80, "background": "transparent"})).unwrap();
+        app.run("tools.setBrush", json!({"brush": {"size": 16, "hardness": 1.0}})).unwrap();
+        app.ui.tool = Tool::Brush;
+        ensure_texture(&mut app, &ctx, 0);
+        let m = egui::Modifiers::NONE;
+        let painted = |d: &Document| (10..150).filter(|&x| d.layers[0].surface().unwrap().rgba(x, 40)[3] > 0.5).count();
+        tool_event(&mut app, ToolEvent::Down { x: 10.0, y: 40.0, pressure: 1.0 }, m);
+        for x in [50.0, 100.0, 150.0] {
+            tool_event(&mut app, ToolEvent::Move { x, y: 40.0, pressure: 1.0 }, m);
+            // One frame per pointer move: the canvas shows the stroke so far.
+            ensure_texture(&mut app, &ctx, 0);
+        }
+        let live = display_doc(&mut app, 0).0;
+        let shown_live = painted(&live);
+        assert!(shown_live > 60, "the stroke shows while drawing ({shown_live} px)");
+        tool_event(&mut app, ToolEvent::Up { x: 150.0, y: 40.0 }, m);
+        // The very next frame shows the committed document, which has everything the preview had.
+        let (next, key) = display_doc(&mut app, 0);
+        assert_eq!(key, 0, "the committed document, not a preview");
+        assert!(painted(&next) >= shown_live, "no frame without the stroke");
+        let (a, b) = (next.layers[0].surface().unwrap(), live.layers[0].surface().unwrap());
+        // Up to the smoothed tail (which catches up to the end point on release, Photoshop-style).
+        let end = (0..200).rev().find(|&x| b.rgba(x, 40)[3] > 0.0).unwrap_or(0) - 16;
+        assert!((0..80).all(|y| (0..end).all(|x| b.rgba(x, y)[3] == 0.0 || a.rgba(x, y) == b.rgba(x, y))), "the preview's pixels are kept as they were");
+        ensure_texture(&mut app, &ctx, 0);
+        assert_eq!(app.perf.last_refresh, "rect", "the handover only refreshes the stroke, it doesn't redraw the canvas");
     }
 
     #[test]
