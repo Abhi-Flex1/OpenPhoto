@@ -46,6 +46,11 @@ pub(crate) fn image_to_document(name: &str, img: &Image) -> Result<ImportResult,
     }
     doc.layers.push(bg);
     doc.icc_profile = img.icc.clone().map(Arc::new);
+    // OpenEXR and Radiance HDR hold linear, scene-referred values (Rec. 709 primaries unless
+    // stated otherwise): tag them linear sRGB so they display and convert correctly.
+    if doc.icc_profile.is_none() && mode == ColorMode::Rgb && matches!(codecs::detect(bytes), Some(Format::OpenExr | Format::Hdr)) {
+        doc.icc_profile = Some(photocraft_cms::Builtin::LinearSrgb.profile().to_bytes());
+    }
     doc.metadata.exif = img.meta.exif.clone().map(Arc::new);
     doc.metadata.xmp = img.meta.xmp.clone();
     if let Some((x, _)) = img.meta.dpi {
@@ -178,6 +183,9 @@ pub fn export_flat(doc: &Document, format: Format, opts: &ExportOptions) -> Resu
         img = cmyk_image_to_srgb(&img)?;
         warnings.push(format!("CMYK converted to sRGB for {format:?} through the document's colour profile"));
     }
+    if matches!(format, Format::OpenExr | Format::Hdr) {
+        img = rgb_image_to_linear(img)?;
+    }
     for w in codecs::fidelity_warnings_with(&img, format, &opts.encode) {
         if w.is_fatal() {
             return Err(IoError::Unsupported(w.to_string()));
@@ -212,6 +220,27 @@ fn cmyk_image_to_srgb(img: &Image) -> Result<Image, IoError> {
         s => s,
     };
     Ok(Image::from_normalized(w, h, layout, sample, &out)?.with_icc(Some(dst.to_bytes().to_vec())).with_meta(img.meta.clone()))
+}
+
+/// OpenEXR and Radiance HDR store linear light (read back as linear sRGB, see [`import_flat`]):
+/// RGB pixels in another profile (sRGB when untagged) are converted to linear sRGB, unclamped.
+fn rgb_image_to_linear(img: Image) -> Result<Image, IoError> {
+    use photocraft_cms::{Builtin, ColorSpace, Intent, Profile, Transform};
+    if !matches!(img.layout(), ChannelLayout::Rgb | ChannelLayout::Rgba) {
+        return Ok(img);
+    }
+    let linear = Builtin::LinearSrgb.profile();
+    let src =
+        img.icc.as_ref().and_then(|b| Profile::parse(b).ok()).filter(|p| p.color_space == ColorSpace::Rgb).unwrap_or_else(|| Builtin::Srgb.profile().clone());
+    if src.content_hash() == linear.content_hash() {
+        return Ok(img);
+    }
+    let t = Transform::new(&src, linear, Intent::RelativeColorimetric, false).map_err(|e| IoError::Unsupported(e.to_string()))?;
+    let stride = img.layout().channels();
+    let mut vals = img.to_normalized();
+    t.apply(&mut vals, stride);
+    let (w, h) = img.dimensions();
+    Ok(Image::from_normalized(w, h, img.layout(), CSample::F32, &vals)?.with_icc(None).with_meta(img.meta.clone()))
 }
 
 /// Indexed Color → PNG-8 with its colour table; Duotone → the inks rendered as RGB.
