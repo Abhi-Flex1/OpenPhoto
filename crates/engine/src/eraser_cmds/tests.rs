@@ -264,4 +264,14 @@ fn bench_magic_eraser_24mp() {
         }
         println!("magic eraser 6000x4000 {label}: {best:.1} ms");
     }
+    // Phase breakdown.
+    let t0 = std::time::Instant::now();
+    let (area, img) = crate::selection_cmds::sample_rgba8(&s, false).unwrap();
+    let t1 = t0.elapsed().as_secs_f64() * 1000.0;
+    let region = sel::wand_region(&img, area, (10, 10), 32.0, true, true).unwrap();
+    let t2 = t0.elapsed().as_secs_f64() * 1000.0;
+    let mut surf = surface(&s).clone();
+    photocraft_algo::erase::magic_erase(&mut surf, &region, 1.0, None, None);
+    let t3 = t0.elapsed().as_secs_f64() * 1000.0;
+    println!("phases: sample {t1:.1} ms, wand {:.1} ms, erase {:.1} ms", t2 - t1, t3 - t2);
 }

@@ -4,6 +4,7 @@
 //! Works in the surface's own channels at any depth and in any colour model: only the alpha
 //! channel changes (or, under a transparency lock, the colour channels move toward `lock_color`).
 
+use photocraft_color::{read_sample, write_sample};
 use photocraft_geom::Rect;
 use photocraft_raster::Surface;
 
@@ -21,7 +22,6 @@ pub fn magic_erase(target: &mut Surface, region: &Region, amount: f32, selection
         return Rect::EMPTY;
     }
     let fmt = target.format();
-    let n = fmt.channels();
     let nc = fmt.mode.color_channels();
     let alpha = fmt.alpha.then_some(nc);
     // Without alpha and without a lock colour there is nothing an eraser can do.
@@ -31,14 +31,17 @@ pub fn magic_erase(target: &mut Surface, region: &Region, amount: f32, selection
     let lock: Option<Vec<f32>> = lock_color.map(|c| (0..nc).map(|i| c.get(i).copied().unwrap_or(0.0)).collect());
     let rects: Vec<Rect> = bbox.tiles().map(|tc| tc.rect().intersect(&bbox)).filter(|r| !r.is_empty()).collect();
     let src: &Surface = target;
-    let work = |r: Rect| -> Option<(Rect, Vec<f32>)> {
+    let (sample, bpp) = (fmt.sample, fmt.bytes_per_pixel());
+    // Each tile is edited as encoded bytes (only the touched samples are decoded), in parallel;
+    // the results are copied back serially.
+    let work = |r: Rect| -> Option<(Rect, Vec<u8>)> {
         let w = r.width() as usize;
+        let cov = |x: i32, y: i32| region.mask.get((y - bbox.y0) as usize * bw + (x - bbox.x0) as usize).copied().unwrap_or(0);
         // Skip tiles the region doesn't touch.
-        let cov = |x: i32, y: i32| region.mask[(y - bbox.y0) as usize * bw + (x - bbox.x0) as usize];
         if !(r.y0..r.y1).any(|y| (r.x0..r.x1).any(|x| cov(x, y) != 0)) {
             return None;
         }
-        let mut px = src.read_region(r);
+        let mut bytes = src.to_interleaved(r);
         let sel = selection.map(|s| (s.channels(), s.read_region(r)));
         for y in r.y0..r.y1 {
             for x in r.x0..r.x1 {
@@ -52,36 +55,39 @@ pub fn magic_erase(target: &mut Surface, region: &Region, amount: f32, selection
                 if k <= 0.0 {
                     continue;
                 }
-                let p = &mut px[i * n..(i + 1) * n];
+                let Some(px) = bytes.get_mut(i * bpp..(i + 1) * bpp) else { continue };
                 match (&lock, alpha) {
                     (Some(col), _) => {
-                        for (v, t) in p.iter_mut().zip(col) {
-                            *v += (t - *v) * k;
+                        for (ch, t) in col.iter().enumerate() {
+                            let v = read_sample(px, sample, ch);
+                            write_sample(px, sample, ch, v + (t - v) * k);
                         }
                     }
                     (None, Some(a)) => {
-                        p[a] *= 1.0 - k;
-                        // Fully erased pixels become the empty pixel, so tiles can be pruned.
-                        if p[a] <= 0.0 {
-                            p.fill(0.0);
+                        let v = read_sample(px, sample, a) * (1.0 - k);
+                        if k >= 1.0 || v <= 0.0 {
+                            // Fully erased pixels become the empty pixel, so tiles can be pruned.
+                            px.fill(0);
+                        } else {
+                            write_sample(px, sample, a, v);
                         }
                     }
                     (None, None) => {}
                 }
             }
         }
-        Some((r, px))
+        Some((r, bytes))
     };
     #[cfg(not(target_arch = "wasm32"))]
-    let done: Vec<(Rect, Vec<f32>)> = {
+    let done: Vec<(Rect, Vec<u8>)> = {
         use rayon::prelude::*;
         rects.into_par_iter().filter_map(work).collect()
     };
     #[cfg(target_arch = "wasm32")]
-    let done: Vec<(Rect, Vec<f32>)> = rects.into_iter().filter_map(work).collect();
+    let done: Vec<(Rect, Vec<u8>)> = rects.into_iter().filter_map(work).collect();
     let mut dmg = Rect::EMPTY;
-    for (r, px) in done {
-        target.write_region(r, &px);
+    for (r, bytes) in done {
+        target.write_interleaved(r, &bytes);
         dmg = dmg.union(&r);
     }
     if lock.is_none() {
