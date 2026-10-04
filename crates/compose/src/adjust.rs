@@ -252,19 +252,15 @@ fn tone_in_space(space: ToneSpace, luts: &[Vec<f32>; 4], c: [f32; 3]) -> [f32; 3
 /// Hue/Saturation's range edits as three hue-indexed tables (hue shift in degrees, saturation and
 /// lightness as fractions), sampled at hue `k / (len - 1)` turns. Ranges add up where they overlap.
 pub fn hue_range_tables(ranges: &[HueRange; 6]) -> [Vec<f32>; 3] {
-    let mut t: [Vec<f32>; 3] = std::array::from_fn(|_| vec![0.0; LUT_SIZE]);
-    for k in 0..LUT_SIZE {
+    let at = |k: usize| {
         let deg = k as f32 / (LUT_SIZE - 1) as f32 * 360.0;
-        for r in ranges.iter().filter(|r| !r.is_neutral()) {
+        ranges.iter().filter(|r| !r.is_neutral()).fold([0.0f32; 3], |acc, r| {
             let w = r.weight(deg);
-            if w > 0.0 {
-                t[0][k] += w * r.hue;
-                t[1][k] += w * r.saturation / 100.0;
-                t[2][k] += w * r.lightness / 100.0;
-            }
-        }
-    }
-    t
+            [acc[0] + w * r.hue, acc[1] + w * r.saturation / 100.0, acc[2] + w * r.lightness / 100.0]
+        })
+    };
+    let rows: Vec<[f32; 3]> = (0..LUT_SIZE).map(at).collect();
+    std::array::from_fn(|i| rows.iter().map(|r| r[i]).collect())
 }
 
 /// One Hue/Saturation evaluation: hue shift in degrees, saturation and lightness in -1..=1.
