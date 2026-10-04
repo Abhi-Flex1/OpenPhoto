@@ -157,9 +157,11 @@ WASI.
 ## Performance
 
 The interpreter costs roughly 10–100× native speed per instruction, so plug-ins suit per-pixel and
-small-neighbourhood filters. Example Invert on a 6000 × 4000 RGBA 8-bit layer (24 MP), release build,
-14-core Apple Silicon: see the numbers in the PR / dev log (`cargo run -p photocraft-plugins
---release --example bench_invert`). Peak extra memory is about three bands per worker thread (input,
+small-neighbourhood filters. Because bands run in parallel, the example Invert on a 6000 × 4000
+RGBA 8-bit layer (24 MP, release, 14-core Apple Silicon under heavy load) took 1.1–1.6 s through
+`plugin.run`, versus 3.6–5.1 s for the (single-threaded) built-in Image › Adjustments › Invert
+(`cargo run --release -p photocraft-engine --example bench_plugin_invert`; plug-in alone:
+`cargo run --release -p photocraft-plugins --example bench_invert`). Peak extra memory is about three bands per worker thread (input,
 original for the selection blend, and the instance's memory), i.e. ~12 MiB per thread.
 
 ## Not in v1
