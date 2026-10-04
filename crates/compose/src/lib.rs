@@ -269,18 +269,22 @@ pub const PROXY_THUMBNAIL_PIXELS: u64 = 16 << 20;
 /// downsampled proxy (about twice the thumbnail's size), so a thumbnail of a 200 MP document
 /// costs milliseconds and no full-size composite; the rest stream the exact composite in bands.
 pub fn thumbnail(doc: &Document, max_side: u32) -> Rgba8Image {
+    thumbnail_buffer(doc, max_side).to_rgba8()
+}
+
+/// [`thumbnail`] as straight-alpha floats (for callers that colour-convert it first).
+pub fn thumbnail_buffer(doc: &Document, max_side: u32) -> Buffer {
     let b = doc.bounds();
     let longest = b.width().max(b.height()).max(1);
     let scale = (max_side as f32 / longest as f32).min(1.0);
     let w = ((b.width() as f32 * scale).round() as u32).max(1);
     let h = ((b.height() as f32 * scale).round() as u32).max(1);
     let k = longest / max_side.max(1).saturating_mul(2);
-    let reduced = if k >= 2 && doc.size.area() > PROXY_THUMBNAIL_PIXELS && proxy::proxy_faithful(doc) {
+    if k >= 2 && doc.size.area() > PROXY_THUMBNAIL_PIXELS && proxy::proxy_faithful(doc) {
         render_reduced(&proxy::proxy_document(doc, k), w, h)
     } else {
         render_reduced(doc, w, h)
-    };
-    reduced.to_rgba8()
+    }
 }
 
 /// The document's composite area-averaged (premultiplied) down to `w`×`h` (clamped to the
