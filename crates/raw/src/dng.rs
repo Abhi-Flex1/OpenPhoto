@@ -6,7 +6,7 @@ use crate::color::{self, Calibration, ColorInfo, IDENTITY};
 use crate::error::{RawError, Result};
 use crate::sensor::{BlackLevels, Cfa, JpegLayout, Rect, Sensor, read_plane};
 use crate::tiff::{Ifd, Tiff, tag};
-use crate::{Limits, RawFormat};
+use crate::{Limits, RawFormat, opcodes};
 
 const PHOTOMETRIC_CFA: u32 = 32803;
 const PHOTOMETRIC_LINEAR_RAW: u32 = 34892;
@@ -150,9 +150,18 @@ pub(crate) fn decode(t: &Tiff, limits: &Limits) -> Result<Sensor> {
     if scale.len() == 2 && (scale[0] - scale[1]).abs() > 1e-6 {
         warnings.push("non-square pixels (DefaultScale) are not resampled".to_string());
     }
+    // Opcode lists: OpcodeList2 gain maps (lens shading) are applied; everything else is reported.
+    let mut gain_maps = Vec::new();
     for (tg, what) in [(tag::OPCODE_LIST_1, 1), (tag::OPCODE_LIST_2, 2), (tag::OPCODE_LIST_3, 3)] {
-        if raw.has(tg) {
-            warnings.push(format!("DNG OpcodeList{what} (lens or shading corrections) is not applied"));
+        let Some(bytes) = raw.get(tg).and_then(|e| t.raw(e)) else { continue };
+        let (maps, skipped) = opcodes::parse(bytes);
+        if what == 2 {
+            gain_maps = maps;
+        } else if !maps.is_empty() {
+            warnings.push(format!("DNG OpcodeList{what}: GainMap is not applied"));
+        }
+        if !skipped.is_empty() {
+            warnings.push(format!("DNG OpcodeList{what}: {} not applied", skipped.join(", ")));
         }
     }
 
@@ -210,6 +219,7 @@ pub(crate) fn decode(t: &Tiff, limits: &Limits) -> Result<Sensor> {
         camera_wb: None,
         orientation: t.tag_uint(&ifd0, tag::ORIENTATION).map(|o| o as u16).filter(|o| (1..=8).contains(o)).unwrap_or(1),
         baseline_exposure: if baseline_exposure.is_finite() { baseline_exposure.clamp(-10.0, 10.0) } else { 0.0 },
+        gain_maps,
         warnings,
     })
 }

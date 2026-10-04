@@ -236,6 +236,13 @@ pub fn develop_sensor(s: &Sensor, opts: &DevelopOptions) -> Result<Developed> {
                             *v = (sc.value(x, y, 0) * mult[ch]).clamp(0.0, 1.0);
                         }
                     }
+                    // Lens-shading gain maps, after the white-balance clip so clipped
+                    // highlights stay neutral.
+                    if let Some(g) = gain_row(s, y, c.x, w, 0) {
+                        for (v, g) in row.iter_mut().zip(g) {
+                            *v = (*v * g).clamp(0.0, 1.0);
+                        }
+                    }
                 }
             });
             plane.fill_borders();
@@ -253,6 +260,13 @@ pub fn develop_sensor(s: &Sensor, opts: &DevelopOptions) -> Result<Developed> {
                     for i in 0..w {
                         for k in 0..3 {
                             row[i * 3 + k] = (sc.value(c.x + i, y, k) * mult[k]).clamp(0.0, 1.0);
+                        }
+                    }
+                    for k in 0..3 {
+                        if let Some(g) = gain_row(s, y, c.x, w, k) {
+                            for (i, g) in g.into_iter().enumerate() {
+                                row[i * 3 + k] = (row[i * 3 + k] * g).clamp(0.0, 1.0);
+                            }
                         }
                     }
                 }
@@ -294,6 +308,33 @@ pub fn develop_sensor(s: &Sensor, opts: &DevelopOptions) -> Result<Developed> {
         },
         warnings,
     })
+}
+
+/// Gain-map factors (DNG OpcodeList2 GainMap) for data row `y`, columns
+/// `x0..x0 + w`, sample `k`; `None` when no map touches the row.
+fn gain_row(s: &Sensor, y: usize, x0: usize, w: usize, k: usize) -> Option<Vec<f32>> {
+    let a = s.active;
+    if s.gain_maps.is_empty() || y < a.y || a.width == 0 || a.height == 0 {
+        return None;
+    }
+    let ay = y - a.y;
+    // Map points are placed in coordinates relative to the (active) image.
+    let rv = (ay as f64 + 0.5) / a.height as f64;
+    let mut out: Option<Vec<f32>> = None;
+    for m in &s.gain_maps {
+        if k < m.plane || k >= m.plane.saturating_add(m.planes) || ay < m.top || ay >= m.bottom || (ay - m.top) % m.row_pitch != 0 {
+            continue;
+        }
+        let row = m.row(rv, k - m.plane);
+        let o = out.get_or_insert_with(|| vec![1.0; w]);
+        for (i, f) in o.iter_mut().enumerate() {
+            let x = x0 + i;
+            if x >= a.x && m.covers(x - a.x, ay) {
+                *f *= m.at(&row, ((x - a.x) as f64 + 0.5) / a.width as f64);
+            }
+        }
+    }
+    out
 }
 
 /// Linear 0..1 → gamma-1.8 16-bit code. Tabulated over `s = sqrt(v)`, where

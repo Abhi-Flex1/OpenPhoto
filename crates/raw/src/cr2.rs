@@ -187,6 +187,7 @@ pub(crate) fn decode(t: &Tiff, limits: &Limits) -> Result<Sensor> {
         camera_wb,
         orientation: t.tag_uint(&ifd0, tag::ORIENTATION).map(|o| o as u16).filter(|o| (1..=8).contains(o)).unwrap_or(1),
         baseline_exposure: 0.0,
+        gain_maps: Vec::new(),
         warnings,
     })
 }

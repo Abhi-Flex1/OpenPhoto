@@ -151,6 +151,8 @@ pub struct Sensor {
     pub orientation: u16,
     /// Exposure compensation baked into the default rendering (DNG BaselineExposure), in EV.
     pub baseline_exposure: f64,
+    /// DNG OpcodeList2 gain maps (lens shading), applied to the normalized data.
+    pub gain_maps: Vec<crate::opcodes::GainMap>,
     pub warnings: Vec<String>,
 }
 

@@ -218,6 +218,21 @@ fn highlights_clip_to_white_and_exposure_applies() {
 }
 
 #[test]
+fn gain_map_opcode_is_applied() {
+    // Uniform 0.25 grey; a gain map that doubles everything over the whole image.
+    let (w, h) = (16, 12);
+    let mut spec = DngSpec::cfa(w, h, vec![16384; w * h]);
+    spec.as_shot_neutral = Some([1.0; 3]);
+    let lin = |v: u16| (f64::from(v) / 65535.0).powf(1.8);
+    let base = develop(&spec.build(), &DevelopOptions::default()).unwrap().rgb[(6 * w + 8) * 3 + 1];
+    spec.opcode_list2 = Some(photocraft_raw::testgen::gain_map_opcode_list([0, 0, h as u32, w as u32], 1, [[2.0, 2.0], [2.0, 2.0]]));
+    let d = develop(&spec.build(), &DevelopOptions::default()).unwrap();
+    assert!(!d.warnings.iter().any(|w| w.contains("Opcode")), "{:?}", d.warnings);
+    let gained = d.rgb[(6 * w + 8) * 3 + 1];
+    assert!((lin(gained) / lin(base) - 2.0).abs() < 0.02, "{} vs {}", lin(gained), lin(base));
+}
+
+#[test]
 fn white_balance_options() {
     let (w, h) = (16, 16);
     let rgb = vec![[0.2f32, 0.4, 0.3]; w * h];

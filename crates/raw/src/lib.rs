@@ -34,6 +34,7 @@ mod develop;
 mod dng;
 mod error;
 mod ljpeg;
+mod opcodes;
 mod par;
 mod preview;
 mod sensor;
@@ -47,6 +48,7 @@ pub use crate::color::{Calibration, ColorInfo, Mat3};
 pub use crate::demosaic::Demosaic;
 pub use crate::develop::{DevelopOptions, Developed, RawInfo, WhiteBalance, develop_sensor};
 pub use crate::error::RawError;
+pub use crate::opcodes::GainMap;
 pub use crate::preview::{Preview, embedded_preview};
 pub use crate::sensor::{BlackLevels, Cfa, Rect, Sensor};
 
@@ -209,6 +211,14 @@ pub fn decode(bytes: &[u8], limits: &Limits) -> Result<Sensor, RawError> {
             }
         }
     }
+}
+
+/// Decodes a lossless JPEG (T.81 process 14) stream into `(width, height,
+/// components, samples)`; at most `max_samples` samples are allocated.
+/// Exposed for fuzzing and tools.
+#[doc(hidden)]
+pub fn decode_lossless_jpeg(bytes: &[u8], max_samples: usize) -> Result<(usize, usize, usize, Vec<u16>), RawError> {
+    ljpeg::decode(bytes, max_samples).map(|(f, v)| (f.width, f.height, f.components, v))
 }
 
 /// Lists the TIFF structure of a raw file (debugging aid).

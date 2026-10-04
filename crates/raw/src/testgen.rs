@@ -398,6 +398,8 @@ pub struct DngSpec {
     pub forward_matrix2: Option<[f64; 9]>,
     pub as_shot_neutral: Option<[f64; 3]>,
     pub baseline_exposure: Option<f64>,
+    /// Raw OpcodeList2 bytes (see [`gain_map_opcode_list`]).
+    pub opcode_list2: Option<Vec<u8>>,
     pub orientation: u16,
     pub make: String,
     pub model: String,
@@ -428,6 +430,7 @@ impl DngSpec {
             as_shot_neutral: None,
             baseline_exposure: None,
             orientation: 1,
+            opcode_list2: None,
             make: "Photocraft".into(),
             model: "Synthetic".into(),
         }
@@ -552,6 +555,9 @@ impl DngSpec {
             raw.push((50719, Val::Long(o.to_vec())));
             raw.push((50720, Val::Long(s.to_vec())));
         }
+        if let Some(o) = &self.opcode_list2 {
+            raw.push((51009, Val::Undefined(o.clone())));
+        }
         if let Some(l) = &self.linearization {
             raw.push((50712, Val::Short(l.clone())));
         }
@@ -601,6 +607,29 @@ impl DngSpec {
         t.chain = vec![i0];
         t.build()
     }
+}
+
+/// An OpcodeList2 with one GainMap over active-area rectangle `area` (top,
+/// left, bottom, right), every `pitch` rows and columns, from a 2×2 grid of
+/// gains spanning the image (relative coordinates 0..1).
+pub fn gain_map_opcode_list(area: [u32; 4], pitch: u32, gains: [[f32; 2]; 2]) -> Vec<u8> {
+    let mut p = Vec::new();
+    for v in [area[0], area[1], area[2], area[3], 0, 1, pitch, pitch, 2, 2] {
+        p.extend_from_slice(&v.to_be_bytes());
+    }
+    for v in [1.0f64, 1.0, 0.0, 0.0] {
+        p.extend_from_slice(&v.to_be_bytes());
+    }
+    p.extend_from_slice(&1u32.to_be_bytes());
+    for g in gains.iter().flatten() {
+        p.extend_from_slice(&g.to_bits().to_be_bytes());
+    }
+    let mut b = 1u32.to_be_bytes().to_vec();
+    for v in [9u32, 0x0103_0000, 1, p.len() as u32] {
+        b.extend_from_slice(&v.to_be_bytes());
+    }
+    b.extend_from_slice(&p);
+    b
 }
 
 // ---------------------------------------------------------------- CR2

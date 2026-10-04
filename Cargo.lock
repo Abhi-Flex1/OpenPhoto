@@ -3394,6 +3394,7 @@ dependencies = [
  "photocraft-ops",
  "photocraft-paint",
  "photocraft-raster",
+ "photocraft-raw",
  "photocraft-text",
  "photocraft-vector",
  "rayon",

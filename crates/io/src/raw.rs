@@ -35,7 +35,11 @@ pub fn import_raw_with(name: &str, bytes: &[u8], opts: &DevelopOptions) -> Resul
             let img = Image::from_u16(dev.width, dev.height, ChannelLayout::Rgb, &dev.rgb)?;
             let mut r = image_to_document(name, &img)?;
             r.document.icc_profile = Some(Arc::new(photocraft_cms::Builtin::ProPhotoCompat.profile().to_bytes().to_vec()));
-            let camera = [dev.info.make.as_deref(), dev.info.model.as_deref()].into_iter().flatten().collect::<Vec<_>>().join(" ");
+            // "Canon" + "Canon EOS 80D" reads as "Canon EOS 80D".
+            let camera = match (dev.info.make.as_deref(), dev.info.model.as_deref()) {
+                (Some(make), Some(model)) if model.to_ascii_lowercase().starts_with(&make.to_ascii_lowercase()) => model.to_string(),
+                (make, model) => [make, model].into_iter().flatten().collect::<Vec<_>>().join(" "),
+            };
             r.warnings.push(format!(
                 "{format}{} developed with default settings ({} demosaic, as-shot white balance) into 16-bit {}",
                 if camera.is_empty() { String::new() } else { format!(" from {camera}") },

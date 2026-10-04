@@ -37,8 +37,8 @@ camera colour tables were copied.
 
 | Format | Status |
 |---|---|
-| DNG | Uncompressed (8–16 bit, packed or not) and lossless JPEG; strips and tiles; CFA (Bayer) and LinearRaw; LinearizationTable, BlackLevel (+ repeat, DeltaH/V), WhiteLevel, ActiveArea, DefaultCrop, ColorMatrix1/2, CameraCalibration, ForwardMatrix, AnalogBalance, AsShotNeutral / AsShotWhiteXY, BaselineExposure, Orientation |
-| DNG (lossy JPEG, JPEG XL, floating point, opcode lists) | Unsupported / not applied (reported) |
+| DNG | Uncompressed (8–16 bit, packed or not) and lossless JPEG; strips and tiles; CFA (Bayer) and LinearRaw; LinearizationTable, BlackLevel (+ repeat, DeltaH/V), WhiteLevel, ActiveArea, DefaultCrop, ColorMatrix1/2, CameraCalibration, ForwardMatrix, AnalogBalance, AsShotNeutral / AsShotWhiteXY, BaselineExposure, Orientation, OpcodeList2 GainMap (lens shading) |
+| DNG (lossy JPEG, JPEG XL, floating point; opcodes other than GainMap) | Unsupported / not applied (reported) |
 | CR2 | Lossless JPEG with slices, borders and as-shot white balance from the maker note, black measured on the masked border |
 | CR2 sRAW / mRAW | Unsupported |
 | NEF / NRW, ARW, PEF and other TIFF/EP raws | Uncompressed and lossless-JPEG (incl. Sony lossless ARW) CFA data |
