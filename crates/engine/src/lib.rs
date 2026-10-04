@@ -23,6 +23,7 @@ pub mod display_color;
 pub mod distort_cmds;
 pub mod edit_cmds;
 pub mod edit_menu_cmds;
+pub mod eraser_cmds;
 pub mod extra_cmds;
 pub mod file_cmds;
 pub mod filters;
