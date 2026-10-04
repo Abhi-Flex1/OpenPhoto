@@ -240,7 +240,7 @@ fn wall_clock_budget_stops_runaway_plugins() {
 fn memory_cap_limits_bands() {
     // Memory cap: a band that can't fit is refused up front.
     let s = surface(PixelFormat::RGBA8, 64, 8);
-    let p = Plugin::load(INVERT, Limits { max_memory_bytes: 2 << 20, band_bytes: 64 << 20, ..Limits::default() }).unwrap();
+    let p = Plugin::load(INVERT, Limits { max_memory_bytes: 4 << 20, band_bytes: 64 << 20, ..Limits::default() }).unwrap();
     assert!(p.apply(&s, Rect::new(0, 0, 64, 8), None, &json!({})).is_ok(), "small bands still fit");
     let p = Plugin::load(INVERT, Limits { max_memory_bytes: 1024, ..Limits::default() });
     assert!(p.is_err() || p.unwrap().apply(&s, Rect::new(0, 0, 64, 8), None, &json!({})).is_err());

@@ -104,9 +104,11 @@ impl Plugin {
         // Bands are tile-aligned blocks, one tile row tall and as many tiles wide as fit in
         // `band_bytes`, so each worker can encode its own tiles and the merge is a tile copy.
         let tile_bytes = (TILE_SIZE as usize).pow(2) * n * 4;
-        let across = (self.limits().band_bytes / tile_bytes).max(1) as i32;
-        let in_bytes = ((across * TILE_SIZE + 2 * ov) as usize).pow(2) * n * 4 / across as usize;
-        if in_bytes.saturating_mul(2) > self.limits().max_memory_bytes {
+        // Half the plug-in's memory cap is for the band (the module needs room of its own).
+        let room = self.limits().max_memory_bytes / 2;
+        let across = (self.limits().band_bytes.min(room) / tile_bytes).clamp(1, 1024) as i32;
+        let in_bytes = ((across * TILE_SIZE + 2 * ov) as usize) * ((TILE_SIZE + 2 * ov) as usize) * n * 4;
+        if in_bytes > room {
             return Err(Error::Limit("memory budget (a band does not fit in the plug-in's memory)".into()));
         }
         let mut bands = Vec::new();
