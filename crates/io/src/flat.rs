@@ -13,7 +13,14 @@ use crate::{ExportOptions, ExportResult, ImportResult, IoError};
 /// Decodes a flat image into a single-layer document.
 pub fn import_flat(name: &str, bytes: &[u8]) -> Result<ImportResult, IoError> {
     let img = codecs::decode(bytes)?;
-    image_to_document(name, &img)
+    let mut r = image_to_document(name, &img)?;
+    // OpenEXR and Radiance HDR hold linear, scene-referred values (Rec. 709 primaries unless
+    // stated otherwise): tag them linear sRGB so they display and convert correctly.
+    let d = &mut r.document;
+    if d.icc_profile.is_none() && d.mode == ColorMode::Rgb && matches!(codecs::detect(bytes), Some(Format::OpenExr | Format::Hdr)) {
+        d.icc_profile = Some(photocraft_cms::Builtin::LinearSrgb.profile().to_bytes());
+    }
+    Ok(r)
 }
 
 /// A decoded flat image as a single-layer document.
@@ -46,11 +53,6 @@ pub(crate) fn image_to_document(name: &str, img: &Image) -> Result<ImportResult,
     }
     doc.layers.push(bg);
     doc.icc_profile = img.icc.clone().map(Arc::new);
-    // OpenEXR and Radiance HDR hold linear, scene-referred values (Rec. 709 primaries unless
-    // stated otherwise): tag them linear sRGB so they display and convert correctly.
-    if doc.icc_profile.is_none() && mode == ColorMode::Rgb && matches!(codecs::detect(bytes), Some(Format::OpenExr | Format::Hdr)) {
-        doc.icc_profile = Some(photocraft_cms::Builtin::LinearSrgb.profile().to_bytes());
-    }
     doc.metadata.exif = img.meta.exif.clone().map(Arc::new);
     doc.metadata.xmp = img.meta.xmp.clone();
     if let Some((x, _)) = img.meta.dpi {
