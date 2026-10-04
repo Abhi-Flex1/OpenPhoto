@@ -74,9 +74,10 @@ fn live_stroke(app: &PhotocraftApp, idx: usize) -> Option<&LiveStroke> {
     app.live_stroke.as_ref().filter(|l| app.drag.is_some() && l.doc == st.doc.id && l.revision == st.revision)
 }
 
-/// `paint.stroke` params for a Brush/Eraser drag (shared by the live preview and the commit).
+/// `paint.stroke` params for a Brush/Eraser drag (shared by the live preview and the commit). The
+/// stroke smoothing is the session brush's (the options bar's Smoothing %).
 fn stroke_params(app: &PhotocraftApp, erase: bool, points: &[Vec<f64>]) -> serde_json::Value {
-    json!({ "points": points, "erase": erase, "smoothing": 0.3, "target": paint_target(app) })
+    json!({ "points": points, "erase": erase, "zoom": app.current_zoom(), "target": paint_target(app) })
 }
 
 fn begin_live_stroke(app: &PhotocraftApp) -> Option<LiveStroke> {
@@ -1887,38 +1888,92 @@ mod tests {
         assert!((0..90).all(|y| (0..700).all(|x| a.rgba(x, y) == b.rgba(x, y))), "commit matches the preview");
     }
 
-    #[test]
-    fn release_hands_the_live_stroke_to_the_document_without_a_blank_frame() {
-        // #73: on release the canvas must go straight from the live stroke to the committed
-        // document: no frame showing neither (the pre-stroke image) or a stand-in segment.
+    /// Brush drag along y = 40 with one canvas frame per pointer move; returns the document the
+    /// canvas showed at the last move, the committed one, and whether the release refreshed only
+    /// the stroke's rectangle.
+    fn drag_frames(smoothing: f32, xs: &[f64]) -> (std::sync::Arc<Document>, std::sync::Arc<Document>, bool, PhotocraftApp) {
         let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
         let ctx = egui::Context::default();
         app.run("file.new", json!({"width": 200, "height": 80, "background": "transparent"})).unwrap();
-        app.run("tools.setBrush", json!({"brush": {"size": 16, "hardness": 1.0}})).unwrap();
+        app.run("tools.setBrush", json!({"brush": {"size": 16, "hardness": 0.5}})).unwrap();
+        // What the options bar's Smoothing field writes.
+        app.session.tools.brush.smoothing.amount = smoothing;
         app.ui.tool = Tool::Brush;
         ensure_texture(&mut app, &ctx, 0);
         let m = egui::Modifiers::NONE;
-        let painted = |d: &Document| (10..150).filter(|&x| d.layers[0].surface().unwrap().rgba(x, 40)[3] > 0.5).count();
         tool_event(&mut app, ToolEvent::Down { x: 10.0, y: 40.0, pressure: 1.0 }, m);
-        for x in [50.0, 100.0, 150.0] {
-            tool_event(&mut app, ToolEvent::Move { x, y: 40.0, pressure: 1.0 }, m);
-            // One frame per pointer move: the canvas shows the stroke so far.
+        for &x in xs {
+            tool_event(&mut app, ToolEvent::Move { x, y: 40.0 + (x / 7.0).sin() * 8.0, pressure: 1.0 }, m);
             ensure_texture(&mut app, &ctx, 0);
         }
         let live = display_doc(&mut app, 0).0;
-        let shown_live = painted(&live);
-        assert!(shown_live > 60, "the stroke shows while drawing ({shown_live} px)");
-        tool_event(&mut app, ToolEvent::Up { x: 150.0, y: 40.0 }, m);
-        // The very next frame shows the committed document, which has everything the preview had.
+        let last = *xs.last().unwrap();
+        tool_event(&mut app, ToolEvent::Up { x: last, y: 40.0 + (last / 7.0).sin() * 8.0 }, m);
         let (next, key) = display_doc(&mut app, 0);
-        assert_eq!(key, 0, "the committed document, not a preview");
-        assert!(painted(&next) >= shown_live, "no frame without the stroke");
-        let (a, b) = (next.layers[0].surface().unwrap(), live.layers[0].surface().unwrap());
-        // Up to the smoothed tail (which catches up to the end point on release, Photoshop-style).
-        let end = (0..200).rev().find(|&x| b.rgba(x, 40)[3] > 0.0).unwrap_or(0) - 16;
-        assert!((0..80).all(|y| (0..end).all(|x| b.rgba(x, y)[3] == 0.0 || a.rgba(x, y) == b.rgba(x, y))), "the preview's pixels are kept as they were");
+        assert_eq!(key, 0, "the frame after release shows the committed document");
         ensure_texture(&mut app, &ctx, 0);
-        assert_eq!(app.perf.last_refresh, "rect", "the handover only refreshes the stroke, it doesn't redraw the canvas");
+        let partial = app.perf.last_refresh == "rect";
+        (live, next, partial, app)
+    }
+
+    fn same_pixels(a: &Document, b: &Document) -> bool {
+        let (a, b) = (a.layers[0].surface().unwrap(), b.layers[0].surface().unwrap());
+        (0..80).all(|y| (0..200).all(|x| a.rgba(x, y) == b.rgba(x, y)))
+    }
+
+    #[test]
+    fn release_shows_nothing_new_without_smoothing() {
+        // #73: at 0 % the stroke follows the pointer; the last frame drawn while dragging is
+        // exactly the committed stroke, so release changes nothing on screen.
+        let (live, done, partial, app) = drag_frames(0.0, &[40.0, 70.0, 100.0, 130.0, 160.0]);
+        assert!(same_pixels(&live, &done), "preview at the last move = committed stroke");
+        assert!(partial, "the handover refreshes only the stroke");
+        let p = app.session.journal.iter().rev().find(|(id, _)| id == "paint.stroke").map(|(_, p)| p.clone()).unwrap();
+        assert!(p.get("smoothing").is_none(), "the commit uses the session brush's smoothing, not a hard-coded one");
+    }
+
+    #[test]
+    fn smoothed_stroke_shows_its_catch_up_tail_while_drawing() {
+        // #73: with smoothing the brush lags behind the pointer and catches up at the end; the
+        // preview draws that tail live, so no frame after release is missing the end.
+        let xs = [30.0, 50.0, 70.0, 90.0, 110.0, 130.0, 150.0, 170.0];
+        let (live, done, partial, _) = drag_frames(0.5, &xs);
+        assert!(same_pixels(&live, &done), "preview at the last move = committed stroke, tail included");
+        assert!(partial);
+        let end = |d: &Document| (0..200).rev().find(|&x| (0..80).any(|y| d.layers[0].surface().unwrap().rgba(x, y)[3] > 0.0)).unwrap();
+        assert!(end(&live) >= 170, "the end reaches the pointer while drawing ({})", end(&live));
+        // The options-bar value reaches the stroke: 50 % smooths the wiggle, 0 % doesn't.
+        let (_, rough, _, _) = drag_frames(0.0, &xs);
+        assert!(!same_pixels(&rough, &done), "smoothing changes the stroke");
+        // And the commit is what `paint.stroke` gives with that smoothing.
+        let mut s = photocraft_engine::Session::new();
+        s.execute("file.new", json!({"width": 200, "height": 80, "background": "transparent"})).unwrap();
+        s.execute("tools.setBrush", json!({"brush": {"size": 16, "hardness": 0.5, "smoothing": {"amount": 0.5}}})).unwrap();
+        let mut pts = vec![json!([10.0, 40.0, 1.0])];
+        pts.extend(xs.iter().map(|&x| json!([x, 40.0 + (x / 7.0).sin() * 8.0, 1.0])));
+        // (Round tips without dynamics draw the same for any seed.)
+        s.execute("paint.stroke", json!({"points": pts, "seed": 0})).unwrap();
+        assert!(same_pixels(&s.active().unwrap().doc, &done));
+    }
+
+    #[test]
+    fn smoothing_preview_redraws_the_tail_each_step() {
+        // The tail drawn at one step must not linger once the brush moves on: a sharp turn would
+        // leave a stale tail behind if it weren't restored.
+        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+        app.run("file.new", json!({"width": 200, "height": 120, "background": "transparent"})).unwrap();
+        app.run("tools.setBrush", json!({"brush": {"size": 10, "hardness": 1.0, "smoothing": {"amount": 0.6}}})).unwrap();
+        app.ui.tool = Tool::Brush;
+        let m = egui::Modifiers::NONE;
+        tool_event(&mut app, ToolEvent::Down { x: 10.0, y: 20.0, pressure: 1.0 }, m);
+        for (x, y) in [(60.0, 20.0), (110.0, 20.0), (110.0, 70.0), (110.0, 110.0), (60.0, 110.0)] {
+            tool_event(&mut app, ToolEvent::Move { x, y, pressure: 1.0 }, m);
+        }
+        let live = display_doc(&mut app, 0).0;
+        tool_event(&mut app, ToolEvent::Up { x: 60.0, y: 110.0 }, m);
+        let done = app.session.documents()[0].doc.clone();
+        let (a, b) = (live.layers[0].surface().unwrap(), done.layers[0].surface().unwrap());
+        assert!((0..120).all(|y| (0..200).all(|x| a.rgba(x, y) == b.rgba(x, y))), "no stale tails in the preview");
     }
 
     #[test]

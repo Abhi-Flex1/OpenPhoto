@@ -398,8 +398,7 @@ pub fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
                         }
                         let _ = icons::button(ui, "sparkles", 24.0, false, "Enable airbrush-style build-up effects");
                         opt_label(ui, "Smoothing");
-                        let mut sm = 10.0f32;
-                        widgets::value_field(ui, &mut sm, 0.0..=100.0, "%", 58.0);
+                        smoothing_field(ui, b, 58.0);
                         let _ = icons::button(ui, "settings", 24.0, false, "Set additional smoothing options");
                         widgets::vline(ui, 22.0);
                         if icons::button(ui, "circle-dot", 24.0, b.pressure_size, "Always use pressure for size").clicked() {
@@ -426,6 +425,8 @@ pub fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
                         if widgets::value_field(ui, &mut f, 1.0..=100.0, "%", 66.0).changed() {
                             b.flow = f / 100.0;
                         }
+                        opt_label(ui, "Smoothing");
+                        smoothing_field(ui, b, 66.0);
                         widgets::vline(ui, 22.0);
                         widgets::toggle(ui, &mut b.pressure_size, "Pressure for Size");
                         widgets::toggle(ui, &mut b.pressure_opacity, "Pressure for Opacity");
@@ -1950,6 +1951,14 @@ fn brush_tip(p: &egui::Painter, c: egui::Pos2, rad: f32, hardness: f32, color: C
         let rr = inner + (rad - inner) * f;
         let a = if hardness >= 0.99 { 1.0 } else { (1.0 - f).powf(1.5) };
         p.circle_filled(c, rr, color.gamma_multiply(a));
+    }
+}
+
+/// Options-bar Smoothing % (the brush's stroke smoothing; the live stroke and the commit use it).
+fn smoothing_field(ui: &mut egui::Ui, b: &mut photocraft_engine::BrushSettings, width: f32) {
+    let mut sm = (b.smoothing.amount * 100.0).round();
+    if widgets::value_field(ui, &mut sm, 0.0..=100.0, "%", width).changed() {
+        b.smoothing.amount = (sm / 100.0).clamp(0.0, 1.0);
     }
 }
 

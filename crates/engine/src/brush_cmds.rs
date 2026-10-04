@@ -234,6 +234,8 @@ pub struct LiveStroke {
     lock: bool,
     layer: Option<photocraft_doc::LayerId>,
     params: Value,
+    /// Where the doc shows the stroke's end as finishing it would draw it (see `push`).
+    tail: Rect,
 }
 
 impl LiveStroke {
@@ -250,21 +252,37 @@ impl LiveStroke {
         erase_locked(&mut brush, lock, s.tools.background);
         let renderer = StrokeRenderer::new(&brush, Some(surf.format()), zoom);
         let pre = surf.clone();
-        let mut live = Self { doc: std::sync::Arc::new(doc), seed, renderer, pre, sel, lock, layer, params: p.clone() };
+        let mut live = Self { doc: std::sync::Arc::new(doc), seed, renderer, pre, sel, lock, layer, params: p.clone(), tail: Rect::EMPTY };
         live.push(&pts)?;
         Ok(live)
     }
 
     /// Everything the stroke has touched so far.
     pub fn bounds(&self) -> Rect {
-        self.renderer.bounds()
+        self.renderer.bounds().union(&self.tail)
     }
 
-    /// Render more points; returns the rectangle that changed.
+    /// Render more points; returns the rectangle that changed. The doc shows the stroke as
+    /// committing it now would: with smoothing, the brush lags behind the pointer and catches up
+    /// when the stroke ends, so that catch-up tail is drawn too (and redrawn on every step), and
+    /// nothing new appears on release.
     pub fn push(&mut self, pts: &[StrokePoint]) -> Result<Rect> {
         self.renderer.push(pts);
         let (surf, _) = crate::channel_cmds::target_surface(std::sync::Arc::make_mut(&mut self.doc), self.layer, &self.params)?;
-        Ok(self.renderer.composite(&self.pre, surf, self.sel.as_ref(), self.lock, false))
+        let mut dmg = Rect::EMPTY;
+        let old = std::mem::replace(&mut self.tail, Rect::EMPTY);
+        if !old.is_empty() {
+            // Back to the stroke without the previous tail.
+            surf.write_region(old, &self.pre.read_region(old));
+            self.renderer.mark_dirty(old);
+            dmg = old;
+        }
+        dmg = dmg.union(&self.renderer.composite(&self.pre, surf, self.sel.as_ref(), self.lock, false));
+        if let Some(mut tail) = self.renderer.tail_preview() {
+            self.tail = tail.composite(&self.pre, surf, self.sel.as_ref(), self.lock, false);
+            dmg = dmg.union(&self.tail);
+        }
+        Ok(dmg)
     }
 }
 
