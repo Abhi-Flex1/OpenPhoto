@@ -372,6 +372,7 @@ pub fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
                 {
                     return;
                 }
+                crate::paint_mouse::sync_tool_smoothing(app);
                 let b = &mut app.session.tools.brush;
                 match app.ui.tool {
                     Tool::Brush | Tool::Eraser if t.pro => {

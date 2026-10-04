@@ -10,6 +10,35 @@ use photocraft_engine::prefs::RightClickPaint;
 use crate::PhotocraftApp;
 use crate::state::Tool;
 
+/// Smoothing is a tool option, kept per tool like Photoshop's options bar: switching between the
+/// Brush and the Eraser saves the session brush's smoothing for the old tool and loads the new
+/// tool's (Photoshop's 10 % the first time). Other tools leave it alone.
+pub fn sync_tool_smoothing(app: &mut PhotocraftApp) {
+    let tool = app.ui.tool;
+    if !matches!(tool, Tool::Brush | Tool::Eraser) || app.ui.smoothing_tool == Some(tool) {
+        return;
+    }
+    let current = app.session.tools.brush.smoothing.clone();
+    let next = match app.ui.smoothing_tool {
+        // The first smoothing tool takes what the brush has.
+        None => current,
+        Some(prev) => {
+            let saved = &mut app.ui.tool_smoothing;
+            match saved.iter_mut().find(|(t, _)| *t == prev) {
+                Some(e) => e.1 = current,
+                None => saved.push((prev, current)),
+            }
+            saved
+                .iter()
+                .find(|(t, _)| *t == tool)
+                .map(|(_, s)| s.clone())
+                .unwrap_or_else(|| photocraft_engine::paint::brush::Smoothing { amount: 0.1, ..Default::default() })
+        }
+    };
+    app.session.tools.brush.smoothing = next;
+    app.ui.smoothing_tool = Some(tool);
+}
+
 /// Which tool events this frame's canvas response produces.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Buttons {
@@ -248,6 +277,42 @@ mod tests {
         app.run("prefs.set", json!({"path": "tools.rightClickWithPaintingTools", "value": "brushPicker"})).unwrap();
         assert!(!pointer_secondary(&mut app, true));
         assert!(app.ui.brush_picker.is_some() && !app.secondary_erase);
+    }
+
+    #[test]
+    fn smoothing_is_a_per_tool_option_that_presets_keep() {
+        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        app.run("file.new", json!({"width": 64, "height": 64})).unwrap();
+        let amount = |app: &PhotocraftApp| app.session.tools.brush.smoothing.amount;
+        app.ui.tool = Tool::Brush;
+        sync_tool_smoothing(&mut app);
+        assert_eq!(amount(&app), 0.1, "Photoshop's default");
+        // Picking a preset (whose own smoothing is 0) keeps the tool's smoothing.
+        let preset = app.session.tools.presets.iter().find(|p| p.brush.smoothing.amount == 0.0).map(|p| p.name.clone()).unwrap();
+        app.run("tools.setBrush", json!({"preset": preset})).unwrap();
+        assert_eq!(amount(&app), 0.1);
+        // A user value (the options-bar field) survives a preset too, mode included.
+        app.session.tools.brush.smoothing.amount = 0.42;
+        app.session.tools.brush.smoothing.pulled_string = true;
+        app.run("tools.setBrush", json!({"preset": preset})).unwrap();
+        assert_eq!((amount(&app), app.session.tools.brush.smoothing.pulled_string), (0.42, true));
+        // The Eraser has its own (10 % at first); switching back restores the Brush's.
+        app.ui.tool = Tool::Eraser;
+        sync_tool_smoothing(&mut app);
+        assert_eq!(amount(&app), 0.1);
+        app.session.tools.brush.smoothing.amount = 0.0;
+        app.ui.tool = Tool::Brush;
+        sync_tool_smoothing(&mut app);
+        assert_eq!((amount(&app), app.session.tools.brush.smoothing.pulled_string), (0.42, true));
+        // Other tools leave it alone; the Eraser kept its 0 %.
+        app.ui.tool = Tool::Move;
+        sync_tool_smoothing(&mut app);
+        assert_eq!(amount(&app), 0.42);
+        app.ui.tool = Tool::Eraser;
+        // A stroke picks up the tool's smoothing even without a frame in between.
+        tool_event(&mut app, ToolEvent::Down { x: 5.0, y: 5.0, pressure: 1.0 }, Modifiers::NONE);
+        assert_eq!(amount(&app), 0.0);
+        tool_event(&mut app, ToolEvent::Up { x: 30.0, y: 5.0 }, Modifiers::NONE);
     }
 
     #[test]

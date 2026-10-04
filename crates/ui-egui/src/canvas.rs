@@ -1113,6 +1113,7 @@ pub fn canvas_view(app: &mut PhotocraftApp, ui: &mut egui::Ui, idx: usize, rect:
         let mods = ui.input(|i| i.modifiers);
         // Tools follow the left button; the right one opens the Brush Preset picker or erases
         // (Preferences › Tools, `paint_mouse`).
+        crate::paint_mouse::sync_tool_smoothing(app);
         let buttons = crate::paint_mouse::canvas_buttons(app, &response, tool);
         if buttons.started
             && let Some(p) = response.interact_pointer_pos()
@@ -1579,6 +1580,7 @@ pub fn tool_event(app: &mut PhotocraftApp, ev: ToolEvent, mods: egui::Modifiers)
                 Tool::Type if crate::type_tool::pointer_down(app, x, y, mods.shift) => return,
                 _ => {}
             }
+            crate::paint_mouse::sync_tool_smoothing(app);
             let erase = tool == Tool::Eraser || std::mem::take(&mut app.secondary_erase);
             app.drag = Some(Drag { tool, start: [x, y], points: vec![[x, y, pressure as f64]], modifiers: mods, erase });
             app.stylus.begin_stroke();

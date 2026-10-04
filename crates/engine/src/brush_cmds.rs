@@ -114,7 +114,7 @@ fn find_preset<'a>(s: &'a Session, name: &str, cmd: &str) -> Result<&'a BrushPre
 pub fn resolve_brush(s: &Session, p: &Value, cmd: &str) -> Result<BrushSettings> {
     let mut b = s.tools.brush.clone();
     if let Some(name) = p.get("preset").and_then(Value::as_str) {
-        b = find_preset(s, name, cmd)?.brush.clone().with_protected_texture(&s.tools.brush);
+        b = find_preset(s, name, cmd)?.brush.clone().picked_over(&s.tools.brush);
     }
     if let Some(patch) = p.get("brush").filter(|v| v.is_object()) {
         b = merge_brush(&b, patch, cmd)?;
@@ -495,7 +495,7 @@ fn set_brush(s: &mut Session, p: &Value) -> Result<Value> {
     let cmd = "tools.setBrush";
     let mut b = s.tools.brush.clone();
     if let Some(name) = p.get("preset").and_then(Value::as_str) {
-        b = find_preset(s, name, cmd)?.brush.clone().with_protected_texture(&s.tools.brush);
+        b = find_preset(s, name, cmd)?.brush.clone().picked_over(&s.tools.brush);
     }
     if flag(p, "reset", false) {
         b = BrushSettings::default();

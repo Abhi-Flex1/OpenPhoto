@@ -531,6 +531,12 @@ pub struct UiState {
     /// Brush Preset picker opened by a right-click on the canvas: its screen position (points).
     #[serde(default)]
     pub brush_picker: Option<[f32; 2]>,
+    /// Smoothing is a per-tool option (Brush and Eraser each keep theirs): the tool whose
+    /// smoothing the session brush holds, and the other tools' saved values.
+    #[serde(default)]
+    pub smoothing_tool: Option<Tool>,
+    #[serde(default)]
+    pub tool_smoothing: Vec<(Tool, photocraft_engine::paint::brush::Smoothing)>,
     /// Pen path under construction.
     #[serde(default)]
     pub pen: Option<crate::vector_ui::PenPath>,
@@ -616,6 +622,8 @@ impl Default for UiState {
             transform: None,
             mask_target: false,
             brush_picker: None,
+            smoothing_tool: None,
+            tool_smoothing: Vec::new(),
             clone_source: None,
             clone_offset: None,
             extras: Extras::default(),
