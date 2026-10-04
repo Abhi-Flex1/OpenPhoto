@@ -65,8 +65,8 @@ impl GainMap {
             && ay < self.bottom
             && ax >= self.left
             && ax < self.right
-            && (ay - self.top) % self.row_pitch == 0
-            && (ax - self.left) % self.col_pitch == 0
+            && (ay - self.top).is_multiple_of(self.row_pitch)
+            && (ax - self.left).is_multiple_of(self.col_pitch)
     }
 }
 

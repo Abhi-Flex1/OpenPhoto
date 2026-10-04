@@ -25,7 +25,7 @@ fn main() {
                 0 => b.truncate(rng() as usize % b.len().max(1)),
                 1 => {
                     // Header / IFD region.
-                    let span = b.len().min(1 << 16).max(1);
+                    let span = b.len().clamp(1, 1 << 16);
                     for _ in 0..1 + rng() % 8 {
                         let at = rng() as usize % span;
                         b[at] = rng() as u8;

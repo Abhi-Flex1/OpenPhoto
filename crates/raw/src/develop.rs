@@ -322,7 +322,7 @@ fn gain_row(s: &Sensor, y: usize, x0: usize, w: usize, k: usize) -> Option<Vec<f
     let rv = (ay as f64 + 0.5) / a.height as f64;
     let mut out: Option<Vec<f32>> = None;
     for m in &s.gain_maps {
-        if k < m.plane || k >= m.plane.saturating_add(m.planes) || ay < m.top || ay >= m.bottom || (ay - m.top) % m.row_pitch != 0 {
+        if k < m.plane || k >= m.plane.saturating_add(m.planes) || ay < m.top || ay >= m.bottom || !(ay - m.top).is_multiple_of(m.row_pitch) {
             continue;
         }
         let row = m.row(rv, k - m.plane);
