@@ -1017,9 +1017,9 @@ mod tests {
         for (stops, want) in
             [(vec![], vec![(0.0, [0.0; 3]), (1.0, [1.0; 3])]), (vec![(0.3, [0.2, 0.4, 0.6])], vec![(0.0, [0.2, 0.4, 0.6]), (1.0, [0.2, 0.4, 0.6])])]
         {
-            let b = write(&Adjustment::GradientMap { stops, reverse: true });
+            let b = write(&Adjustment::GradientMap { stops, reverse: true, dither: false });
             let back = parse(&b[0].0, &b[0].1, None, Channels::Rgb);
-            let Adjustment::GradientMap { stops, reverse: true } = back else { panic!("{back:?}") };
+            let Adjustment::GradientMap { stops, reverse: true, .. } = back else { panic!("{back:?}") };
             assert_eq!(stops.len(), want.len());
             for (s, w) in stops.iter().zip(&want) {
                 assert!((s.0 - w.0).abs() < 1e-6 && (0..3).all(|k| (s.1[k] - w.1[k]).abs() < 1e-4), "{s:?} vs {w:?}");
