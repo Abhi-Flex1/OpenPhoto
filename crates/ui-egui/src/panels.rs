@@ -1302,6 +1302,8 @@ fn layer_row(
     let row_h = if t.pro { 32.0 } else { 46.0 };
     let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), row_h), Sense::click_and_drag());
     layer_drag_and_drop(ctx, ui, l, rect, &resp, actions);
+    // Rows are painted: name them for screen readers and UI tests.
+    resp.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, true, selected, &l.name));
     let painter = ui.painter_at(rect.expand(1.0));
     if t.pro {
         if selected {

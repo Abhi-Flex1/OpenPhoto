@@ -66,6 +66,7 @@ pub mod proxy;
 pub mod puppet_ui;
 pub mod retouch_ui;
 pub mod rulers;
+pub mod shortcut_dispatch;
 pub mod shortcuts;
 mod sizing;
 pub mod slice_ui;
