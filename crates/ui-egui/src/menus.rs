@@ -314,6 +314,7 @@ pub(crate) fn invoke_unguarded(app: &mut PhotocraftApp, ctx: &egui::Context, id:
             // Photoshop: paste in place when the copied area is visible, else centred in the view;
             // images from other apps are always centred.
             app.import_os_clipboard();
+            app.clip_read_for_paste = true;
             let external = app.clip_external;
             let visible = !external
                 && app.session.active_index().zip(app.session.clipboard.as_ref()).is_some_and(|(i, clip)| {
@@ -442,6 +443,11 @@ pub fn is_enabled(app: &PhotocraftApp, id: &str) -> bool {
         // "Custom…" is the full Proof Setup dialog.
         "view.proofSetup.custom" => app.session.active().is_some(),
         "view.rulers" | "view.show.grid" | "view.show.guides" | "view.snap" | "view.lockGuides" => true,
+        // An image copied in another app can only be seen by reading the OS clipboard, which happens
+        // on an explicit paste: with a clipboard service, Paste stays enabled whenever a document is open.
+        "edit.paste" | "edit.pasteSpecial.pasteInPlace" => {
+            app.session.is_enabled(id) || (app.services.clipboard_get_image.is_some() && app.session.active().is_some())
+        }
         "select.selectAndMask" => app.session.is_enabled("select.refineEdge"),
         "select.transformSelection" => app.ui.transform.is_none() && app.session.is_enabled("select.transformSelection"),
         i if (i.starts_with("view.zoom") || i == "view.fitOnScreen" || i == "view.actualPixels") || i == "window.newWindowForDocument" => {
