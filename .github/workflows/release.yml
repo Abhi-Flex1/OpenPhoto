@@ -207,7 +207,7 @@ jobs:
     # Repackages the Linux job's tarball (the same binaries as the AppImage/deb/rpm); no Rust
     # build here. 24.04 for a newer flatpak-builder (1.4) than 22.04 ships.
     runs-on: ${{ matrix.runner }}
-    environment: release
+    # No `environment: release`: this job signs nothing, so it gets no release secrets.
     strategy:
       fail-fast: false
       matrix:
