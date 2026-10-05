@@ -1003,7 +1003,9 @@ mod tests {
     /// A context that reports a real GPU's texture limit (the default reports 2048).
     fn gpu_ctx() -> egui::Context {
         let ctx = egui::Context::default();
-        let _ = ctx.run_ui(egui::RawInput { max_texture_side: Some(16384), ..Default::default() }, |_| {});
+        // Clear the font atlas delta: epaint panics on dropping unapplied deltas in debug builds.
+        let mut out = ctx.run_ui(egui::RawInput { max_texture_side: Some(16384), ..Default::default() }, |_| {});
+        out.textures_delta.clear();
         ctx
     }
 
