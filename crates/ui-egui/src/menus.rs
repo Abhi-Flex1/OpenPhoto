@@ -741,10 +741,7 @@ fn render_level(ui: &mut egui::Ui, items: &[&MenuItem], depth: usize, clicked: &
     // Menu popups can be taller than the viewport. Keep each level on-screen and scroll it,
     // matching egui's own bounded-popup pattern used by ComboBox.
     let max_height = (ui.ctx().content_rect().height() - 32.0).max(120.0);
-    egui::ScrollArea::vertical()
-        .id_salt(("menu-level", depth))
-        .max_height(max_height)
-        .show(ui, |ui| render_level_rows(ui, items, depth, clicked));
+    egui::ScrollArea::vertical().id_salt(("menu-level", depth)).max_height(max_height).show(ui, |ui| render_level_rows(ui, items, depth, clicked));
 }
 
 fn render_level_rows(ui: &mut egui::Ui, items: &[&MenuItem], depth: usize, clicked: &mut Option<String>) {
@@ -860,26 +857,27 @@ mod tests {
         let ctx = egui::Context::default();
         let mut title: Option<egui::Response> = None;
         let p = egui::pos2(90.0, 12.0);
-        let raw = egui::RawInput {
-            screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(300.0, 200.0))),
-            ..Default::default()
-        };
-        let _ = ctx.run(raw, |ctx| {
-            egui::CentralPanel::default().show(ctx, |ui| {
-                let (rect, _) = ui.allocate_exact_size(egui::vec2(80.0, 24.0), egui::Sense::hover());
-                let shifted = rect.translate(egui::vec2(p.x - rect.center().x, p.y - rect.center().y));
-                let response = ui.interact(shifted, egui::Id::new("menu-title-test"), egui::Sense::hover());
-                title = Some(response);
-            });
-            egui::Area::new(egui::Id::new("overlapping-popup-test"))
-                .order(egui::Order::Foreground)
-                .fixed_pos(p - egui::vec2(10.0, 10.0))
-                .show(ctx, |ui| {
+        let mut reaches = true;
+        // The popup area becomes hit-testable once egui has laid it out, so draw a few frames.
+        for _ in 0..3 {
+            let raw = egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(300.0, 200.0))), ..Default::default() };
+            let mut out = ctx.run_ui(raw, |ui| {
+                let ctx = &ui.ctx().clone();
+                egui::CentralPanel::default().show(ui, |ui| {
+                    let (rect, _) = ui.allocate_exact_size(egui::vec2(80.0, 24.0), egui::Sense::hover());
+                    let shifted = rect.translate(egui::vec2(p.x - rect.center().x, p.y - rect.center().y));
+                    let response = ui.interact(shifted, egui::Id::new("menu-title-test"), egui::Sense::hover());
+                    title = Some(response);
+                });
+                egui::Area::new(egui::Id::new("overlapping-popup-test")).order(egui::Order::Foreground).fixed_pos(p - egui::vec2(10.0, 10.0)).show(ctx, |ui| {
                     ui.allocate_space(egui::vec2(20.0, 20.0));
                 });
-            let response = title.as_ref().unwrap();
-            assert!(!pointer_reaches_title(ctx, response, p));
-        });
+                let response = title.as_ref().unwrap();
+                reaches = pointer_reaches_title(ctx, response, p);
+            });
+            out.textures_delta.clear();
+        }
+        assert!(!reaches);
     }
 
     #[test]
