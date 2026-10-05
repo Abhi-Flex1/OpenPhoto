@@ -45,6 +45,7 @@ pub mod icons;
 pub mod layer_menu_ui;
 pub mod layer_props_ui;
 pub mod layer_style;
+pub mod layer_tree_ui;
 pub mod links;
 pub mod liquify_ui;
 pub mod menu_catalog;
