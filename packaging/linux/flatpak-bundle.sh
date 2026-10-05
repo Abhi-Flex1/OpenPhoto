@@ -7,7 +7,8 @@
 #
 # TARBALL defaults to $DIST/photocraft-<version>-linux-<arch>.tar.gz from package.sh. The bundle
 # is built for the host architecture (x86_64 or aarch64), which must match the tarball's.
-# Needs flatpak and flatpak-builder; the freedesktop runtime and SDK named in the manifest are
+# Needs flatpak, flatpak-builder and the SVG pixbuf loader (librsvg2-common) for the host's
+# `appstreamcli compose`; the freedesktop runtime and SDK named in the manifest are
 # installed per-user from Flathub. Unless --no-test, the bundle is then installed per-user and
 # `photocraft-cli --version` is run inside the sandbox as a smoke test.
 # Manifest: packaging/linux/flatpak/ai.storyteller.photocraft.bundle.yml.
@@ -23,7 +24,7 @@ TARBALL=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --no-test) TEST=0; shift ;;
-    -h | --help) sed -n '2,13p' "$0"; exit 0 ;;
+    -h | --help) sed -n '2,14p' "$0"; exit 0 ;;
     -*) echo "unknown argument: $1" >&2; exit 2 ;;
     *) TARBALL="$1"; shift ;;
   esac
@@ -39,7 +40,7 @@ BASENAME="photocraft-$VERSION-linux-$ARCH"
 TARBALL="${TARBALL:-$DIST/$BASENAME.tar.gz}"
 [ -f "$TARBALL" ] || { echo "error: $TARBALL not found (run packaging/linux/package.sh --formats tar first)" >&2; exit 1; }
 for tool in flatpak flatpak-builder; do
-  command -v "$tool" >/dev/null || { echo "error: $tool not found (apt install flatpak flatpak-builder)" >&2; exit 1; }
+  command -v "$tool" >/dev/null || { echo "error: $tool not found (apt install flatpak flatpak-builder librsvg2-common)" >&2; exit 1; }
 done
 
 echo "==> PhotoCraft $VERSION Flatpak bundle for $ARCH from $(basename "$TARBALL")"
