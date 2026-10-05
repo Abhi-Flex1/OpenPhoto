@@ -44,9 +44,15 @@ fn group(h: &Harness<'_, PhotocraftApp>, name: &str) -> (LayerId, bool) {
         .unwrap_or_else(|| panic!("no group {name}"))
 }
 
-fn triangle(h: &Harness<'_, PhotocraftApp>, name: &str) -> Option<Pos2> {
+/// The on-screen centre of a group's triangle, scrolled into view in the Layers panel first (the
+/// dock gives Layers a fixed height, so rows can sit below its fold). `None` when the row isn't
+/// listed (inside a closed group).
+fn triangle(h: &mut Harness<'_, PhotocraftApp>, name: &str) -> Option<Pos2> {
     let verb = if group(h, name).1 { "Collapse" } else { "Expand" };
-    h.query_by_label(&format!("{verb} group {name}")).map(|n| n.rect().center())
+    let label = format!("{verb} group {name}");
+    h.query_by_label(&label)?.scroll_to_me();
+    h.run_steps(4);
+    h.query_by_label(&label).map(|n| n.rect().center())
 }
 
 /// A real click (press and release on separate frames), modifiers held throughout.
@@ -83,40 +89,40 @@ fn clicking_a_triangle_toggles_its_group_at_every_ui_scale() {
         let mut h = harness_with(layered(), ppp);
         let active = h.state().session.active().unwrap().active_layer;
         let undo = h.state().session.active().unwrap().history.entries().len();
-        let p = triangle(&h, "inner").expect("inner's triangle shows");
+        let p = triangle(&mut h, "inner").expect("inner's triangle shows");
         click(&mut h, p, Modifiers::NONE);
         assert!(!group(&h, "inner").1, "@{ppp}x: click collapses");
         assert!(group(&h, "outer").1, "@{ppp}x: only that group");
         // The click opened/closed the group; it didn't select it or start a drag-reorder.
         assert_eq!(h.state().session.active().unwrap().active_layer, active, "@{ppp}x: selection unchanged");
         assert_eq!(h.state().session.active().unwrap().history.entries().len(), undo, "@{ppp}x: not an undo step");
-        let p = triangle(&h, "inner").expect("still shows, now pointing right");
+        let p = triangle(&mut h, "inner").expect("still shows, now pointing right");
         click(&mut h, p, Modifiers::NONE);
         assert!(group(&h, "inner").1, "@{ppp}x: click expands again");
         // Nested: closing the outer group hides the inner group's row (and so its triangle).
-        let p = triangle(&h, "outer").unwrap();
+        let p = triangle(&mut h, "outer").unwrap();
         click(&mut h, p, Modifiers::NONE);
         assert!(!group(&h, "outer").1);
-        assert!(triangle(&h, "inner").is_none(), "@{ppp}x: inner row hidden in a closed group");
+        assert!(triangle(&mut h, "inner").is_none(), "@{ppp}x: inner row hidden in a closed group");
     }
 }
 
 #[test]
 fn alt_click_toggles_every_group() {
     let mut h = harness_with(layered(), 1.0);
-    let p = triangle(&h, "outer").unwrap();
+    let p = triangle(&mut h, "outer").unwrap();
     click(&mut h, p, Modifiers::ALT);
     assert!(!group(&h, "outer").1 && !group(&h, "inner").1, "⌥-click closes all groups");
-    let p = triangle(&h, "outer").unwrap();
+    let p = triangle(&mut h, "outer").unwrap();
     click(&mut h, p, Modifiers::ALT);
     assert!(group(&h, "outer").1 && group(&h, "inner").1, "⌥-click opens all groups");
-    assert!(triangle(&h, "inner").is_some());
+    assert!(triangle(&mut h, "inner").is_some());
 }
 
 #[test]
 fn state_survives_psd_export_and_import_and_imported_groups_toggle() {
     let mut h = harness_with(layered(), 2.0);
-    let p = triangle(&h, "inner").unwrap();
+    let p = triangle(&mut h, "inner").unwrap();
     click(&mut h, p, Modifiers::NONE);
     let doc = (*h.state().session.active().unwrap().doc).clone();
     let bytes = photocraft_io::export(&doc, "groups.psd", &Default::default()).unwrap().bytes;
@@ -126,10 +132,10 @@ fn state_survives_psd_export_and_import_and_imported_groups_toggle() {
     let mut h = harness_with(s, 2.0);
     assert!(group(&h, "outer").1 && !group(&h, "inner").1, "open/closed state round-trips through PSD");
     // A PSD-imported group toggles like any other.
-    let p = triangle(&h, "inner").expect("imported group has a triangle");
+    let p = triangle(&mut h, "inner").expect("imported group has a triangle");
     click(&mut h, p, Modifiers::NONE);
     assert!(group(&h, "inner").1);
-    let p = triangle(&h, "outer").unwrap();
+    let p = triangle(&mut h, "outer").unwrap();
     click(&mut h, p, Modifiers::NONE);
     assert!(!group(&h, "outer").1);
 }

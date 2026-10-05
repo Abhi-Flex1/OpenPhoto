@@ -103,6 +103,8 @@ fn put_focus(h: &mut Harness<'_, PhotocraftApp>, place: Place) {
             h.run_steps(2);
         }
         Place::LayersRow => {
+            h.get_by_role_and_label(Role::Button, "paint").scroll_to_me();
+            h.run_steps(4);
             let row = h.get_by_role_and_label(Role::Button, "paint").rect();
             click(h, row.center() + vec2(row.width() / 4.0, 0.0));
             assert_eq!(active_name(h), "paint");
