@@ -48,6 +48,7 @@ pub mod descriptor;
 pub mod error;
 pub mod file;
 pub mod grd;
+pub mod hdr;
 pub mod header;
 pub mod image_data;
 mod io;

@@ -808,9 +808,12 @@ pub fn document_to_psd_with(doc: &Document, opts: &PsdExportOptions) -> (PsdFile
             info.padding = None;
         }
     }
+    // 32-bit files carry Photoshop's HDR toning records as Color Mode Data; Photoshop will not
+    // open a 32-bit file without them (#291).
+    let color_mode_data = photocraft_psd::hdr::color_mode_data_for_depth(header.depth);
     let file = PsdFile {
         header,
-        color_mode_data: Vec::new(),
+        color_mode_data,
         resources,
         layer_info,
         layer_info_placement: placement,
