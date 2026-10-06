@@ -861,6 +861,20 @@ pub fn apply_in(surface: &Surface, params: &FilterParams, area: Rect, bounds: Re
     apply_tiled(surface, params, area.intersect(&extent), bounds, selection, auto_tile(params), Some(extent))
 }
 
+/// [`apply_in`] that can be cancelled (checked before each tile) and reports progress per tile
+/// group. `None` when `ctl` was cancelled; the input surface is never modified.
+pub fn apply_in_with(
+    surface: &Surface,
+    params: &FilterParams,
+    area: Rect,
+    bounds: Rect,
+    selection: Option<&Surface>,
+    extent: Rect,
+    ctl: &photocraft_raster::Interrupt,
+) -> Option<Surface> {
+    apply_tiled_with(surface, params, area.intersect(&extent), bounds, selection, auto_tile(params), Some(extent), ctl)
+}
+
 /// Results do not depend on the tiling, so wide-halo filters use bigger tiles to keep the
 /// re-read margin (and its cost) below ~2× the tile area.
 fn auto_tile(params: &FilterParams) -> i32 {
@@ -880,9 +894,26 @@ pub fn apply_tiled(
     tile: i32,
     extent: Option<Rect>,
 ) -> Surface {
+    // Never cancelled, so always `Some`; the fallback (the input unchanged) is unreachable.
+    apply_tiled_with(surface, params, area, bounds, selection, tile, extent, &photocraft_raster::Interrupt::NONE).unwrap_or_else(|| surface.clone())
+}
+
+/// [`apply_tiled`] with cancellation (checked before each tile, so a cancel takes effect within
+/// one tile's work) and progress (after each group of tiles). `None` when cancelled.
+#[allow(clippy::too_many_arguments)]
+pub fn apply_tiled_with(
+    surface: &Surface,
+    params: &FilterParams,
+    area: Rect,
+    bounds: Rect,
+    selection: Option<&Surface>,
+    tile: i32,
+    extent: Option<Rect>,
+    ctl: &photocraft_raster::Interrupt,
+) -> Option<Surface> {
     let mut out = surface.clone();
     if area.is_empty() {
-        return out;
+        return Some(out);
     }
     let fmt = surface.format();
     let ctx = Ctx { bounds, mode: fmt.mode, alpha: fmt.alpha };
@@ -899,6 +930,10 @@ pub fn apply_tiled(
         y += tile;
     }
     let run = |t: &Rect| -> (Rect, Vec<f32>) {
+        // Cancelled: skip the remaining tiles of the group (the result is discarded).
+        if ctl.cancelled() {
+            return (*t, Vec::new());
+        }
         let owned;
         let src = match (&shared, halo) {
             (Some(s), _) => s,
@@ -942,7 +977,12 @@ pub fn apply_tiled(
     let threads = 1;
     let per_tile = (tile.max(1) as usize).pow(2) * fmt.channels() * std::mem::size_of::<f32>();
     let group = (RESULT_BUDGET / per_tile.max(1)).max(threads).max(1);
+    let total = tiles.len().max(1);
+    let mut done = 0usize;
     for chunk in tiles.chunks(group) {
+        if ctl.cancelled() {
+            return None;
+        }
         #[cfg(not(target_arch = "wasm32"))]
         let results: Vec<(Rect, Vec<f32>)> = {
             use rayon::prelude::*;
@@ -950,12 +990,17 @@ pub fn apply_tiled(
         };
         #[cfg(target_arch = "wasm32")]
         let results: Vec<(Rect, Vec<f32>)> = chunk.iter().map(run).collect();
+        if ctl.cancelled() {
+            return None;
+        }
         for (t, data) in results {
             out.write_region(t, &data);
         }
+        done += chunk.len();
+        ctl.progress(done as f32 / total as f32);
     }
     out.prune();
-    out
+    Some(out)
 }
 
 /// Bytes of float filter results held at once by [`apply_tiled`].
