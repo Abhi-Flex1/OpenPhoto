@@ -529,6 +529,16 @@ impl Session {
         }
     }
 
+    /// Is any job running? (Cheap: the UI asks every frame.)
+    pub fn has_jobs(&self) -> bool {
+        !self.jobs.running.is_empty()
+    }
+
+    /// Running job `id`.
+    pub fn job(&self, id: JobId) -> Option<JobInfo> {
+        self.jobs.running.iter().find(|r| r.id == id).map(Running::info)
+    }
+
     /// Running jobs.
     pub fn jobs(&self) -> Vec<JobInfo> {
         self.jobs.running.iter().map(Running::info).collect()

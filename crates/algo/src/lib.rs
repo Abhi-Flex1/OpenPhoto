@@ -929,11 +929,19 @@ pub fn apply_tiled_with(
         }
         y += tile;
     }
+    // Tiles finished so far, for progress reported per tile (from any worker thread).
+    let finished = std::sync::atomic::AtomicUsize::new(0);
+    let total = tiles.len().max(1);
     let run = |t: &Rect| -> (Rect, Vec<f32>) {
         // Cancelled: skip the remaining tiles of the group (the result is discarded).
         if ctl.cancelled() {
             return (*t, Vec::new());
         }
+        let tick = || {
+            let n = finished.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+            // The last few percent are the writes after each group.
+            ctl.progress(0.98 * n as f32 / total as f32);
+        };
         let owned;
         let src = match (&shared, halo) {
             (Some(s), _) => s,
@@ -966,6 +974,7 @@ pub fn apply_tiled_with(
                 }
             }
         }
+        tick();
         (*t, data)
     };
     // Tiles are filtered in groups of about RESULT_BUDGET bytes (at least one per core) and each
@@ -977,8 +986,6 @@ pub fn apply_tiled_with(
     let threads = 1;
     let per_tile = (tile.max(1) as usize).pow(2) * fmt.channels() * std::mem::size_of::<f32>();
     let group = (RESULT_BUDGET / per_tile.max(1)).max(threads).max(1);
-    let total = tiles.len().max(1);
-    let mut done = 0usize;
     for chunk in tiles.chunks(group) {
         if ctl.cancelled() {
             return None;
@@ -996,10 +1003,9 @@ pub fn apply_tiled_with(
         for (t, data) in results {
             out.write_region(t, &data);
         }
-        done += chunk.len();
-        ctl.progress(done as f32 / total as f32);
     }
     out.prune();
+    ctl.progress(1.0);
     Some(out)
 }
 
