@@ -59,17 +59,23 @@ hdc -t <target> shell "snapshot_display -f /data/local/tmp/shot.jpeg"  # screens
 - The wgpu device, adapter and egui renderer live for the whole session; only the swap chain is
   recreated across backgrounding and screen lock, so UI textures (fonts, icons) survive them.
 - Touch, mouse motion, gestures (pinch zoom, pan scroll) and the IME map onto the same egui events
-  the desktop backend produces (`apps/openphoto-ohos/src/input.rs` mirrors `egui-winit`).
-- The sandbox has no file dialogs yet: `Services` provides import/export/PNG-encode/write against
-  sandbox paths, while `pick_open`/`pick_save` stay unset and the corresponding menu items behave as
-  cancelled (same as a build with no dialog backend). Wiring the system picker through the
-  `@ohos-rs/ability-plugin-files` bridge (async request, bytes delivered via the `inbox`, as the
-  web build does) is the remaining functional gap; see the roadmap.
+  the desktop backend produces (`apps/openphoto-ohos/src/input.rs` mirrors `egui-winit`). The
+  mapping is covered by host-side unit tests (`cargo test -p openphoto-ohos`).
+- **File dialogs work end to end, verified on the emulator.** `pick_open` fires the system picker
+  (with the desktop format filters) on a worker thread; the chosen files resolve through FileUri,
+  are read, and arrive via the `inbox`, which the UI opens like any dropped file. `pick_save`
+  saves to the app's Documents directory immediately (unique-ified, so Save always works with one
+  click) and fires the system save dialog in parallel; on confirm the file is copied to the chosen
+  URI and later writes redirect there, so File › Save keeps working. Cancelling keeps the Documents
+  copy. The bridge call times out after 60 s (fixed in the plugin facade); a timeout only loses the
+  dialog, never the document. The save picker does not prefill the filename (its options have no
+  filename field), so the user types it.
 - Mouse button presses from `uinput`-injected events do not reach the XComponent on the emulator
-  (moves do); touch presses paint normally, and the Press→`PointerButton` mapping is in place for
-  real hardware. Keyboard shortcuts are implemented (`to_key` covers letters, digits, punctuation
-  and F-keys for shortcut matching plus `Text` for input) but still need verification with a real
-  keyboard — the emulator lock screen kept eating the test keystrokes.
+  (moves do; touch presses paint normally). The Press→`PointerButton` mapping is in place and
+  covered by unit tests, so real hardware should just work — it still wants a real-mouse check.
+- Keyboard events likewise never arrive from `uinput` on this emulator (the XComponent key
+  callback is registered; the system swallows injected keys), so shortcuts and text input are
+  implemented and unit-tested but still want a real-keyboard check.
 - Performance: the frame path is the same code as desktop (egui-wgpu + custom WGSL canvas, damage
   tracking, tile uploads). The emulator renders through GLES on a virtual GPU, so its frame rate is
   not representative; real devices use Vulkan on real GPUs. Device limits are clamped to what the

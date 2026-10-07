@@ -124,12 +124,11 @@ impl Input {
     fn key(&mut self, event: &KeyEvent) {
         let pressed = event.state == ElementState::Pressed;
         // Text first: this is what makes the type tool work with non-Latin layouts.
-        if pressed {
-            if let Some(text) = event.text.as_ref() {
-                if !text.is_empty() {
-                    self.events.push(Event::Text(text.to_string()));
-                }
-            }
+        if pressed
+            && let Some(text) = event.text.as_ref()
+            && !text.is_empty()
+        {
+            self.events.push(Event::Text(text.to_string()));
         }
         // Character keys double as the shortcut keys egui matches (Ctrl+C is `Key::C`); keys with
         // no egui name (dead keys, multi-char compositions) are text-only.
@@ -345,18 +344,9 @@ mod tests {
     #[test]
     fn mouse_touch_and_unknown_buttons_become_primary() {
         use winit_core::event::ButtonSource;
-        assert_eq!(
-            to_pointer_button(&ButtonSource::Mouse(WinitMouseButton::Left)),
-            Some(PointerButton::Primary)
-        );
-        assert_eq!(
-            to_pointer_button(&ButtonSource::Mouse(WinitMouseButton::Right)),
-            Some(PointerButton::Secondary)
-        );
-        assert_eq!(
-            to_pointer_button(&ButtonSource::Mouse(WinitMouseButton::Middle)),
-            Some(PointerButton::Middle)
-        );
+        assert_eq!(to_pointer_button(&ButtonSource::Mouse(WinitMouseButton::Left)), Some(PointerButton::Primary));
+        assert_eq!(to_pointer_button(&ButtonSource::Mouse(WinitMouseButton::Right)), Some(PointerButton::Secondary));
+        assert_eq!(to_pointer_button(&ButtonSource::Mouse(WinitMouseButton::Middle)), Some(PointerButton::Middle));
         // Presses the backend could not classify (e.g. injected ones) still count as presses.
         assert_eq!(to_pointer_button(&ButtonSource::Unknown(0)), Some(PointerButton::Primary));
     }
@@ -365,10 +355,7 @@ mod tests {
     fn modifier_state_maps_to_egui_modifiers() {
         let mods = to_modifiers(&WinitModifiers::new(ModifiersState::SHIFT, ModifiersKeys::empty()));
         assert!(mods.shift && !mods.ctrl && !mods.alt && !mods.command);
-        let mods = to_modifiers(&WinitModifiers::new(
-            ModifiersState::CONTROL.union(ModifiersState::META),
-            ModifiersKeys::empty(),
-        ));
+        let mods = to_modifiers(&WinitModifiers::new(ModifiersState::CONTROL.union(ModifiersState::META), ModifiersKeys::empty()));
         assert!(mods.ctrl && mods.command && !mods.shift);
     }
 

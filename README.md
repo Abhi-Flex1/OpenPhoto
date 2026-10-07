@@ -287,8 +287,8 @@ hdc -t <target> install harmony/entry/build/default/outputs/default/entry-defaul
 hdc -t <target> shell aa start -a EntryAbility -b ai.storyteller.openphoto
 ```
 
-Details, emulator notes and the remaining gaps (system file dialogs, real-keyboard verification)
-are in [`docs/harmonyos.md`](docs/harmonyos.md).
+Details, emulator notes and the remaining verification items (real mouse buttons and keyboard,
+which the emulator cannot inject) are in [`docs/harmonyos.md`](docs/harmonyos.md).
 
 > [!IMPORTANT]
 > **Status:** OpenPhoto is in early alpha, and we want to be straight about where it stands: much of Photoshop's feature surface exists in some form, but **it is not yet a Photoshop replacement for daily professional work**. The biggest gaps are AI/generative features, about twenty missing tools, depth in typography and pro workflows, and plug-in compatibility. Every Photoshop menu item is wired to a command ([`docs/parity.md`](docs/parity.md)), but that measures wiring, not behaviour. The honest, dimension-by-dimension picture and where we're going next are in the [roadmap's parity assessment](docs/roadmap.md#honest-parity-assessment-2026-10-05). Expect rough edges, and please file issues (include your OS, document size, layer count and a screenshot). You can also tell us what broke on [Discord](https://discord.gg/artcraft).

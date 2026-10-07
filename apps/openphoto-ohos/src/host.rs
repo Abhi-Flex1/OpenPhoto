@@ -38,7 +38,16 @@ pub struct OpenPhoto {
 
 impl OpenPhoto {
     pub fn new(app: openharmony_ability::OpenHarmonyApp) -> Self {
-        Self { ability: app, window: None, gpu: None, editor: None, ctx: egui::Context::default(), input: Input::new(), last_frame: Instant::now(), started_at: Instant::now() }
+        Self {
+            ability: app,
+            window: None,
+            gpu: None,
+            editor: None,
+            ctx: egui::Context::default(),
+            input: Input::new(),
+            last_frame: Instant::now(),
+            started_at: Instant::now(),
+        }
     }
 
     /// Builds the editor once the window exists.
