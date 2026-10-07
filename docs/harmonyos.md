@@ -52,6 +52,17 @@ hdc -t <target> shell "hilog -x -T OpenPhoto"   # rust logs land in hilog under 
 hdc -t <target> shell "snapshot_display -f /data/local/tmp/shot.jpeg"  # screenshot
 ```
 
+## Screenshots (HarmonyOS PC emulator)
+
+![Start screen](images/harmony/01-start-screen.jpg)
+![New Document dialog](images/harmony/02-new-document.jpg)
+![Painting with the brush](images/harmony/03-painting.jpg)
+![File menu](images/harmony/04-file-menu.jpg)
+![Layers panel](images/harmony/05-layers-panel.jpg)
+![Color panel](images/harmony/06-color-panel.jpg)
+![Toolbar](images/harmony/07-toolbar.jpg)
+![System file picker](images/harmony/08-system-file-picker.jpg)
+
 ## Behavioural notes
 
 - Startup is fast (editor init ~100–200 ms on the emulator); the first frame waits for the
