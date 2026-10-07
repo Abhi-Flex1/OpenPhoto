@@ -1,20 +1,20 @@
 # MCP
 
-`photocraft-automation` implements an MCP server over stdio with two backends:
+`openphoto-automation` implements an MCP server over stdio with two backends:
 
 - **Headless:** an in-process `Headless` session owns the engine and performs file I/O.
-- **Bridge:** `BridgeClient` forwards tools to a desktop application started with `photocraft --control <port>`.
+- **Bridge:** `BridgeClient` forwards tools to a desktop application started with `openphoto --control <port>`.
 
 Start the headless server with:
 
 ```sh
-photocraft-cli mcp --automation-read-root /work/project --automation-write-root /work/project
+openphoto-cli mcp --automation-read-root /work/project --automation-write-root /work/project
 ```
 
 Bridge to a running desktop application with the same private token file used by the app:
 
 ```sh
-photocraft-cli mcp --bridge 127.0.0.1:7878 --control-token-file /private/path/control.token
+openphoto-cli mcp --bridge 127.0.0.1:7878 --control-token-file /private/path/control.token
 ```
 
 Tools cover session/document operations, command discovery and execution, batching, and—when bridged—UI inspection and control. Tool schemas improve correctness but are not authorization boundaries.

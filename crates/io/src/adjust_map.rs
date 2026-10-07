@@ -10,9 +10,9 @@
 //! that cannot be read (noise gradients, profile lookups, CMYK channel mixers, unknown versions)
 //! stay [`Adjustment::Unsupported`] and are written back verbatim.
 
-use photocraft_doc::Adjustment;
-use photocraft_doc::adjust::{CurvePoint, HueRange, LevelsChannel, ToneSpace};
-use photocraft_psd::descriptor::{Descriptor, Value, VersionedDescriptor};
+use openphoto_doc::Adjustment;
+use openphoto_doc::adjust::{CurvePoint, HueRange, LevelsChannel, ToneSpace};
+use openphoto_psd::descriptor::{Descriptor, Value, VersionedDescriptor};
 
 /// All PSD adjustment keys recognized as adjustment layers.
 pub const ADJUSTMENT_KEYS: [&[u8; 4]; 16] =
@@ -125,7 +125,7 @@ pub fn parse(key: &[u8; 4], data: &[u8], cged: Option<&[u8]>, channels: Channels
         }
         (Adjustment::Curves { space, black, .. }, Channels::Cmyk) => {
             *space = ToneSpace::Cmyk;
-            if photocraft_doc::adjust::is_identity_curve(black) {
+            if openphoto_doc::adjust::is_identity_curve(black) {
                 black.clear();
             }
         }
@@ -247,7 +247,7 @@ fn parse_gradient_map(d: &[u8]) -> Option<Adjustment> {
             return None;
         }
         let c = |k: usize| be16(d, at + 10 + 2 * k).map(|v| f32::from(v) / 65535.0);
-        stops.push((loc, photocraft_color::Color::rgb(c(0)?, c(1)?, c(2)?)));
+        stops.push((loc, openphoto_color::Color::rgb(c(0)?, c(1)?, c(2)?)));
         mids.push(mid);
         at += 20;
     }
@@ -360,7 +360,7 @@ fn parse_lookup(d: &[u8]) -> Option<Adjustment> {
         Some(b"LUTFormatLOOK") => "x.look",
         _ => "x.cube",
     };
-    let lut = photocraft_cms::lutfile::parse(ext, bytes).ok()?;
+    let lut = openphoto_cms::lutfile::parse(ext, bytes).ok()?;
     let name = desc_text(&desc, "LUT3DFileName").or_else(|| desc_text(&desc, "NM  ")).unwrap_or_default();
     Some(Adjustment::ColorLookup {
         name,
@@ -455,7 +455,7 @@ fn parse_photo_filter(d: &[u8]) -> Option<Adjustment> {
             if !(0.0..=100.0).contains(&lab[0]) || lab[1].abs() > 128.0 || lab[2].abs() > 128.0 {
                 return None;
             }
-            (photocraft_color::convert::lab_to_srgb(lab), 14)
+            (openphoto_color::convert::lab_to_srgb(lab), 14)
         }
         _ => return None,
     };
@@ -607,13 +607,13 @@ pub fn write(adj: &Adjustment) -> Vec<([u8; 4], Vec<u8>)> {
             let n = *size as usize;
             let (file, dither) = match lut {
                 Some(table) if (2..=256).contains(&n) && table.len() >= n * n * n * 3 => {
-                    (photocraft_cms::lutfile::LutFile { title: String::new(), size: n, data: table[..n * n * n * 3].to_vec() }, *dither)
+                    (openphoto_cms::lutfile::LutFile { title: String::new(), size: n, data: table[..n * n * n * 3].to_vec() }, *dither)
                 }
-                _ => (photocraft_cms::lutfile::LutFile { title: String::new(), ..photocraft_cms::lutfile::LutFile::identity(2) }, false),
+                _ => (openphoto_cms::lutfile::LutFile { title: String::new(), ..openphoto_cms::lutfile::LutFile::identity(2) }, false),
             };
             let en =
-                |t: &str, val: &str| Value::Enumerated { type_id: photocraft_psd::descriptor::Id::new(t), value: photocraft_psd::descriptor::Id::new(val) };
-            let text = |t: &str| Value::Text(photocraft_psd::descriptor::UnicodeString::new_nul(t));
+                |t: &str, val: &str| Value::Enumerated { type_id: openphoto_psd::descriptor::Id::new(t), value: openphoto_psd::descriptor::Id::new(val) };
+            let text = |t: &str| Value::Text(openphoto_psd::descriptor::UnicodeString::new_nul(t));
             let d = Descriptor::new("null")
                 .with("lookupType", en("colorLookupType", "3DLUT"))
                 .with("NM  ", text(name))
@@ -622,7 +622,7 @@ pub fn write(adj: &Adjustment) -> Vec<([u8; 4], Vec<u8>)> {
                 .with("LUTFormat", en("LUTFormatType", "LUTFormatCUBE"))
                 .with("dataOrder", en("colorLookupOrder", "rgbOrder"))
                 .with("tableOrder", en("colorLookupOrder", "bgrOrder"))
-                .with("LUT3DFileData", Value::RawData(photocraft_cms::lutfile::write_cube(&file).into_bytes()))
+                .with("LUT3DFileData", Value::RawData(openphoto_cms::lutfile::write_cube(&file).into_bytes()))
                 .with("LUT3DFileName", text(name));
             put16(&mut v, 1);
             v.extend_from_slice(&VersionedDescriptor::new(d).to_bytes());
@@ -661,7 +661,7 @@ pub fn write(adj: &Adjustment) -> Vec<([u8; 4], Vec<u8>)> {
                 .with("useTint", Value::Boolean(tint.is_some()))
                 .with("tintColor", Value::Descriptor(rgb_desc(tint.unwrap_or(BW_TINT))))
                 .with("bwPresetKind", Value::Integer(1))
-                .with("blackAndWhitePresetFileName", Value::Text(photocraft_psd::descriptor::UnicodeString::new_nul("")));
+                .with("blackAndWhitePresetFileName", Value::Text(openphoto_psd::descriptor::UnicodeString::new_nul("")));
             return vec![(*b"blwh", VersionedDescriptor::new(d).to_bytes())];
         }
         Adjustment::PhotoFilter { color, density, preserve_luminosity } => {
@@ -806,7 +806,7 @@ mod tests {
         rt(Adjustment::PhotoFilter { color: [q(0), q(40000), q(65535)], density: 1.0, preserve_luminosity: false });
         rt(Adjustment::ChannelMixer { matrix: [[0.5, 0.3, 0.2, 0.0], [0.1, 0.8, 0.1, 0.05], [0.0, 0.2, 0.9, -0.05]], monochrome: false });
         rt(Adjustment::ChannelMixer { matrix: [[0.4, 0.4, 0.2, 0.1], [0.0, 1.0, 0.0, 0.0], [-2.0, 0.0, 2.0, 0.0]], monochrome: true });
-        let id = photocraft_cms::lutfile::LutFile::identity(5);
+        let id = openphoto_cms::lutfile::LutFile::identity(5);
         rt(Adjustment::ColorLookup { name: "Look.cube".into(), lut: Some(std::sync::Arc::new(id.data)), size: 5, tetrahedral: false, dither: true });
     }
 
@@ -837,10 +837,10 @@ mod tests {
     #[test]
     fn color_lookup_synthetic_block() {
         let cube = b"TITLE \"t\"\nLUT_3D_SIZE 2\n0 0 0\n1 0 0\n0 1 0\n1 1 0\n0 0 1\n1 0 1\n0 1 1\n1 1 1\n";
-        let en = |t: &str, val: &str| Value::Enumerated { type_id: photocraft_psd::descriptor::Id::new(t), value: photocraft_psd::descriptor::Id::new(val) };
+        let en = |t: &str, val: &str| Value::Enumerated { type_id: openphoto_psd::descriptor::Id::new(t), value: openphoto_psd::descriptor::Id::new(val) };
         let desc = Descriptor::new("null")
             .with("lookupType", en("colorLookupType", "3DLUT"))
-            .with("NM  ", Value::Text(photocraft_psd::descriptor::UnicodeString::new_nul("Id")))
+            .with("NM  ", Value::Text(openphoto_psd::descriptor::UnicodeString::new_nul("Id")))
             .with("Dthr", Value::Boolean(true))
             .with("LUTFormat", en("LUTFormatType", "LUTFormatCUBE"))
             .with("LUT3DFileData", Value::RawData(cube.to_vec()));
@@ -1031,7 +1031,7 @@ mod tests {
             let back = parse(&b[0].0, &b[0].1, None, Channels::Rgb);
             let Adjustment::ColorLookup { lut: Some(t), size: 2, dither: false, name, .. } = back else { panic!("{back:?}") };
             assert_eq!(name, "L");
-            assert_eq!(*t, photocraft_cms::lutfile::LutFile::identity(2).data);
+            assert_eq!(*t, openphoto_cms::lutfile::LutFile::identity(2).data);
         }
         // Every kind except a malformed Unsupported key has an encoding.
         assert!(write(&Adjustment::Unsupported { psd_key: "abc".into(), raw: vec![] }).is_empty());

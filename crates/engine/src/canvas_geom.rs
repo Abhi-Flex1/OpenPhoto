@@ -7,9 +7,9 @@
 
 use std::sync::Arc;
 
-use photocraft_doc::{Document, Fill, Layer, LayerContent, TextLayer};
-use photocraft_geom::{Affine, Point, Rect};
-use photocraft_raster::Surface;
+use openphoto_doc::{Document, Fill, Layer, LayerContent, TextLayer};
+use openphoto_geom::{Affine, Point, Rect};
+use openphoto_raster::Surface;
 
 use crate::pixels::remap_surface;
 
@@ -66,9 +66,9 @@ fn retag_text(dpi: f32, t: &mut TextLayer) {
     if t.psd_raw.is_none() {
         return;
     }
-    let mut eng = photocraft_text::shared().lock().unwrap_or_else(|e| e.into_inner());
+    let mut eng = openphoto_text::shared().lock().unwrap_or_else(|e| e.into_inner());
     let layout = eng.layout(t, dpi);
-    t.psd_raw = Some(Arc::new(photocraft_text::psd::build_tysh(t, dpi, layout.bounds())));
+    t.psd_raw = Some(Arc::new(openphoto_text::psd::build_tysh(t, dpi, layout.bounds())));
 }
 
 /// Applies `a` to one layer's (and its children's) non-pixel geometry. With `content` false only
@@ -281,7 +281,7 @@ pub(crate) fn turn_canvas(doc: &mut Document, turn: Turn) {
     remap_pixels(doc, &map);
     let a = turn.affine(f64::from(doc.size.width), f64::from(doc.size.height));
     if turn.swaps() {
-        doc.size = photocraft_doc::Size::new(doc.size.height, doc.size.width);
+        doc.size = openphoto_doc::Size::new(doc.size.height, doc.size.width);
     }
     transform_geometry(doc, &a);
 }

@@ -2,11 +2,11 @@
 //!
 //! - `brush.presets.importAbr` adds the presets of an `.abr` file (v1, v2, v6+) to the brush
 //!   library as one group (Brushes panel › Import Brushes…, Preset Manager). Parsing lives in
-//!   `photocraft-psd` (`abr`), the mapping onto [`BrushSettings`] in `photocraft-io` (`abr_map`).
+//!   `openphoto-psd` (`abr`), the mapping onto [`BrushSettings`] in `openphoto-io` (`abr_map`).
 //! - `gradient.presets.importGrd` adds the gradients of a `.grd` file (version 5) to the
 //!   Gradients panel as one group.
 //!
-//! [`BrushSettings`]: photocraft_paint::BrushSettings
+//! [`BrushSettings`]: openphoto_paint::BrushSettings
 
 use serde_json::{Value, json};
 
@@ -31,7 +31,7 @@ pub(crate) fn file_bytes(p: &Value, cmd: &str, what: &str) -> Result<(Vec<u8>, S
         if s.len() as u64 > MAX_FILE_BYTES / 3 * 4 + 4 {
             return Err(bad(cmd, "`data` is too large"));
         }
-        let bytes = photocraft_paint::tile::b64_decode(s).ok_or_else(|| bad(cmd, "`data` is not valid base64"))?;
+        let bytes = openphoto_paint::tile::b64_decode(s).ok_or_else(|| bad(cmd, "`data` is not valid base64"))?;
         return Ok((bytes, String::new()));
     }
     let path =
@@ -62,7 +62,7 @@ fn import_abr(s: &mut Session, p: &Value) -> Result<Value> {
         None if !stem.is_empty() => stem,
         None => "Imported Brushes".to_string(),
     };
-    let imp = photocraft_io::abr_map::read_abr(&bytes, &group).map_err(|e| bad(cmd, e))?;
+    let imp = openphoto_io::abr_map::read_abr(&bytes, &group).map_err(|e| bad(cmd, e))?;
     // Re-importing a file replaces its group instead of duplicating it.
     if p.get("replace").and_then(Value::as_bool).unwrap_or(true) {
         s.tools.presets.retain(|x| x.builtin || x.group != group);
@@ -78,7 +78,7 @@ fn import_abr(s: &mut Session, p: &Value) -> Result<Value> {
     s.brush_presets_changed();
     if p.get("select").and_then(Value::as_bool).unwrap_or(false)
         && let Some(first) = names.first()
-        && let Some(pr) = photocraft_paint::presets::find(&s.tools.presets, first)
+        && let Some(pr) = openphoto_paint::presets::find(&s.tools.presets, first)
     {
         s.tools.brush = pr.brush.clone().picked_over(&s.tools.brush);
     }
@@ -146,9 +146,9 @@ fn lab_to_rgb([l, a, b]: [f32; 3]) -> [f32; 3] {
     [gamma(r), gamma(g), gamma(bb)]
 }
 
-fn stop_color(c: photocraft_psd::grd::GrdColor) -> crate::presets::gradients::StopColor {
+fn stop_color(c: openphoto_psd::grd::GrdColor) -> crate::presets::gradients::StopColor {
     use crate::presets::gradients::StopColor;
-    use photocraft_psd::grd::GrdColor;
+    use openphoto_psd::grd::GrdColor;
     let clamp = |c: [f32; 3]| StopColor::Rgb(c.map(|v| if v.is_finite() { v.clamp(0.0, 1.0) } else { 0.0 }));
     match c {
         GrdColor::Foreground => StopColor::Foreground,
@@ -171,7 +171,7 @@ fn import_grd(s: &mut Session, p: &Value) -> Result<Value> {
         None if !stem.is_empty() => stem,
         None => "Imported Gradients".to_string(),
     };
-    let grads = photocraft_psd::grd::parse(&bytes).map_err(|e| bad(cmd, format!("not a readable Photoshop gradient file: {e}")))?;
+    let grads = openphoto_psd::grd::parse(&bytes).map_err(|e| bad(cmd, format!("not a readable Photoshop gradient file: {e}")))?;
     let mut warnings = Vec::new();
     let mut items = Vec::new();
     let (mut noise, mut midpoints) = (0, false);
@@ -198,7 +198,7 @@ fn import_grd(s: &mut Session, p: &Value) -> Result<Value> {
         warnings.push("colour and opacity midpoints other than 50 % are drawn at 50 %".to_string());
     }
     if items.is_empty() {
-        return Err(bad(cmd, "the file holds no gradients PhotoCraft can use (noise gradients only)"));
+        return Err(bad(cmd, "the file holds no gradients OpenPhoto can use (noise gradients only)"));
     }
     let names: Vec<String> = items.iter().map(|g| g.name.clone()).collect();
     let st = &mut s.presets;
@@ -213,8 +213,8 @@ fn import_grd(s: &mut Session, p: &Value) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use photocraft_psd::abr::{AbrSample, LegacyBrush, LegacyTip, write_v6, write_v12};
-    use photocraft_psd::descriptor::{Descriptor, UnicodeString, Value as DV};
+    use openphoto_psd::abr::{AbrSample, LegacyBrush, LegacyTip, write_v6, write_v12};
+    use openphoto_psd::descriptor::{Descriptor, UnicodeString, Value as DV};
 
     fn abr_v2() -> Vec<u8> {
         let tip = AbrSample { id: String::new(), width: 6, height: 4, depth: 8, data: vec![255; 24] };
@@ -238,14 +238,14 @@ mod tests {
     fn import_adds_a_group_and_paints() {
         let mut s = Session::new();
         let before = s.tools.presets.len();
-        let data = photocraft_paint::tile::b64_encode(&abr_v2());
+        let data = openphoto_paint::tile::b64_encode(&abr_v2());
         let r = s.execute("brush.presets.importAbr", json!({"data": data, "group": "Legacy", "select": true})).unwrap();
         assert_eq!(r["count"], 2);
         // The name clashing with the built-in Hard Round is made unique.
         assert_eq!(r["imported"], json!(["Hard Round 2", "9 px Round"]));
         assert_eq!(s.tools.presets.len(), before + 2);
         assert!(s.tools.presets.iter().filter(|p| p.group == "Legacy").all(|p| !p.builtin));
-        assert!(matches!(s.tools.brush.tip, photocraft_paint::TipShape::Sampled(_)));
+        assert!(matches!(s.tools.brush.tip, openphoto_paint::TipShape::Sampled(_)));
         // Re-import replaces the group.
         s.execute("brush.presets.importAbr", json!({"data": data, "group": "Legacy"})).unwrap();
         assert_eq!(s.tools.presets.len(), before + 2);
@@ -278,10 +278,10 @@ mod tests {
             json!({"data": "%%%not base64"}),
             json!({"data": ""}),
             json!({"data": "AAAA"}),
-            json!({"data": photocraft_paint::tile::b64_encode(b"8BPS\0\x01junk")}),
-            json!({"data": photocraft_paint::tile::b64_encode(&abr_v2()), "group": 5}),
-            json!({"data": photocraft_paint::tile::b64_encode(&abr_v2()), "group": "  "}),
-            json!({"data": photocraft_paint::tile::b64_encode(&abr_v2()[..20])}),
+            json!({"data": openphoto_paint::tile::b64_encode(b"8BPS\0\x01junk")}),
+            json!({"data": openphoto_paint::tile::b64_encode(&abr_v2()), "group": 5}),
+            json!({"data": openphoto_paint::tile::b64_encode(&abr_v2()), "group": "  "}),
+            json!({"data": openphoto_paint::tile::b64_encode(&abr_v2()[..20])}),
         ] {
             assert!(s.execute("brush.presets.importAbr", p.clone()).is_err(), "{p}");
         }
@@ -291,7 +291,7 @@ mod tests {
     #[test]
     fn grd_import_adds_a_gradient_group() {
         use crate::presets::gradients::StopColor;
-        use photocraft_psd::grd::{GrdColor, GrdGradient, GrdStop, write};
+        use openphoto_psd::grd::{GrdColor, GrdGradient, GrdStop, write};
         let grads = vec![
             GrdGradient {
                 name: "Ember".into(),
@@ -305,7 +305,7 @@ mod tests {
             GrdGradient { name: "Static".into(), noise: true, ..Default::default() },
         ];
         let mut s = Session::new();
-        let data = photocraft_paint::tile::b64_encode(&write(&grads));
+        let data = openphoto_paint::tile::b64_encode(&write(&grads));
         let r = s.execute("gradient.presets.importGrd", json!({"data": data, "group": "Fire"})).unwrap();
         assert_eq!(r["imported"], json!(["Ember"]));
         assert_eq!(r["warnings"].as_array().map(Vec::len), Some(1));
@@ -316,10 +316,10 @@ mod tests {
         let n = s.presets.gradients.len();
         s.execute("gradient.presets.importGrd", json!({"data": data, "group": "Fire"})).unwrap();
         assert_eq!(s.presets.gradients.len(), n);
-        for p in [json!({}), json!({"data": "@@"}), json!({"data": photocraft_paint::tile::b64_encode(b"8BGR\0\x03")}), json!({"path": "/nope.grd"})] {
+        for p in [json!({}), json!({"data": "@@"}), json!({"data": openphoto_paint::tile::b64_encode(b"8BGR\0\x03")}), json!({"path": "/nope.grd"})] {
             assert!(s.execute("gradient.presets.importGrd", p.clone()).is_err(), "{p}");
         }
-        let only_noise = photocraft_paint::tile::b64_encode(&write(&grads[1..]));
+        let only_noise = openphoto_paint::tile::b64_encode(&write(&grads[1..]));
         assert!(s.execute("gradient.presets.importGrd", json!({"data": only_noise})).is_err());
     }
 

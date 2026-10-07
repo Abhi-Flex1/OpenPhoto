@@ -3,7 +3,7 @@
 
 mod common;
 use common::*;
-use photocraft_codecs::*;
+use openphoto_codecs::*;
 use proptest::prelude::{any, prop_assert, prop_assert_eq, proptest};
 
 /// A minimal EXIF (TIFF-structured) block: a filler tag, then Orientation.
@@ -368,7 +368,7 @@ fn every_layout_and_depth_orients_and_inverts() {
 }
 
 /// #285 performance budget: turning a 24 MP photo upright on open adds ≤ 50 ms
-/// (release build: `cargo test --release -p photocraft-codecs --test orientation -- --ignored`).
+/// (release build: `cargo test --release -p openphoto-codecs --test orientation -- --ignored`).
 #[test]
 #[ignore = "timing; run in release"]
 fn rotating_24_mp_is_fast() {

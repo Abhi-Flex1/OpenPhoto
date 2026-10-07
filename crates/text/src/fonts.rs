@@ -22,7 +22,7 @@ pub static INTER_MEDIUM: &[u8] = include_bytes!("../../../assets/fonts/Inter-Med
 pub static INTER_SEMIBOLD: &[u8] = include_bytes!("../../../assets/fonts/Inter-SemiBold.ttf");
 pub static JETBRAINS_MONO_REGULAR: &[u8] = include_bytes!("../../../assets/fonts/JetBrainsMono-Regular.ttf");
 
-/// Fonts shipped with Photocraft (OFL; licences in `assets/fonts`).
+/// Fonts shipped with OpenPhoto (OFL; licences in `assets/fonts`).
 pub static BUNDLED: &[(&str, &[u8])] = &[
     ("Inter-Regular.ttf", INTER_REGULAR),
     ("Inter-Medium.ttf", INTER_MEDIUM),
@@ -392,7 +392,7 @@ mod tests {
     #[test]
     fn missing_font_dirs_are_skipped() {
         let mut files = Vec::new();
-        super::collect_font_files(std::path::Path::new("/nonexistent/photocraft/fonts"), 0, &mut files);
+        super::collect_font_files(std::path::Path::new("/nonexistent/openphoto/fonts"), 0, &mut files);
         assert!(files.is_empty());
     }
 }

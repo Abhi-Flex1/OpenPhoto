@@ -1,7 +1,7 @@
-//! Photocraft's first UI shell, built on egui/eframe.
+//! OpenPhoto's first UI shell, built on egui/eframe.
 //!
 //! This crate is deliberately thin. Every action goes through
-//! [`photocraft_engine::Session::execute`], and all UI state lives in [`state::UiState`] (plain
+//! [`openphoto_engine::Session::execute`], and all UI state lives in [`state::UiState`] (plain
 //! data). The [`control`] module exposes both to automation, so agents can drive and inspect every
 //! part of the interface.
 #![forbid(unsafe_code)]
@@ -120,8 +120,8 @@ pub mod zoom_tool;
 use std::collections::HashMap;
 use std::sync::mpsc::{Receiver, Sender};
 
-use photocraft_doc::{DocId, Document};
-use photocraft_engine::Session;
+use openphoto_doc::{DocId, Document};
+use openphoto_engine::Session;
 use serde_json::Value;
 
 pub use control::{ControlRequest, ControlResponse};
@@ -213,12 +213,12 @@ pub struct Services {
     /// OS requests (macOS open-documents / quit Apple events), polled every frame.
     pub os_events: Option<OsEventsFn>,
     /// The persistent brush preset store, loading in the background (desktop; see
-    /// `photocraft_engine::preset_store`). Attached to the session once it arrives; without
+    /// `openphoto_engine::preset_store`). Attached to the session once it arrives; without
     /// one, brush presets are session-only (web, tests).
-    pub preset_store: Option<std::sync::mpsc::Receiver<photocraft_engine::preset_store::Opened>>,
+    pub preset_store: Option<std::sync::mpsc::Receiver<openphoto_engine::preset_store::Opened>>,
 }
 
-pub struct PhotocraftApp {
+pub struct OpenPhotoApp {
     pub session: Session,
     pub ui: UiState,
     pub services: Services,
@@ -244,7 +244,7 @@ pub struct PhotocraftApp {
     /// Control replies waiting for queued synthetic input to be processed.
     input_waiters: Vec<Sender<ControlResponse>>,
     /// Live (uncommitted) adjustment edit shown on canvas while a slider is dragged.
-    pub live_adjust: Option<(photocraft_doc::LayerId, Value)>,
+    pub live_adjust: Option<(openphoto_doc::LayerId, Value)>,
     /// Frames rendered (for tests and the status bar).
     pub frame: u64,
     /// Apply theme on first frame.
@@ -256,11 +256,11 @@ pub struct PhotocraftApp {
     pub last_canvas_rect: egui::Rect,
     pub fps: f32,
     last_frame_time: f64,
-    thumbs: HashMap<(photocraft_doc::LayerId, u8), (u64, egui::TextureHandle)>,
+    thumbs: HashMap<(openphoto_doc::LayerId, u8), (u64, egui::TextureHandle)>,
     /// Snapshots whose live layer/mask keys were last used to prune thumbnail handles.
     thumb_documents: Vec<(DocId, std::sync::Weak<Document>)>,
     /// Content bounds cached per (key, revision): scanning a 36 MP layer every frame cost ~77 ms.
-    bounds_cache: HashMap<u64, (u64, photocraft_geom::Rect)>,
+    bounds_cache: HashMap<u64, (u64, openphoto_geom::Rect)>,
     /// Downsampled proxy of the active document for live previews: (doc, revision, k, proxy).
     pub(crate) proxy: Option<(DocId, u64, u32, std::sync::Arc<Document>)>,
     /// Key of the preview currently uploaded to the GPU (doc, params hash).
@@ -279,7 +279,7 @@ pub struct PhotocraftApp {
     /// direct control calls.
     pub(crate) automation_input: bool,
     /// Levels/Curves histogram cache: (document, adjustment layer, revision it is valid for).
-    pub(crate) tone_hist: Option<(DocId, photocraft_doc::LayerId, u64, std::sync::Arc<tone::Histograms>)>,
+    pub(crate) tone_hist: Option<(DocId, openphoto_doc::LayerId, u64, std::sync::Arc<tone::Histograms>)>,
     /// Histogram panel cache: (document, revision, computed at ms, histograms).
     pub(crate) doc_hist: Option<(DocId, u64, f64, std::sync::Arc<tone::Histograms>)>,
     /// Free Transform preview (document without the moving pixels + their texture).
@@ -313,7 +313,7 @@ pub struct PhotocraftApp {
     /// Crop tool gesture in progress (see `crop_ui`).
     pub(crate) crop: crop_ui::CropState,
     /// Type tool layout cache: ((doc, revision, layer), layout).
-    pub(crate) type_layout: Option<((u64, u64, u64), std::sync::Arc<photocraft_text::TextLayout>)>,
+    pub(crate) type_layout: Option<((u64, u64, u64), std::sync::Arc<openphoto_text::TextLayout>)>,
     /// Channel thumbnails for one document snapshot; view-only revisions reuse their pixels.
     channel_thumbs: Option<(DocId, std::sync::Weak<Document>, Vec<egui::TextureHandle>)>,
     /// Channels panel overlays / channel views drawn over the canvas, per document id.
@@ -339,7 +339,7 @@ pub struct PhotocraftApp {
     live_tokens: theme::live::LiveTokens,
 }
 
-impl PhotocraftApp {
+impl OpenPhotoApp {
     pub fn new(session: Session, services: Services) -> Self {
         let mut app = Self {
             session,
@@ -409,14 +409,15 @@ impl PhotocraftApp {
         // Saved preferences (and recovered documents) are in place before the first frame.
         prefs_ui::load(&mut app);
         // File › Scripts › Script Events Manager: "Start Application".
-        photocraft_engine::automate_cmds::fire_event(&mut app.session, "startApplication");
+        openphoto_engine::automate_cmds::fire_event(&mut app.session, "startApplication");
         app
     }
 
     /// Draw the document canvas on the GPU (custom WGSL shader) instead of via egui textures.
-    /// Call from the app creator with `cc.wgpu_render_state`; without it the CPU path is used.
-    pub fn set_wgpu(&mut self, rs: eframe::egui_wgpu::RenderState) {
-        // Preferences › Performance › cache tile size (PHOTOCRAFT_GPU_TILE still overrides).
+    /// Call from the app creator with the wgpu render state (`cc.wgpu_render_state` on desktop,
+    /// the host's `RenderState` on HarmonyOS); without it the CPU path is used.
+    pub fn set_wgpu(&mut self, rs: egui_wgpu::RenderState) {
+        // Preferences › Performance › cache tile size (OPENPHOTO_GPU_TILE still overrides).
         let tile = self.session.prefs().performance.cache_tile_size;
         let gpu = gpu_canvas::GpuCanvas::with_tile(&rs, Some(tile));
         self.perf.gpu_info.set_adapter(&gpu.adapter_info());
@@ -432,13 +433,13 @@ impl PhotocraftApp {
     }
 
     /// The GPU canvas's device health flag (tests inject faults through it).
-    pub fn gpu_health(&self) -> Option<photocraft_gpu::DeviceHealth> {
+    pub fn gpu_health(&self) -> Option<openphoto_gpu::DeviceHealth> {
         self.gpu.as_ref().map(|g| g.health().clone())
     }
 
     /// Run `hook` once the app has rendered its first frames (and a document opened at launch
     /// has drawn): the desktop app clears its crash-safe GPU startup marker there.
-    pub fn on_started(&mut self, hook: impl FnOnce(&mut PhotocraftApp) + 'static) {
+    pub fn on_started(&mut self, hook: impl FnOnce(&mut OpenPhotoApp) + 'static) {
         self.started = Some(Box::new(hook));
     }
 
@@ -575,7 +576,7 @@ impl PhotocraftApp {
         self.ui.status_error = false;
         notices::io_warnings(self, &format!("Opened {name}"), &warnings);
         // Script events bound to "Open Document".
-        photocraft_engine::automate_cmds::document_opened(&mut self.session);
+        openphoto_engine::automate_cmds::document_opened(&mut self.session);
         self.sync_views();
         let ask = color.get("ask").and_then(Value::as_bool) == Some(true);
         if ask && (color.get("mismatch").and_then(Value::as_bool) == Some(true) || color.get("missing").is_some()) {
@@ -668,7 +669,7 @@ impl PhotocraftApp {
         self.ui.status = format!("Saved {path}");
         // "Save Document" script events and File › Generate › Image Assets.
         if let Some(i) = self.session.active_index()
-            && let Some(r) = photocraft_engine::automate_cmds::document_saved(&mut self.session, i)
+            && let Some(r) = openphoto_engine::automate_cmds::document_saved(&mut self.session, i)
         {
             self.ui.status = format!("Saved {path}; {} image assets in {}", r["files"].as_array().map_or(0, Vec::len), r["dir"].as_str().unwrap_or(""));
         }
@@ -759,8 +760,10 @@ impl PhotocraftApp {
     }
 }
 
-impl eframe::App for PhotocraftApp {
-    fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+impl OpenPhotoApp {
+    /// Per-frame logic pass, platform-free: the desktop shell calls it from `eframe::App::logic`
+    /// and the HarmonyOS host (`apps/openphoto-ohos`) calls it directly, so both run the same code.
+    pub fn update_logic(&mut self, ctx: &egui::Context) {
         i18n::set_current(i18n::Lang::from_pref(&self.session.prefs().interface.language));
         if !self.styled {
             Self::setup_context(ctx, self.ui.theme);
@@ -790,7 +793,7 @@ impl eframe::App for PhotocraftApp {
         }
         // A transform whose layer or document went away (undo, close) ends silently.
         if let Some(t) = &self.ui.transform
-            && self.session.active().and_then(|s| s.doc.layer(photocraft_doc::LayerId(t.layer))).is_none()
+            && self.session.active().and_then(|s| s.doc.layer(openphoto_doc::LayerId(t.layer))).is_none()
         {
             transform_tool::cancel(self);
         }
@@ -817,12 +820,14 @@ impl eframe::App for PhotocraftApp {
         }
     }
 
-    fn raw_input_hook(&mut self, ctx: &egui::Context, raw_input: &mut egui::RawInput) {
+    /// Raw-input hook, platform-free (see [`Self::update_logic`]).
+    pub fn apply_raw_input_hook(&mut self, ctx: &egui::Context, raw_input: &mut egui::RawInput) {
         shortcuts::clipboard_keys(ctx, ctx.text_edit_focused() || self.ui.text_edit.is_some(), raw_input);
         raw_input.events.extend(self.take_synthetic_step());
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+    /// Per-frame UI pass, platform-free (see [`Self::update_logic`]).
+    pub fn update_ui(&mut self, ui: &mut egui::Ui) {
         let ctx = ui.ctx().clone();
         // Fonts registered via set_fonts only take effect next frame; named families would panic now.
         if !self.fonts_ready {
@@ -887,6 +892,23 @@ impl eframe::App for PhotocraftApp {
     }
 }
 
+/// The desktop and web shells drive the same [`OpenPhotoApp`] through eframe; HarmonyOS
+/// (`apps/openphoto-ohos`) calls `update_logic`/`update_ui` directly instead.
+#[cfg(not(target_env = "ohos"))]
+impl eframe::App for OpenPhotoApp {
+    fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.update_logic(ctx);
+    }
+
+    fn raw_input_hook(&mut self, ctx: &egui::Context, raw_input: &mut egui::RawInput) {
+        self.apply_raw_input_hook(ctx, raw_input);
+    }
+
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        self.update_ui(ui);
+    }
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 fn read_dropped(f: &(dyn egui::DroppedFile + Send + Sync)) -> Result<Vec<u8>, String> {
     f.bytes()
@@ -898,12 +920,12 @@ fn read_dropped(_f: &dyn egui::DroppedFile) -> Result<Vec<u8>, String> {
     Err("drag-and-drop on the web is handled by the page; use File → Open".into())
 }
 
-impl PhotocraftApp {
+impl OpenPhotoApp {
     /// Viewing a layer mask (#196) targets it; a vector-mask target needs a vector mask on the
     /// active layer (a shape layer's path is its content, not a mask).
     fn sync_mask_targets(&mut self) {
         let Some(st) = self.session.active() else { return };
-        if photocraft_engine::mask_view_cmds::current(st).is_some() {
+        if openphoto_engine::mask_view_cmds::current(st).is_some() {
             self.ui.mask_target = true;
             self.ui.vector_mask_target = false;
         }
@@ -950,7 +972,7 @@ impl PhotocraftApp {
     }
 
     /// Cached 64px thumbnail of a pixel-ish layer, laid out in document space.
-    pub fn layer_thumb(&mut self, ctx: &egui::Context, doc: &Document, layer: &photocraft_doc::Layer) -> egui::TextureId {
+    pub fn layer_thumb(&mut self, ctx: &egui::Context, doc: &Document, layer: &openphoto_doc::Layer) -> egui::TextureId {
         // Key by content, not document revision: COW tiles change pointer only when their pixels
         // change, so unrelated edits (e.g. painting another layer) don't rebuild this thumbnail.
         let rev = layer.surface().map_or(0, surface_fingerprint) ^ (doc.size.width as u64) << 40;
@@ -965,12 +987,12 @@ impl PhotocraftApp {
             let Some(s) = layer.surface() else { return [0.0; 4] };
             let n = s.channels();
             s.read_pixel(x, y, &mut px[..n]);
-            photocraft_raster::to_rgba(&s.format(), &px[..n])
+            openphoto_raster::to_rgba(&s.format(), &px[..n])
         });
         self.store_thumb(ctx, key, rev, img)
     }
 
-    pub fn mask_thumb(&mut self, ctx: &egui::Context, doc: &Document, id: photocraft_doc::LayerId, mask: &photocraft_doc::LayerMask) -> egui::TextureId {
+    pub fn mask_thumb(&mut self, ctx: &egui::Context, doc: &Document, id: openphoto_doc::LayerId, mask: &openphoto_doc::LayerMask) -> egui::TextureId {
         let rev = surface_fingerprint(&mask.surface) ^ (doc.size.width as u64) << 40;
         let key = (id, mask_thumbs_ui::THUMB_MASK);
         if let Some((r, tex)) = self.thumbs.get(&key)
@@ -986,7 +1008,7 @@ impl PhotocraftApp {
         self.store_thumb(ctx, key, rev, img)
     }
 
-    fn store_thumb(&mut self, ctx: &egui::Context, key: (photocraft_doc::LayerId, u8), rev: u64, img: egui::ColorImage) -> egui::TextureId {
+    fn store_thumb(&mut self, ctx: &egui::Context, key: (openphoto_doc::LayerId, u8), rev: u64, img: egui::ColorImage) -> egui::TextureId {
         match self.thumbs.get_mut(&key) {
             Some((r, tex)) => {
                 tex.set(img, egui::TextureOptions::LINEAR);
@@ -1004,7 +1026,7 @@ impl PhotocraftApp {
 }
 
 /// Cheap identity of a surface's pixels: tile coordinates and `Arc` pointers.
-pub fn surface_fingerprint(s: &photocraft_raster::Surface) -> u64 {
+pub fn surface_fingerprint(s: &openphoto_raster::Surface) -> u64 {
     let mut h: u64 = 0xcbf2_9ce4_8422_2325 ^ s.tile_count() as u64;
     for (c, t) in s.tiles() {
         let p = std::sync::Arc::as_ptr(t) as usize as u64;
@@ -1034,7 +1056,7 @@ fn thumb_image(doc: &Document, side: usize, mut f: impl FnMut(i32, i32) -> [f32;
     egui::ColorImage::new([side, side], px)
 }
 
-impl PhotocraftApp {
+impl OpenPhotoApp {
     /// Next step of queued synthetic input (automation): events up to and including the first
     /// release, so egui sees press and release in separate frames. Hosts that don't call
     /// `raw_input_hook` (offscreen harnesses) feed these to their input themselves.
@@ -1057,15 +1079,15 @@ impl PhotocraftApp {
         theme::install_fonts(ctx);
         egui_extras::install_image_loaders(ctx);
         theme::apply(ctx, kind);
-        // egui's own ⌘+ / ⌘- / ⌘0 scale the whole interface; PhotoCraft zooms the canvas instead
+        // egui's own ⌘+ / ⌘- / ⌘0 scale the whole interface; OpenPhoto zooms the canvas instead
         // (shortcuts.rs), like Photoshop.
         ctx.options_mut(|o| o.zoom_with_keyboard = false);
     }
 }
 
-impl PhotocraftApp {
+impl OpenPhotoApp {
     /// Cached `Surface::content_bounds` keyed by an id and the surface's tile identity.
-    pub fn cached_bounds(&mut self, key: u64, surface: &photocraft_raster::Surface) -> photocraft_geom::Rect {
+    pub fn cached_bounds(&mut self, key: u64, surface: &openphoto_raster::Surface) -> openphoto_geom::Rect {
         let rev = surface_fingerprint(surface);
         if let Some((r, b)) = self.bounds_cache.get(&key)
             && *r == rev
@@ -1081,14 +1103,14 @@ impl PhotocraftApp {
     }
 }
 
-impl PhotocraftApp {
+impl OpenPhotoApp {
     /// Zoom of the active document's main view (screen points per document pixel).
     pub fn current_zoom(&self) -> f32 {
         self.session.active_index().and_then(|i| self.ui.views.get(i)).map_or(1.0, |v| v.zoom)
     }
 }
 
-impl PhotocraftApp {
+impl OpenPhotoApp {
     /// Channels panel thumbnails of the active document snapshot: the composite,
     /// each colour channel (when there is more than one), each alpha channel, then the Quick Mask.
     pub fn channel_thumbs(&mut self, ctx: &egui::Context) -> Vec<egui::TextureId> {
@@ -1101,7 +1123,7 @@ impl PhotocraftApp {
         // identity against address reuse without retaining the document's pixel data.
         let snapshot = std::sync::Arc::downgrade(&doc);
         if !matches!(&self.channel_thumbs, Some((d, old, _)) if *d == id && old.ptr_eq(&snapshot)) {
-            let comp = photocraft_compose::thumbnail(&doc, 56);
+            let comp = openphoto_compose::thumbnail(&doc, 56);
             let (w, h) = (comp.width as usize, comp.height as usize);
             let side = w.max(h);
             let make = |f: &dyn Fn(&[u8]) -> egui::Color32, name: &str| {
@@ -1120,11 +1142,11 @@ impl PhotocraftApp {
             let mut texs = vec![make(&|p| egui::Color32::from_rgb(p[0], p[1], p[2]), "composite")];
             if colors > 1 {
                 for k in 0..colors {
-                    let cmyk = fmt.mode == photocraft_doc::ColorMode::Cmyk;
+                    let cmyk = fmt.mode == openphoto_doc::ColorMode::Cmyk;
                     texs.push(make(
                         &|p| {
                             let rgba = [p[0], p[1], p[2], 255].map(|v| f32::from(v) / 255.0);
-                            let x = photocraft_raster::from_rgba(&fmt, rgba)[k];
+                            let x = openphoto_raster::from_rgba(&fmt, rgba)[k];
                             let g = if cmyk { 1.0 - x } else { x };
                             egui::Color32::from_gray((g.clamp(0.0, 1.0) * 255.0 + 0.5) as u8)
                         },
@@ -1161,7 +1183,7 @@ fn clip_signature(w: u32, h: u32, px: &[u8]) -> u64 {
     sig
 }
 
-impl PhotocraftApp {
+impl OpenPhotoApp {
     /// Mirror the session clipboard onto the OS clipboard (RGBA8).
     fn export_os_clipboard(&mut self) {
         let (Some(set), Some(clip)) = (self.services.clipboard_set_image.as_mut(), self.session.clipboard.as_ref()) else { return };
@@ -1190,10 +1212,10 @@ impl PhotocraftApp {
         if self.os_clip_sig == Some(sig) && self.session.clipboard.is_some() {
             return false;
         }
-        let r = photocraft_geom::Rect::new(0, 0, w as i32, h as i32);
-        let mut surface = photocraft_raster::Surface::from_interleaved(photocraft_color::PixelFormat::RGBA8, r, &bytes);
+        let r = openphoto_geom::Rect::new(0, 0, w as i32, h as i32);
+        let mut surface = openphoto_raster::Surface::from_interleaved(openphoto_color::PixelFormat::RGBA8, r, &bytes);
         surface.prune();
-        self.session.clipboard = Some(photocraft_engine::edit_cmds::Clip { surface, bounds: r });
+        self.session.clipboard = Some(openphoto_engine::edit_cmds::Clip { surface, bounds: r });
         self.os_clip_sig = Some(sig);
         self.clip_external = true;
         true
@@ -1226,7 +1248,7 @@ mod clipboard_tests {
             clipboard_get_image: Some(Box::new(move || b.lock().unwrap().clone())),
             ..Default::default()
         };
-        let mut app = PhotocraftApp::new(Session::new(), services);
+        let mut app = OpenPhotoApp::new(Session::new(), services);
         app.session.execute("file.new", serde_json::json!({"width": 64, "height": 64})).unwrap();
         app.sync_views();
         app.run("select.rect", serde_json::json!({"x": 0, "y": 0, "width": 8, "height": 4})).unwrap();
@@ -1246,13 +1268,13 @@ mod clipboard_tests {
     type OsClip = Arc<Mutex<Option<(u32, u32, Vec<u8>)>>>;
 
     /// An app whose OS clipboard is `os`, counting every read in `reads`.
-    fn app_with_os_clipboard(os: &OsClip, reads: &Arc<std::sync::atomic::AtomicUsize>) -> PhotocraftApp {
+    fn app_with_os_clipboard(os: &OsClip, reads: &Arc<std::sync::atomic::AtomicUsize>) -> OpenPhotoApp {
         let (b, n) = (os.clone(), reads.clone());
         let get = move || {
             n.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             b.lock().unwrap().clone()
         };
-        let mut app = PhotocraftApp::new(Session::new(), Services { clipboard_get_image: Some(Box::new(get)), ..Default::default() });
+        let mut app = OpenPhotoApp::new(Session::new(), Services { clipboard_get_image: Some(Box::new(get)), ..Default::default() });
         app.session.execute("file.new", serde_json::json!({"width": 64, "height": 64})).unwrap();
         app.sync_views();
         app
@@ -1273,7 +1295,7 @@ mod clipboard_tests {
         assert_ne!(r["offset"], serde_json::json!([0, 0]), "external image is centred: {r}");
         assert_eq!(reads.load(std::sync::atomic::Ordering::SeqCst), 1, "one read per explicit paste");
         // Without a clipboard service Paste greys until something is copied in the app.
-        let mut plain = PhotocraftApp::new(Session::new(), Services::default());
+        let mut plain = OpenPhotoApp::new(Session::new(), Services::default());
         plain.session.execute("file.new", serde_json::json!({"width": 8, "height": 8})).unwrap();
         assert!(!crate::menus::is_enabled(&plain, "edit.paste"));
     }
@@ -1296,12 +1318,12 @@ mod clipboard_tests {
         *os.lock().unwrap() = Some((4, 4, [255u8, 0, 0, 255].repeat(16)));
         let (b, n) = (os.clone(), reads.clone());
         let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1200.0, 800.0)).with_max_steps(64).build_eframe(move |cc| {
-            PhotocraftApp::setup_context(&cc.egui_ctx, Default::default());
+            OpenPhotoApp::setup_context(&cc.egui_ctx, Default::default());
             let get = move || {
                 n.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 b.lock().unwrap().clone()
             };
-            let mut app = PhotocraftApp::new(Session::new(), Services { clipboard_get_image: Some(Box::new(get)), ..Default::default() });
+            let mut app = OpenPhotoApp::new(Session::new(), Services { clipboard_get_image: Some(Box::new(get)), ..Default::default() });
             app.session.execute("file.new", serde_json::json!({"width": 64, "height": 64})).unwrap();
             app
         });

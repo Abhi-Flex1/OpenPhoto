@@ -28,7 +28,7 @@ pub enum Backend {
 }
 
 #[derive(Clone)]
-pub struct PhotocraftMcp {
+pub struct OpenPhotoMcp {
     backend: Arc<Backend>,
     tool_router: ToolRouter<Self>,
 }
@@ -208,12 +208,12 @@ fn to_result(r: Result<Value, AutomationError>) -> Result<CallToolResult, McpErr
 fn bridge_only(name: &str) -> Result<CallToolResult, McpError> {
     Ok(fail(format!(
         "`{name}` drives the live GUI and needs bridge mode: start the app with \
-         `photocraft --control <port> --control-token-file <path>`, then run \
-         `photocraft-cli mcp --bridge 127.0.0.1:<port> --control-token-file <path>`"
+         `openphoto --control <port> --control-token-file <path>`, then run \
+         `openphoto-cli mcp --bridge 127.0.0.1:<port> --control-token-file <path>`"
     )))
 }
 
-impl PhotocraftMcp {
+impl OpenPhotoMcp {
     pub fn headless() -> Self {
         Self::with_backend(Backend::Headless(Arc::new(Mutex::new(Headless::new()))))
     }
@@ -227,7 +227,7 @@ impl PhotocraftMcp {
     }
 
     pub fn with_backend(backend: Backend) -> Self {
-        PhotocraftMcp { backend: Arc::new(backend), tool_router: Self::tool_router() }
+        OpenPhotoMcp { backend: Arc::new(backend), tool_router: Self::tool_router() }
     }
 
     /// Serve MCP over stdin/stdout until the client disconnects.
@@ -295,11 +295,11 @@ impl PhotocraftMcp {
 
 fn downscale_png(png: &[u8], max_side: u32) -> Result<Option<Vec<u8>>, AutomationError> {
     // A compressed reply's byte limit does not bound its decoded pixel allocation.
-    let opts = photocraft_codecs::DecodeOptions {
-        limits: photocraft_codecs::Limits { max_width: 8192, max_height: 8192, max_pixels: 16 << 20, max_alloc: 64 << 20 },
+    let opts = openphoto_codecs::DecodeOptions {
+        limits: openphoto_codecs::Limits { max_width: 8192, max_height: 8192, max_pixels: 16 << 20, max_alloc: 64 << 20 },
         ..Default::default()
     };
-    let img = photocraft_codecs::decode_as_with(photocraft_codecs::Format::Png, png, &opts).map_err(|error| AutomationError::Other(error.to_string()))?;
+    let img = openphoto_codecs::decode_as_with(openphoto_codecs::Format::Png, png, &opts).map_err(|error| AutomationError::Other(error.to_string()))?;
     let (w, h) = img.dimensions();
     if max_side == 0 || w.max(h) <= max_side {
         return Ok(None);
@@ -318,9 +318,9 @@ fn downscale_png(png: &[u8], max_side: u32) -> Result<Option<Vec<u8>>, Automatio
         }
     }
     let small =
-        photocraft_codecs::Image::from_u8(nw, nh, photocraft_codecs::ChannelLayout::Rgba, out).map_err(|error| AutomationError::Other(error.to_string()))?;
+        openphoto_codecs::Image::from_u8(nw, nh, openphoto_codecs::ChannelLayout::Rgba, out).map_err(|error| AutomationError::Other(error.to_string()))?;
     let bytes =
-        photocraft_codecs::encode(&small, photocraft_codecs::Format::Png, &Default::default()).map_err(|error| AutomationError::Other(error.to_string()))?;
+        openphoto_codecs::encode(&small, openphoto_codecs::Format::Png, &Default::default()).map_err(|error| AutomationError::Other(error.to_string()))?;
     Ok(Some(bytes))
 }
 
@@ -329,7 +329,7 @@ fn downscale_png(png: &[u8], max_side: u32) -> Result<Option<Vec<u8>>, Automatio
 // ---------------------------------------------------------------------------
 
 #[tool_router]
-impl PhotocraftMcp {
+impl OpenPhotoMcp {
     #[tool(description = "List open documents (index, name, size, dirty) and the active index.")]
     async fn session_list(&self) -> Result<CallToolResult, McpError> {
         if let Some(r) = self.headless_op(|h| Ok(h.session_list())).await {
@@ -571,7 +571,7 @@ fn bridge_only_headless(name: &str) -> Result<CallToolResult, McpError> {
     Ok(fail(format!("`{name}` is only available in headless mode (in the GUI use the window/tab UI or control_call)")))
 }
 
-impl PhotocraftMcp {
+impl OpenPhotoMcp {
     async fn run_command(&self, id: String, params: Value) -> Result<CallToolResult, McpError> {
         let (id2, params2) = (id.clone(), params.clone());
         if let Some(r) = self.headless_op(move |h| h.command_run(&id2, params2)).await {
@@ -592,7 +592,7 @@ impl PhotocraftMcp {
         }
         let Some(r) = self
             .headless_op(move |h| {
-                let mut opts = photocraft_io::ExportOptions::default();
+                let mut opts = openphoto_io::ExportOptions::default();
                 if let Some(q) = p.quality {
                     opts.encode.jpeg_quality = q.clamp(1, 100);
                 }
@@ -607,11 +607,11 @@ impl PhotocraftMcp {
     }
 }
 
-#[tool_handler(router = self.tool_router, name = "photocraft", instructions = "Photocraft image editor. Every edit is an engine command: call `command_list` to discover ids and parameter docs, then `command_run` (or `command_batch` for several at once). Use `doc_open`/`doc_new` first, `doc_inspect` for the layer tree, `doc_render_preview` to see the result, and `doc_save` (.pcraft is lossless native; .psd/.png/.jpg/.tif… export). In bridge mode the `ui_*` tools drive the live app (inspect, screenshot, pointer, menus).")]
-impl ServerHandler for PhotocraftMcp {}
+#[tool_handler(router = self.tool_router, name = "openphoto", instructions = "OpenPhoto image editor. Every edit is an engine command: call `command_list` to discover ids and parameter docs, then `command_run` (or `command_batch` for several at once). Use `doc_open`/`doc_new` first, `doc_inspect` for the layer tree, `doc_render_preview` to see the result, and `doc_save` (.pcraft is lossless native; .psd/.png/.jpg/.tif… export). In bridge mode the `ui_*` tools drive the live app (inspect, screenshot, pointer, menus).")]
+impl ServerHandler for OpenPhotoMcp {}
 
 /// Used by the render helper in tests and the CLI.
-pub fn render_document_png(doc: &photocraft_doc::Document, max_side: u32) -> Result<Vec<u8>, AutomationError> {
+pub fn render_document_png(doc: &openphoto_doc::Document, max_side: u32) -> Result<Vec<u8>, AutomationError> {
     files::render_png(doc, max_side)
 }
 
@@ -632,15 +632,15 @@ mod tests {
 
     #[test]
     fn bridge_screenshot_decode_limits_apply_even_without_downscaling() {
-        let image = photocraft_codecs::Image::from_u8(8193, 1, photocraft_codecs::ChannelLayout::Rgba, vec![0; 8193 * 4]).unwrap();
-        let png = photocraft_codecs::encode(&image, photocraft_codecs::Format::Png, &Default::default()).unwrap();
+        let image = openphoto_codecs::Image::from_u8(8193, 1, openphoto_codecs::ChannelLayout::Rgba, vec![0; 8193 * 4]).unwrap();
+        let png = openphoto_codecs::encode(&image, openphoto_codecs::Format::Png, &Default::default()).unwrap();
         assert!(downscale_png(&png, 0).is_err());
         assert!(downscale_png(&png, 1024).is_err());
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn a_panicking_command_does_not_wedge_the_session() {
-        let mcp = PhotocraftMcp::headless();
+        let mcp = OpenPhotoMcp::headless();
         let r = mcp.headless_op(|_| -> Result<(), AutomationError> { panic!("boom") }).await.unwrap();
         assert!(r.is_err());
         let r = mcp.headless_op(|h| h.command_run("file.new", json!({"width": 8, "height": 8}))).await.unwrap();

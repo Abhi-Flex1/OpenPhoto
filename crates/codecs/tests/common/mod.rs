@@ -2,7 +2,7 @@
 //! image generators, comparison metrics.
 #![allow(dead_code)]
 
-use photocraft_codecs::*;
+use openphoto_codecs::*;
 
 /// SplitMix64 — tiny deterministic PRNG.
 pub struct Rng(u64);

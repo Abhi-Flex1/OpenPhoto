@@ -14,25 +14,25 @@
 //! ```
 //!
 //! The list is in application order (first = bottom, applied first), like
-//! [`SmartObject::smart_filters`](photocraft_doc::SmartObject). Filters PhotoCraft implements map
+//! [`SmartObject::smart_filters`](openphoto_doc::SmartObject). Filters OpenPhoto implements map
 //! to their command id and dialog parameters; any other filter becomes a
 //! [`UNSUPPORTED_FILTER`] entry that keeps its descriptor verbatim (hex in `params.psd`), so it is
 //! listed, can be hidden, reordered or deleted, and is written back unchanged.
 
-use photocraft_color::{BlendMode, ColorMode, PixelFormat, SampleType};
-use photocraft_doc::{LayerMask, SmartFilter};
-use photocraft_geom::warp::{Warp, WarpStyle};
-use photocraft_geom::{Affine, Rect as GeomRect};
-use photocraft_psd::Compression;
-use photocraft_psd::Rect as PsdRect;
-use photocraft_psd::descriptor::{Class, Descriptor, Id, ObjectArray, ReferenceItem, UnicodeString, Value, VersionedDescriptor};
-use photocraft_psd::filter_effects::{EffectsPlane, FilterEffectsItem};
-use photocraft_raster::Surface;
+use openphoto_color::{BlendMode, ColorMode, PixelFormat, SampleType};
+use openphoto_doc::{LayerMask, SmartFilter};
+use openphoto_geom::warp::{Warp, WarpStyle};
+use openphoto_geom::{Affine, Rect as GeomRect};
+use openphoto_psd::Compression;
+use openphoto_psd::Rect as PsdRect;
+use openphoto_psd::descriptor::{Class, Descriptor, Id, ObjectArray, ReferenceItem, UnicodeString, Value, VersionedDescriptor};
+use openphoto_psd::filter_effects::{EffectsPlane, FilterEffectsItem};
+use openphoto_raster::Surface;
 use serde_json::{Map, Value as J, json};
 
 use crate::blocks::{enum_of, get_desc, num};
 
-/// Command id of a Photoshop smart filter PhotoCraft does not implement. Its params hold the
+/// Command id of a Photoshop smart filter OpenPhoto does not implement. Its params hold the
 /// filter's name, Photoshop filter id and descriptor (`psd`, hex); it renders as a pass-through.
 pub const UNSUPPORTED_FILTER: &str = "psd.unsupportedFilter";
 
@@ -121,7 +121,7 @@ pub fn filter_stack(fx: &Descriptor) -> FilterStack {
 
 // ---------- the filters we model ----------
 
-/// Photoshop filter → PhotoCraft command, keyed by the `Fltr` class (and `filterID`).
+/// Photoshop filter → OpenPhoto command, keyed by the `Fltr` class (and `filterID`).
 struct Known {
     class: &'static str,
     filter_id: i32,
@@ -709,7 +709,7 @@ pub fn feid_item(placed: &str, unfiltered: &Surface, mask: Option<&LayerMask>, b
     // Fully transparent pixels carry white, as in Photoshop's own cache: filters that look at
     // colour regardless of alpha (Shadows/Highlights) read it.
     let mut vals = px.read_region(r);
-    let white = photocraft_raster::from_rgba(&doc_fmt, [1.0, 1.0, 1.0, 1.0]);
+    let white = openphoto_raster::from_rgba(&doc_fmt, [1.0, 1.0, 1.0, 1.0]);
     for p in vals.chunks_exact_mut(cc + 1) {
         if p[cc] <= 0.0 {
             p[..cc].copy_from_slice(&white[..cc]);
@@ -879,9 +879,9 @@ mod tests {
             assert!((a - b).abs() < 1e-9);
         }
         assert_eq!(p.stack, Some(stack));
-        let tb = photocraft_psd::TaggedBlock::new(*b"SoLd", sold.clone());
+        let tb = openphoto_psd::TaggedBlock::new(*b"SoLd", sold.clone());
         tb.check_structure().unwrap();
-        let pl = photocraft_psd::TaggedBlock::new(*b"PlLd", plld_bytes(&spec, &mut w));
+        let pl = openphoto_psd::TaggedBlock::new(*b"PlLd", plld_bytes(&spec, &mut w));
         pl.check_structure().unwrap();
         // A template keeps its other keys; an unmoved transform keeps its exact quad.
         let mut tmpl = sold_descriptor(&sold).unwrap();
@@ -940,7 +940,7 @@ mod tests {
 
     #[test]
     fn warps_are_written_and_read_back() {
-        use photocraft_geom::warp::BezierMesh;
+        use openphoto_geom::warp::BezierMesh;
         let bounds = [0.0, 0.0, 60.0, 30.0];
         let mut custom = BezierMesh::identity(bounds, 1, 1);
         custom.points[15] = [67.0, 30.0];

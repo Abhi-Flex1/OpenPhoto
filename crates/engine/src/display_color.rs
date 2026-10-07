@@ -4,7 +4,7 @@
 //!
 //! * The composite is in [`composite_profile`] (the document profile for RGB, its gray curve as
 //!   RGB for gray documents, sRGB for CMYK — read through the document's CMYK profile, see
-//!   `photocraft_color::convert::CmykSpace` — and Lab).
+//!   `openphoto_color::convert::CmykSpace` — and Lab).
 //! * Linear composites (EXR/HDR, linear profiles) are stored in the 8-bit canvas texture
 //!   sRGB-encoded ([`CanvasDisplay::encode_srgb`]) so shadows keep their precision; the display
 //!   source profile is then the same primaries with the sRGB curve.
@@ -21,10 +21,10 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
 
-use photocraft_cms::{Builtin, ColorSpace, Curve, Intent, Profile, Transform};
-use photocraft_compose::Buffer;
-use photocraft_doc::Document;
-use photocraft_raster::Rgba8Image;
+use openphoto_cms::{Builtin, ColorSpace, Curve, Intent, Profile, Transform};
+use openphoto_compose::Buffer;
+use openphoto_doc::Document;
+use openphoto_raster::Rgba8Image;
 
 use crate::color_cmds::{ColorState, composite_profile, mode_space, profile_from_bytes, resolve_profile};
 use crate::{EngineError, Result};
@@ -76,7 +76,7 @@ impl CanvasDisplay {
         for p in &mut b.px {
             for v in &mut p[..3] {
                 // Capped at the largest half float; NaN is dropped by the texel conversion.
-                *v = photocraft_color::convert::linear_to_srgb(v.clamp(0.0, 65504.0));
+                *v = openphoto_color::convert::linear_to_srgb(v.clamp(0.0, 65504.0));
             }
         }
         Cow::Owned(b)
@@ -86,7 +86,7 @@ impl CanvasDisplay {
 /// Linear → sRGB-encoded 8-bit codes, indexed by the linear value in 1/65535 steps.
 fn encode_table() -> &'static [u8] {
     static T: OnceLock<Vec<u8>> = OnceLock::new();
-    T.get_or_init(|| (0..=65535u32).map(|i| (photocraft_color::convert::linear_to_srgb(i as f32 / 65535.0) * 255.0 + 0.5) as u8).collect())
+    T.get_or_init(|| (0..=65535u32).map(|i| (openphoto_color::convert::linear_to_srgb(i as f32 / 65535.0) * 255.0 + 0.5) as u8).collect())
 }
 
 fn encode_rgba8(buf: &Buffer) -> Rgba8Image {
@@ -117,7 +117,7 @@ fn is_linear_rgb(p: &Profile) -> bool {
 
 /// The same primaries with the sRGB curve (what an sRGB-encoded texture of a linear composite is in).
 fn srgb_curve_twin(p: &Profile) -> Profile {
-    let c = photocraft_cms::curve::srgb_trc();
+    let c = openphoto_cms::curve::srgb_trc();
     let mut q = p.clone();
     q.trc = Some([c.clone(), c.clone(), c]);
     q.description = format!("{} (sRGB-encoded)", p.description);
@@ -177,7 +177,7 @@ impl ColorState {
         let p = if spec.is_empty() || spec == "auto" {
             self.monitor_profile.as_ref().and_then(|b| profile_from_bytes(b).ok())
         } else {
-            resolve_profile(spec, None, Some(photocraft_color::ColorMode::Rgb)).ok()
+            resolve_profile(spec, None, Some(openphoto_color::ColorMode::Rgb)).ok()
         }
         .filter(|p| p.color_space == ColorSpace::Rgb)
         .unwrap_or_else(|| Arc::new(Builtin::Srgb.profile().clone()));

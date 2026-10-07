@@ -12,8 +12,8 @@
 //! from first principles here; it needs no sub-sampling and handles overlapping components
 //! exactly.
 
-use photocraft_doc::{FillRule, PathOp};
-use photocraft_geom::Rect;
+use openphoto_doc::{FillRule, PathOp};
+use openphoto_geom::Rect;
 
 #[derive(Clone, Copy, Debug)]
 struct Edge {

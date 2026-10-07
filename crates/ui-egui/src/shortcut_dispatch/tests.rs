@@ -6,18 +6,18 @@ use egui::accesskit::Role;
 use egui::{Key, Modifiers, PointerButton, Pos2, vec2};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
-use photocraft_doc::LayerContent;
+use openphoto_doc::LayerContent;
 use serde_json::json;
 
 use super::{Focus, Outcome, bindings, set_dry_run, take_log};
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 use crate::shortcuts::parse;
 use crate::state::Tool;
 
 /// Background, a filled pixel layer "paint" (active, with a selection), a type layer and a group
 /// holding a layer: what a real layout PSD looks like.
-fn realistic() -> photocraft_engine::Session {
-    let mut s = photocraft_engine::Session::new();
+fn realistic() -> openphoto_engine::Session {
+    let mut s = openphoto_engine::Session::new();
     s.execute("file.new", json!({"width": 240, "height": 160})).unwrap();
     s.execute("layer.new.layer", json!({"name": "in-group"})).unwrap();
     s.execute("layer.groupLayers", json!({"name": "group"})).unwrap();
@@ -34,10 +34,10 @@ fn services() -> crate::Services {
     crate::Services { export: Some(Box::new(|_, _, _| Err("tests don't write files".into()))), ..Default::default() }
 }
 
-fn harness() -> Harness<'static, PhotocraftApp> {
+fn harness() -> Harness<'static, OpenPhotoApp> {
     let mut h = Harness::builder().with_size(vec2(1440.0, 900.0)).with_max_steps(64).build_eframe(|cc| {
-        PhotocraftApp::setup_context(&cc.egui_ctx, Default::default());
-        PhotocraftApp::new(realistic(), services())
+        OpenPhotoApp::setup_context(&cc.egui_ctx, Default::default());
+        OpenPhotoApp::new(realistic(), services())
     });
     h.run_steps(8);
     h
@@ -58,7 +58,7 @@ fn platform(m: Modifiers) -> Modifiers {
     out
 }
 
-fn press(h: &mut Harness<'_, PhotocraftApp>, sc: &str) {
+fn press(h: &mut Harness<'_, OpenPhotoApp>, sc: &str) {
     let sc = parse(sc).unwrap_or_else(|| panic!("unparsable shortcut {sc}"));
     let m = platform(sc.modifiers);
     h.event(egui::Event::ModifiersChanged(m));
@@ -68,7 +68,7 @@ fn press(h: &mut Harness<'_, PhotocraftApp>, sc: &str) {
     h.run_steps(2);
 }
 
-fn click(h: &mut Harness<'_, PhotocraftApp>, at: Pos2) {
+fn click(h: &mut Harness<'_, OpenPhotoApp>, at: Pos2) {
     h.hover_at(at);
     h.run_steps(1);
     h.event(egui::Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: true, modifiers: Modifiers::NONE });
@@ -77,7 +77,7 @@ fn click(h: &mut Harness<'_, PhotocraftApp>, at: Pos2) {
     h.run_steps(3);
 }
 
-fn active_name(h: &Harness<'_, PhotocraftApp>) -> String {
+fn active_name(h: &Harness<'_, OpenPhotoApp>) -> String {
     let st = h.state().session.active().unwrap();
     st.active_layer.and_then(|id| st.doc.layer(id)).map(|l| l.name.clone()).unwrap_or_default()
 }
@@ -95,7 +95,7 @@ enum Place {
     FocusedWidget,
 }
 
-fn put_focus(h: &mut Harness<'_, PhotocraftApp>, place: Place) {
+fn put_focus(h: &mut Harness<'_, OpenPhotoApp>, place: Place) {
     match place {
         Place::Canvas => {
             let c = h.state().last_canvas_rect.center();
@@ -138,7 +138,7 @@ fn same(shown: &str, bound: &str) -> bool {
 }
 
 /// Every shortcut shown in the menus (and the shell's unlisted ones), with whether it is live.
-fn displayed(app: &PhotocraftApp) -> Vec<(String, String, bool)> {
+fn displayed(app: &OpenPhotoApp) -> Vec<(String, String, bool)> {
     let mut v: Vec<(String, String, bool)> = crate::menus::menu_items(app)
         .into_iter()
         .filter(|i| i.id != "---")
@@ -230,7 +230,7 @@ fn common_shortcuts_work_after_clicking_panels() {
     for place in [Place::Canvas, Place::LayersRow, Place::FocusedWidget, Place::OpacityField] {
         let mut h = harness();
         put_focus(&mut h, place);
-        let count = |h: &Harness<'_, PhotocraftApp>| h.state().session.active().unwrap().doc.walk().len();
+        let count = |h: &Harness<'_, OpenPhotoApp>| h.state().session.active().unwrap().doc.walk().len();
         let n = count(&h);
         press(&mut h, "Cmd+J");
         assert_eq!(count(&h), n + 1, "{place:?}: ⌘J duplicates the layer");

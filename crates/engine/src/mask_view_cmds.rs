@@ -8,7 +8,7 @@
 //! ([`crate::channel_cmds`]'s target injection), so painting in mask view paints the mask.
 //! The view ends when its layer stops being the active layer or loses its mask ([`fix`]).
 
-use photocraft_doc::LayerId;
+use openphoto_doc::LayerId;
 use serde::Serialize;
 use serde_json::{Value, json};
 
@@ -115,7 +115,7 @@ fn set_view(s: &mut Session, p: &Value) -> Result<Value> {
         if clean {
             st.saved_revision = st.revision;
         }
-        st.last_damage = Some(photocraft_geom::Rect::EMPTY);
+        st.last_damage = Some(openphoto_geom::Rect::EMPTY);
     }
     let v = current(st);
     Ok(json!({"layer": layer.0, "mode": mode_name(v.filter(|v| v.layer == layer))}))

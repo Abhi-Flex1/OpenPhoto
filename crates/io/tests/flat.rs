@@ -1,19 +1,19 @@
-//! Flat formats through photocraft-codecs, and export warnings.
+//! Flat formats through openphoto-codecs, and export warnings.
 
 mod common;
 
 use common::*;
-use photocraft_color::{ColorMode, SampleType};
-use photocraft_io::*;
+use openphoto_color::{ColorMode, SampleType};
+use openphoto_io::*;
 
-fn single(mode: ColorMode, depth: SampleType, alpha: bool) -> photocraft_doc::Document {
-    let mut d = photocraft_doc::Document::new("s", photocraft_geom::Size::new(9, 6), mode, depth);
+fn single(mode: ColorMode, depth: SampleType, alpha: bool) -> openphoto_doc::Document {
+    let mut d = openphoto_doc::Document::new("s", openphoto_geom::Size::new(9, 6), mode, depth);
     let fmt = d.pixel_format();
     d.layers.push(raster("Background", fmt, d.bounds(), 3, alpha));
     d
 }
 
-fn pixels_eq(a: &photocraft_doc::Document, b: &photocraft_doc::Document, tol: f32) {
+fn pixels_eq(a: &openphoto_doc::Document, b: &openphoto_doc::Document, tol: f32) {
     let sa = a.layers[0].surface().unwrap();
     let sb = b.layers[0].surface().unwrap();
     let r = a.bounds();
@@ -54,7 +54,7 @@ codec_rt!(tiff_gray8, "tiff", ColorMode::Grayscale, SampleType::U8, false, 0.0);
 #[test]
 fn exr_rgba32() {
     let mut d = single(ColorMode::Rgb, SampleType::F32, true);
-    d.icc_profile = Some(photocraft_cms::Builtin::LinearSrgb.profile().to_bytes());
+    d.icc_profile = Some(openphoto_cms::Builtin::LinearSrgb.profile().to_bytes());
     let r = export(&d, "exr", &ExportOptions::default()).expect("export");
     let back = import("x.exr", &r.bytes).expect("import").document;
     assert_eq!((back.size, back.mode, back.depth), (d.size, d.mode, d.depth));
@@ -66,15 +66,15 @@ fn exr_rgba32() {
     let back = import("x.exr", &r.bytes).expect("import").document;
     let (a, b) = (srgb.layers[0].surface().unwrap().pixel(2, 3), back.layers[0].surface().unwrap().pixel(2, 3));
     for c in 0..3 {
-        assert!((photocraft_color::convert::srgb_to_linear(a[c]) - b[c]).abs() < 1e-4, "{a:?} -> {b:?}");
+        assert!((openphoto_color::convert::srgb_to_linear(a[c]) - b[c]).abs() < 1e-4, "{a:?} -> {b:?}");
     }
     assert!((a[3] - b[3]).abs() < 1e-6, "alpha kept");
 }
 
-fn smooth(mode: ColorMode) -> photocraft_doc::Document {
-    let mut d = photocraft_doc::Document::new("s", photocraft_geom::Size::new(32, 16), mode, SampleType::U8);
+fn smooth(mode: ColorMode) -> openphoto_doc::Document {
+    let mut d = openphoto_doc::Document::new("s", openphoto_geom::Size::new(32, 16), mode, SampleType::U8);
     let fmt = d.pixel_format();
-    let mut s = photocraft_raster::Surface::new(fmt);
+    let mut s = openphoto_raster::Surface::new(fmt);
     let n = fmt.channels();
     let mut v = Vec::new();
     for y in 0..16 {
@@ -86,7 +86,7 @@ fn smooth(mode: ColorMode) -> photocraft_doc::Document {
         }
     }
     s.write_region(d.bounds(), &v);
-    d.layers.push(photocraft_doc::Layer::new("Background", photocraft_doc::LayerContent::Raster(s)));
+    d.layers.push(openphoto_doc::Layer::new("Background", openphoto_doc::LayerContent::Raster(s)));
     d
 }
 
@@ -138,7 +138,7 @@ fn layered_to_png_warns_flatten() {
     assert!(r.warnings.iter().any(|w| w.contains("flattened")), "{:?}", r.warnings);
     let back = import("out.png", &r.bytes).unwrap().document;
     // Composite equals our flatten.
-    let flat = photocraft_compose::flatten(&d).px;
+    let flat = openphoto_compose::flatten(&d).px;
     let s = back.layers[0].surface().unwrap();
     let px: Vec<[f32; 4]> = s.read_region(back.bounds()).as_chunks::<4>().0.iter().map(|p| [p[0], p[1], p[2], p[3]]).collect();
     assert!(max_diff(&px, &flat) <= 1.0 / 255.0 + 1e-4);
@@ -168,11 +168,11 @@ fn cmyk_layered_to_png_warns_conversion() {
 #[test]
 fn effects_are_written_to_psd_and_read_back() {
     let mut d = gen_doc(ColorMode::Rgb, SampleType::U8, Features::PIXELS);
-    d.layers[1].effects.items.push(photocraft_doc::Effect::ColorOverlay {
-        common: photocraft_doc::FxCommon::new(photocraft_color::BlendMode::Normal, 1.0),
-        color: photocraft_color::Color::BLACK,
+    d.layers[1].effects.items.push(openphoto_doc::Effect::ColorOverlay {
+        common: openphoto_doc::FxCommon::new(openphoto_color::BlendMode::Normal, 1.0),
+        color: openphoto_color::Color::BLACK,
     });
-    d.layers[1].effects.items.push(photocraft_doc::Effect::default_drop_shadow());
+    d.layers[1].effects.items.push(openphoto_doc::Effect::default_drop_shadow());
     let r = export(&d, "a.psd", &ExportOptions::default()).unwrap();
     assert!(!r.warnings.iter().any(|w| w.contains("effects")), "{:?}", r.warnings);
     let back = import("a.psd", &r.bytes).unwrap().document;
@@ -220,5 +220,5 @@ fn psd_to_png_to_psd_chain() {
     let d3 = import("a.png", &png.bytes).unwrap().document;
     assert_eq!(d3.depth, SampleType::U16);
     let psd2 = export(&d3, "b.psd", &ExportOptions::default()).unwrap();
-    assert!(photocraft_psd::PsdFile::from_bytes(&psd2.bytes).is_ok());
+    assert!(openphoto_psd::PsdFile::from_bytes(&psd2.bytes).is_ok());
 }

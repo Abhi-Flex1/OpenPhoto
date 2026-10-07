@@ -1,5 +1,5 @@
 [package]
-name = "photocraft-raster"
+name = "openphoto-raster"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,8 +8,8 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-photocraft-geom = { workspace = true }
-photocraft-color = { workspace = true }
+openphoto-geom = { workspace = true }
+openphoto-color = { workspace = true }
 serde = { workspace = true }
 
 [dev-dependencies]

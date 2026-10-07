@@ -19,13 +19,13 @@
 //! precise glows and chiselled bevels use an exact Euclidean distance transform. Soft falloffs
 //! are two box blurs (a tent).
 
-use photocraft_color::blend::BlendMode;
-use photocraft_doc::Pattern;
-use photocraft_doc::{
+use openphoto_color::blend::BlendMode;
+use openphoto_doc::Pattern;
+use openphoto_doc::{
     Bevel, BevelStyle, BevelTechnique, Contour, Effect, FxPaint, GlobalLight, Glow, GlowSource, GlowTechnique, Gradient, GradientStyle, Layer, Shadow,
     StrokePosition,
 };
-use photocraft_geom::Rect;
+use openphoto_geom::Rect;
 
 use crate::pattern::{PREPARED_PATTERN_BYTES, Placement, PreparedPatterns};
 use crate::{Buffer, psblend};
@@ -406,7 +406,7 @@ fn apply_contour(m: Map, c: &Contour) -> Map {
     }
 }
 
-fn rgb(c: &photocraft_color::Color) -> [f32; 3] {
+fn rgb(c: &openphoto_color::Color) -> [f32; 3] {
     c.to_rgb()
 }
 
@@ -1019,7 +1019,7 @@ pub struct FxMaps {
 
 impl FxMaps {
     /// The frame of a gradient stroke `st` of this layer (see [`stroke_frame`]), if built.
-    pub fn stroke_frame(&self, st: &photocraft_doc::StrokeFx) -> Option<Rect> {
+    pub fn stroke_frame(&self, st: &openphoto_doc::StrokeFx) -> Option<Rect> {
         self.frames.iter().find(|f| f.0 == stroke_widths(st).1.to_bits()).map(|f| f.1)
     }
 }
@@ -1055,7 +1055,7 @@ impl FxMaps {
     }
 }
 
-fn satin_map(shape: &Map, s: &photocraft_doc::effects::Satin) -> Map {
+fn satin_map(shape: &Map, s: &openphoto_doc::effects::Satin) -> Map {
     let (dx, dy) = offset(s.angle, s.distance);
     let mut a = shape.shifted(dx, dy, 0.0);
     let mut b = shape.shifted(-dx, -dy, 0.0);
@@ -1109,7 +1109,7 @@ pub(crate) fn build_maps_prepared(
         })
         .collect();
     let has_stroke = items.iter().any(|e| matches!(e, Effect::Stroke(_)));
-    let vector_shape = matches!(layer.content, photocraft_doc::LayerContent::Shape(_));
+    let vector_shape = matches!(layer.content, openphoto_doc::LayerContent::Shape(_));
     let (din, dout) = if has_stroke { (Some(dist_inside_by(&shape, Metric::Chamfer)), Some(dist_outside_by(&shape, Metric::Chamfer))) } else { (None, None) };
     // Without an outline (unfilled shapes), estimate the vector outline from local coverage.
     let outline = crate::effect_outline(layer).is_some();
@@ -1176,7 +1176,7 @@ pub(crate) fn composite_with_effects_prepared(
         }
     }
     let items: Vec<&Effect> = layer.effects.items.iter().filter(|e| e.enabled()).collect();
-    let vector_shape = matches!(layer.content, photocraft_doc::LayerContent::Shape(_));
+    let vector_shape = matches!(layer.content, openphoto_doc::LayerContent::Shape(_));
     // Multiple instances: the first listed is on top, so paint in reverse.
     let rev = || items.iter().copied().enumerate().rev();
 
@@ -1269,14 +1269,14 @@ pub(crate) fn composite_with_effects_prepared(
     }
     // Strokes. Inside parts are painted over the layer (bottom instance first); outside parts
     // are slid beneath it, so the first listed (top) instance is processed first.
-    let strokes: Vec<&photocraft_doc::StrokeFx> = items.iter().filter_map(|e| if let Effect::Stroke(s) = e { Some(s) } else { None }).collect();
+    let strokes: Vec<&openphoto_doc::StrokeFx> = items.iter().filter_map(|e| if let Effect::Stroke(s) = e { Some(s) } else { None }).collect();
     let (din, dout) = match (&maps.din, &maps.dout) {
         (Some(a), Some(b)) if !strokes.is_empty() => (maps.crop_vec(a, big, 0.0), maps.crop_vec(b, big, FAR)),
         _ => (Vec::new(), Vec::new()),
     };
     let widths = stroke_widths;
     // A gradient stroke aligned with the layer spans the stroke's own extent.
-    let frame = |st: &photocraft_doc::StrokeFx| maps.stroke_frame(st).unwrap_or(sb);
+    let frame = |st: &openphoto_doc::StrokeFx| maps.stroke_frame(st).unwrap_or(sb);
     for st in strokes.iter().rev().copied() {
         let (in_w, _) = widths(st);
         if in_w <= 0.0 {
@@ -1411,7 +1411,7 @@ pub fn outline_share(cov: f32, l: f32) -> f32 {
 }
 
 /// (inside width, outside width) of a stroke.
-pub fn stroke_widths(st: &photocraft_doc::StrokeFx) -> (f32, f32) {
+pub fn stroke_widths(st: &openphoto_doc::StrokeFx) -> (f32, f32) {
     match st.position {
         StrokePosition::Outside => (0.0, st.size),
         StrokePosition::Inside => (st.size, 0.0),
@@ -1645,10 +1645,10 @@ mod tests {
             altitude: 30.0,
             use_global_light: false,
             gloss_contour: Contour::Linear,
-            highlight: photocraft_doc::FxCommon::new(BlendMode::Screen, 0.75),
-            highlight_color: photocraft_color::Color::WHITE,
-            shadow: photocraft_doc::FxCommon::new(BlendMode::Multiply, 0.75),
-            shadow_color: photocraft_color::Color::BLACK,
+            highlight: openphoto_doc::FxCommon::new(BlendMode::Screen, 0.75),
+            highlight_color: openphoto_color::Color::WHITE,
+            shadow: openphoto_doc::FxCommon::new(BlendMode::Multiply, 0.75),
+            shadow_color: openphoto_color::Color::BLACK,
             contour: None,
             texture: None,
         }
@@ -1734,21 +1734,21 @@ mod tests {
         // A contour reshapes the profile (here a ramp folded at its middle).
         let mut c = plain.clone();
         let fold = vec![
-            photocraft_doc::adjust::CurvePoint { input: 0.0, output: 0.0 },
-            photocraft_doc::adjust::CurvePoint { input: 0.5, output: 1.0 },
-            photocraft_doc::adjust::CurvePoint { input: 1.0, output: 0.0 },
+            openphoto_doc::adjust::CurvePoint { input: 0.0, output: 0.0 },
+            openphoto_doc::adjust::CurvePoint { input: 0.5, output: 1.0 },
+            openphoto_doc::adjust::CurvePoint { input: 1.0, output: 0.0 },
         ];
-        c.contour = Some(photocraft_doc::BevelContour { contour: Contour::Custom { name: "fold".into(), points: fold }, range: 1.0, anti_alias: false });
+        c.contour = Some(openphoto_doc::BevelContour { contour: Contour::Custom { name: "fold".into(), points: fold }, range: 1.0, anti_alias: false });
         let (b, _) = bevel_maps(&shape, &c, &l, &no_tex(), &PreparedPatterns::new(&[], PREPARED_PATTERN_BYTES));
         let diff: f32 = a[1].v.iter().zip(&b[1].v).map(|(x, y)| (x - y).abs()).sum();
         assert!(diff > 5.0, "{diff}");
         // A striped texture lights the flat middle.
-        let mut sf = photocraft_raster::Surface::new(photocraft_color::PixelFormat::RGBA8);
+        let mut sf = openphoto_raster::Surface::new(openphoto_color::PixelFormat::RGBA8);
         sf.fill_rect(Rect::new(0, 0, 4, 2), &[0.0, 0.0, 0.0, 1.0]);
         sf.fill_rect(Rect::new(0, 2, 4, 4), &[1.0, 1.0, 1.0, 1.0]);
         let pats = [Pattern::new("stripes", sf, 4, 4)];
         let mut t = plain.clone();
-        t.texture = Some(photocraft_doc::BevelTexture {
+        t.texture = Some(openphoto_doc::BevelTexture {
             name: "stripes".into(),
             id: String::new(),
             scale: 1.0,
@@ -1767,8 +1767,8 @@ mod tests {
     #[test]
     fn glow_range_stretches_the_contour() {
         let mut g = Glow {
-            common: photocraft_doc::FxCommon::new(BlendMode::Screen, 1.0),
-            paint: FxPaint::Color(photocraft_color::Color::WHITE),
+            common: openphoto_doc::FxCommon::new(BlendMode::Screen, 1.0),
+            paint: FxPaint::Color(openphoto_color::Color::WHITE),
             technique: GlowTechnique::Softer,
             spread: 0.0,
             size: 10.0,

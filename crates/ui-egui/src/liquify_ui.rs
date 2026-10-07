@@ -9,12 +9,12 @@
 //! OK runs `filter.liquify` with the same strokes and gets the same field.
 
 use egui::{Align2, Color32, FontId, Pos2, Rect as ERect, Sense, Stroke, TextureHandle, pos2, vec2};
-use photocraft_algo::liquify::{LiquifyField, LiquifyStroke, LiquifyTool, ProxyImage, auto_cell};
-use photocraft_doc::LayerId;
-use photocraft_geom::Rect;
+use openphoto_algo::liquify::{LiquifyField, LiquifyStroke, LiquifyTool, ProxyImage, auto_cell};
+use openphoto_doc::LayerId;
+use openphoto_geom::Rect;
 use serde_json::{Value, json};
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 use crate::canvas::ToolEvent;
 use crate::theme::Tokens;
 use crate::widgets;
@@ -235,7 +235,7 @@ impl LiquifyDialog {
 }
 
 /// Opens the dialog on the active layer.
-pub fn open(app: &mut PhotocraftApp, ctx: &egui::Context) -> Result<(), String> {
+pub fn open(app: &mut OpenPhotoApp, ctx: &egui::Context) -> Result<(), String> {
     let (layer, surf, _) = crate::distort_ui::active_pixels(app)?;
     let st = app.session.active().ok_or("no document")?;
     let canvas = st.doc.bounds();
@@ -274,7 +274,7 @@ pub fn open(app: &mut PhotocraftApp, ctx: &egui::Context) -> Result<(), String> 
 }
 
 /// OK: runs `filter.liquify` with the recorded strokes (one history step).
-pub fn commit(app: &mut PhotocraftApp) {
+pub fn commit(app: &mut OpenPhotoApp) {
     let Some(mut d) = app.distort.liquify.take() else { return };
     d.end();
     if d.strokes.is_empty() {
@@ -285,7 +285,7 @@ pub fn commit(app: &mut PhotocraftApp) {
 }
 
 /// Control channel: `filter.liquify {"ui": {...}}` while the dialog is open.
-pub fn control(app: &mut PhotocraftApp, ui: &Value) -> Result<Value, String> {
+pub fn control(app: &mut OpenPhotoApp, ui: &Value) -> Result<Value, String> {
     if ui.get("commit").and_then(Value::as_bool) == Some(true) {
         commit(app);
         return Ok(json!({"committed": true}));
@@ -346,7 +346,7 @@ pub fn control(app: &mut PhotocraftApp, ui: &Value) -> Result<Value, String> {
 }
 
 /// Pointer in document coordinates (from the preview or the control channel).
-pub fn pointer(app: &mut PhotocraftApp, ev: ToolEvent, _mods: egui::Modifiers) {
+pub fn pointer(app: &mut OpenPhotoApp, ev: ToolEvent, _mods: egui::Modifiers) {
     let now = crate::gpu_canvas::now_ms();
     let Some(d) = app.distort.liquify.as_mut() else { return };
     match ev {
@@ -368,7 +368,7 @@ pub fn pointer(app: &mut PhotocraftApp, ev: ToolEvent, _mods: egui::Modifiers) {
     }
 }
 
-pub fn keys(app: &mut PhotocraftApp, ctx: &egui::Context) {
+pub fn keys(app: &mut OpenPhotoApp, ctx: &egui::Context) {
     let Some(d) = app.distort.liquify.as_mut() else { return };
     if ctx.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::Z)) {
         d.undo();
@@ -428,18 +428,18 @@ fn shortcut(t: LiquifyTool) -> &'static str {
     }
 }
 
-fn load_backdrop(app: &PhotocraftApp, ctx: &egui::Context, layer: LayerId, canvas: Rect) -> Option<TextureHandle> {
+fn load_backdrop(app: &OpenPhotoApp, ctx: &egui::Context, layer: LayerId, canvas: Rect) -> Option<TextureHandle> {
     let st = app.session.active()?;
     let doc = crate::distort_ui::without_layer(&st.doc, layer);
-    let buf = photocraft_compose::render(&doc, canvas);
-    let mut s = photocraft_raster::Surface::new(photocraft_color::PixelFormat::RGBA8);
+    let buf = openphoto_compose::render(&doc, canvas);
+    let mut s = openphoto_raster::Surface::new(openphoto_color::PixelFormat::RGBA8);
     let flat: Vec<f32> = buf.px.iter().flat_map(|p| *p).collect();
     s.write_region(canvas, &flat);
     Some(ctx.load_texture("liquify-backdrop", crate::distort_ui::surface_image(&s, canvas, PROXY_SIDE), egui::TextureOptions::LINEAR))
 }
 
 /// Draws the dialog (a full-window layer over the app).
-pub fn show(app: &mut PhotocraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut OpenPhotoApp, ctx: &egui::Context) {
     let t = Tokens::get(ctx);
     let screen = ctx.content_rect();
     if app.distort.liquify.as_ref().is_some_and(|d| d.opts.show_backdrop && d.backdrop.is_none()) {
@@ -702,8 +702,8 @@ fn draw_mesh(d: &LiquifyDialog, painter: &egui::Painter, area: ERect) {
 mod tests {
     use super::*;
 
-    fn app_with_layer() -> PhotocraftApp {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+    fn app_with_layer() -> OpenPhotoApp {
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), Default::default());
         app.session.execute("file.new", json!({"width": 120, "height": 80, "depth": 8})).unwrap();
         app.session.execute("layer.new.layer", json!({})).unwrap();
         app.session

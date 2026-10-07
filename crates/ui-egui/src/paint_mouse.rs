@@ -5,15 +5,15 @@
 //! with `"erase": true`, so one undo step, with the pen pressure and tilt of a normal stroke.
 
 use egui::{PointerButton, Response};
-use photocraft_engine::prefs::RightClickPaint;
+use openphoto_engine::prefs::RightClickPaint;
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 use crate::state::Tool;
 
 /// Smoothing is a tool option, kept per tool like Photoshop's options bar: switching between the
 /// Brush and the Eraser saves the session brush's smoothing for the old tool and loads the new
 /// tool's (Photoshop's 10 % the first time). Other tools leave it alone.
-pub fn sync_tool_smoothing(app: &mut PhotocraftApp) {
+pub fn sync_tool_smoothing(app: &mut OpenPhotoApp) {
     let tool = app.ui.tool;
     if !matches!(tool, Tool::Brush | Tool::Pencil | Tool::Eraser) || app.ui.smoothing_tool == Some(tool) {
         return;
@@ -32,7 +32,7 @@ pub fn sync_tool_smoothing(app: &mut PhotocraftApp) {
                 .iter()
                 .find(|(t, _)| *t == tool)
                 .map(|(_, s)| s.clone())
-                .unwrap_or_else(|| photocraft_engine::paint::brush::Smoothing { amount: 0.1, ..Default::default() })
+                .unwrap_or_else(|| openphoto_engine::paint::brush::Smoothing { amount: 0.1, ..Default::default() })
         }
     };
     app.session.tools.brush.smoothing = next;
@@ -54,13 +54,13 @@ pub fn has_brush_picker(tool: Tool) -> bool {
 }
 
 /// Does a right-button drag with `tool` erase (rather than open the picker)?
-pub fn right_erases(app: &PhotocraftApp, tool: Tool) -> bool {
+pub fn right_erases(app: &OpenPhotoApp, tool: Tool) -> bool {
     matches!(tool, Tool::Brush | Tool::Eraser) && app.session.prefs().tools.right_click_with_painting_tools == RightClickPaint::Erase
 }
 
 /// Route the canvas response's buttons: the left one drives the tool; the right one erases (Erase
 /// preference) or opens the Brush Preset picker. Arms `secondary_erase` for this frame's `Down`.
-pub fn canvas_buttons(app: &mut PhotocraftApp, response: &Response, tool: Tool) -> Buttons {
+pub fn canvas_buttons(app: &mut OpenPhotoApp, response: &Response, tool: Tool) -> Buttons {
     let erase = right_erases(app, tool);
     let right_stroke = erase && app.drag.is_some();
     let right_start = erase && response.drag_started_by(PointerButton::Secondary);
@@ -85,7 +85,7 @@ pub fn canvas_buttons(app: &mut PhotocraftApp, response: &Response, tool: Tool) 
 /// `ui.pointer` with `"button": "secondary"`: true when its events should reach the tool (an
 /// erasing right stroke; `secondary_erase` is armed for its `Down`). Otherwise a right-click with
 /// a painting tool opens the Brush Preset picker over the canvas, and nothing paints.
-pub fn pointer_secondary(app: &mut PhotocraftApp, down: bool) -> bool {
+pub fn pointer_secondary(app: &mut OpenPhotoApp, down: bool) -> bool {
     let tool = app.ui.tool;
     if right_erases(app, tool) {
         app.secondary_erase = down;
@@ -100,7 +100,7 @@ pub fn pointer_secondary(app: &mut PhotocraftApp, down: bool) -> bool {
 
 /// The Brush Preset picker a right-click opened, at the pointer. It edits the session brush like
 /// the options-bar chip's; a click outside, Escape or Enter closes it.
-pub fn show_picker(app: &mut PhotocraftApp, ctx: &egui::Context) {
+pub fn show_picker(app: &mut OpenPhotoApp, ctx: &egui::Context) {
     let Some([x, y]) = app.ui.brush_picker else { return };
     if !has_brush_picker(app.ui.tool) || ctx.input(|i| i.key_pressed(egui::Key::Escape) || i.key_pressed(egui::Key::Enter)) {
         app.ui.brush_picker = None;
@@ -136,8 +136,8 @@ mod tests {
     use super::*;
     use crate::canvas::{ToolEvent, tool_event};
 
-    fn harness(prefs: Option<&str>) -> Harness<'static, PhotocraftApp> {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+    fn harness(prefs: Option<&str>) -> Harness<'static, OpenPhotoApp> {
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
         app.run("layer.new.layer", json!({})).unwrap();
         app.run("tools.setColors", json!({"foreground": "#0000ff"})).unwrap();
@@ -148,7 +148,7 @@ mod tests {
         app.ui.tool = Tool::Brush;
         app.sync_views();
         let mut h = Harness::builder().with_size(vec2(1200.0, 800.0)).build_ui_state(
-            |ui, app: &mut PhotocraftApp| {
+            |ui, app: &mut OpenPhotoApp| {
                 let ctx = ui.ctx().clone();
                 if !ctx.fonts(|f| f.families().contains(&egui::FontFamily::Name("medium".into()))) {
                     return;
@@ -157,18 +157,18 @@ mod tests {
             },
             app,
         );
-        PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+        OpenPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
         h.run_steps(4);
         h
     }
 
-    fn press(h: &mut Harness<'static, PhotocraftApp>, pos: Pos2, button: PointerButton, pressed: bool) {
+    fn press(h: &mut Harness<'static, OpenPhotoApp>, pos: Pos2, button: PointerButton, pressed: bool) {
         h.event(egui::Event::PointerButton { pos, button, pressed, modifiers: Modifiers::NONE });
         h.run_steps(2);
     }
 
     /// Drag across the canvas centre with `button`; returns the document points it covered.
-    fn drag(h: &mut Harness<'static, PhotocraftApp>, button: PointerButton) -> (Pos2, Pos2) {
+    fn drag(h: &mut Harness<'static, OpenPhotoApp>, button: PointerButton) -> (Pos2, Pos2) {
         let c = h.state().last_canvas_rect.center();
         let (a, b) = (c - vec2(80.0, 0.0), c + vec2(80.0, 0.0));
         h.event(egui::Event::PointerMoved(a));
@@ -182,7 +182,7 @@ mod tests {
         (a, b)
     }
 
-    fn alpha_at(h: &Harness<'static, PhotocraftApp>, screen: Pos2) -> f32 {
+    fn alpha_at(h: &Harness<'static, OpenPhotoApp>, screen: Pos2) -> f32 {
         let app = h.state();
         let v = app.ui.views[0].clone();
         let r = app.last_canvas_rect;
@@ -192,7 +192,7 @@ mod tests {
         st.doc.layer(st.active_layer.unwrap()).unwrap().surface().unwrap().rgba(x, y)[3]
     }
 
-    fn strokes(h: &Harness<'static, PhotocraftApp>) -> Vec<serde_json::Value> {
+    fn strokes(h: &Harness<'static, OpenPhotoApp>) -> Vec<serde_json::Value> {
         h.state().session.journal.iter().filter(|(id, _)| id == "paint.stroke").map(|(_, p)| p.clone()).collect()
     }
 
@@ -276,7 +276,7 @@ mod tests {
 
     #[test]
     fn right_stroke_erases_with_pen_pressure_through_the_control_channel_path() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 120, "height": 80})).unwrap();
         app.run("prefs.set", json!({"path": "tools.rightClickWithPaintingTools", "value": "erase"})).unwrap();
         app.ui.tool = Tool::Brush;
@@ -300,9 +300,9 @@ mod tests {
 
     #[test]
     fn smoothing_is_a_per_tool_option_that_presets_keep() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 64, "height": 64})).unwrap();
-        let amount = |app: &PhotocraftApp| app.session.tools.brush.smoothing.amount;
+        let amount = |app: &OpenPhotoApp| app.session.tools.brush.smoothing.amount;
         app.ui.tool = Tool::Brush;
         sync_tool_smoothing(&mut app);
         assert_eq!(amount(&app), 0.1, "Photoshop's default");
@@ -337,7 +337,7 @@ mod tests {
     #[test]
     fn eraser_tool_on_the_background_paints_the_background_colour() {
         // #76: the Eraser on the Background (locked transparency) paints the background colour.
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 120, "height": 80})).unwrap();
         app.run("tools.setColors", json!({"background": "#ff0000"})).unwrap();
         app.run("tools.setBrush", json!({"brush": {"size": 12, "hardness": 1.0}})).unwrap();

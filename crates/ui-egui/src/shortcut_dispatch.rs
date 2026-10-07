@@ -10,7 +10,7 @@
 use egui::{Key, KeyboardShortcut};
 use serde_json::json;
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 use crate::shortcuts::{consume, parse};
 
 /// What a dispatched shortcut did (kept for tests and `ui.inspect`-style debugging).
@@ -48,14 +48,14 @@ pub const SECONDARY: &[(&str, &str)] = &[("edit.fill", "Shift+Backspace")];
 /// then Edit › Keyboard Shortcuts assignments to any other menu item. D and X
 /// (`tools.defaultColors` / `tools.swapColors`) and the fill keys are commands like any other, so
 /// their overrides apply. Held temporary tools (Space…) are not here: see [`crate::hold_keys`].
-pub fn bindings(app: &PhotocraftApp) -> Vec<(String, KeyboardShortcut)> {
+pub fn bindings(app: &OpenPhotoApp) -> Vec<(String, KeyboardShortcut)> {
     let prefs = app.session.prefs();
     let ui = crate::menus::UI_COMMANDS.iter().map(|(id, _, _, sc)| (*id, prefs.shortcut(id, *sc)));
-    let engine = photocraft_engine::command_specs().iter().map(|c| (c.id, prefs.shortcut(c.id, c.shortcut)));
+    let engine = openphoto_engine::command_specs().iter().map(|c| (c.id, prefs.shortcut(c.id, c.shortcut)));
     let own: std::collections::HashSet<&str> = crate::menus::UI_COMMANDS
         .iter()
         .map(|c| c.0)
-        .chain(photocraft_engine::command_specs().iter().filter(|c| c.shortcut.is_some() || prefs.shortcuts.contains_key(c.id)).map(|c| c.id))
+        .chain(openphoto_engine::command_specs().iter().filter(|c| c.shortcut.is_some() || prefs.shortcuts.contains_key(c.id)).map(|c| c.id))
         .collect();
     let catalog = crate::menu_catalog::CATALOG
         .iter()
@@ -66,7 +66,7 @@ pub fn bindings(app: &PhotocraftApp) -> Vec<(String, KeyboardShortcut)> {
         .iter()
         .filter(|(id, sc)| {
             !sc.is_empty()
-                && photocraft_engine::commands::find(id).is_none()
+                && openphoto_engine::commands::find(id).is_none()
                 && !crate::menus::UI_COMMANDS.iter().any(|c| c.0 == id.as_str())
                 && !crate::hold_keys::is_temporary(id)
         })
@@ -157,7 +157,7 @@ impl Focus {
 
 /// The command whose shortcut was pressed this frame (its key press consumed), if any.
 /// While typing (inline type), clipboard and select-all shortcuts belong to the text.
-pub fn pressed_command(app: &PhotocraftApp, ctx: &egui::Context, focus: Focus, editing: bool) -> Option<String> {
+pub fn pressed_command(app: &OpenPhotoApp, ctx: &egui::Context, focus: Focus, editing: bool) -> Option<String> {
     // Building the table walks the registry: only do it when a key went down.
     if !ctx.input(|i| i.events.iter().any(|e| matches!(e, egui::Event::Key { pressed: true, .. }))) {
         return None;
@@ -177,8 +177,8 @@ pub fn pressed_command(app: &PhotocraftApp, ctx: &egui::Context, focus: Focus, e
 }
 
 /// Why `id` can't run now (the engine's reason when it has one).
-pub fn disabled_reason(app: &PhotocraftApp, id: &str) -> String {
-    photocraft_engine::commands::find(id)
+pub fn disabled_reason(app: &OpenPhotoApp, id: &str) -> String {
+    openphoto_engine::commands::find(id)
         .and_then(|c| (c.enabled)(&app.session).err())
         .unwrap_or_else(|| if app.session.active().is_none() { "no document open".into() } else { "not available in the current state".into() })
 }
@@ -189,14 +189,14 @@ fn label(id: &str) -> String {
         .find(|c| c.3 == id)
         .map(|c| c.1)
         .or_else(|| crate::menus::UI_COMMANDS.iter().find(|c| c.0 == id).map(|c| c.1))
-        .or_else(|| photocraft_engine::commands::find(id).map(|c| c.label))
+        .or_else(|| openphoto_engine::commands::find(id).map(|c| c.label))
         .unwrap_or(id)
         .trim_end_matches('…')
         .to_string()
 }
 
 /// Run a shortcut's command like its menu item (dialogs included), or say why it can't run.
-pub fn dispatch(app: &mut PhotocraftApp, ctx: &egui::Context, id: &str) {
+pub fn dispatch(app: &mut OpenPhotoApp, ctx: &egui::Context, id: &str) {
     let outcome = if !crate::menus::is_enabled(app, id) {
         let why = disabled_reason(app, id);
         app.ui.status = format!("{} is not available: {why}", label(id));

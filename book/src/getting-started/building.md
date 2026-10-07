@@ -1,11 +1,11 @@
 # Building
 
-PhotoCraft uses the Rust workspace at the repository root. Install the stable Rust toolchain, clone the repository, and run commands from that root.
+OpenPhoto uses the Rust workspace at the repository root. Install the stable Rust toolchain, clone the repository, and run commands from that root.
 
 ```sh
 cargo build --workspace
-cargo run --release -p photocraft -- image.psd
-cargo run -p photocraft-cli -- --help
+cargo run --release -p openphoto -- image.psd
+cargo run -p openphoto-cli -- --help
 ```
 
 The standard repository gates are:

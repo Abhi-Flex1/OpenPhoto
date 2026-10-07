@@ -5,21 +5,21 @@
 use egui::{Modifiers, PointerButton, Pos2, vec2};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
-use photocraft_geom::Rect;
+use openphoto_geom::Rect;
 use serde_json::json;
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 use crate::canvas::ViewXform;
 use crate::state::Tool;
 
-fn harness(tool: Tool) -> Harness<'static, PhotocraftApp> {
-    let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+fn harness(tool: Tool) -> Harness<'static, OpenPhotoApp> {
+    let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app.sync_views();
     app.ui.extras.rulers = false;
     app.ui.tool = tool;
     let mut h = Harness::builder().with_size(vec2(1000.0, 700.0)).build_ui_state(
-        |ui, app: &mut PhotocraftApp| {
+        |ui, app: &mut OpenPhotoApp| {
             let ctx = ui.ctx().clone();
             if !ctx.fonts(|f| f.families().contains(&egui::FontFamily::Name("medium".into()))) {
                 return;
@@ -29,7 +29,7 @@ fn harness(tool: Tool) -> Harness<'static, PhotocraftApp> {
         },
         app,
     );
-    PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+    OpenPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
     h.run_steps(4);
     // 100 %: one document pixel per point, so drags land on whole pixels.
     let v = &mut h.state_mut().ui.views[0];
@@ -40,31 +40,31 @@ fn harness(tool: Tool) -> Harness<'static, PhotocraftApp> {
     h
 }
 
-fn screen(h: &Harness<'static, PhotocraftApp>, x: f32, y: f32) -> Pos2 {
+fn screen(h: &Harness<'static, OpenPhotoApp>, x: f32, y: f32) -> Pos2 {
     let app = h.state();
     let v = &app.ui.views[0];
     let xf = ViewXform { rect: crate::rulers::content_rect(app, app.last_canvas_rect), zoom: v.zoom, center: v.center, flip: app.ui.view.flip_horizontal };
     xf.to_screen(x, y)
 }
 
-fn mods(h: &mut Harness<'static, PhotocraftApp>, m: Modifiers) {
+fn mods(h: &mut Harness<'static, OpenPhotoApp>, m: Modifiers) {
     h.event(egui::Event::ModifiersChanged(m));
     h.run_steps(1);
 }
 
-fn button(h: &mut Harness<'static, PhotocraftApp>, p: Pos2, down: bool, m: Modifiers) {
+fn button(h: &mut Harness<'static, OpenPhotoApp>, p: Pos2, down: bool, m: Modifiers) {
     h.event(egui::Event::PointerButton { pos: p, button: PointerButton::Primary, pressed: down, modifiers: m });
     h.run_steps(1);
 }
 
 /// Move the pointer to document point `(x, y)` in a few steps.
-fn move_to(h: &mut Harness<'static, PhotocraftApp>, x: f32, y: f32) {
+fn move_to(h: &mut Harness<'static, OpenPhotoApp>, x: f32, y: f32) {
     let p = screen(h, x, y);
     h.event(egui::Event::PointerMoved(p));
     h.run_steps(2);
 }
 
-fn press_at(h: &mut Harness<'static, PhotocraftApp>, x: f32, y: f32, m: Modifiers) {
+fn press_at(h: &mut Harness<'static, OpenPhotoApp>, x: f32, y: f32, m: Modifiers) {
     let p = screen(h, x, y);
     h.event(egui::Event::PointerMoved(p));
     h.run_steps(1);
@@ -73,18 +73,18 @@ fn press_at(h: &mut Harness<'static, PhotocraftApp>, x: f32, y: f32, m: Modifier
     move_to(h, x + 8.0, y + 6.0);
 }
 
-fn release_at(h: &mut Harness<'static, PhotocraftApp>, x: f32, y: f32, m: Modifiers) {
+fn release_at(h: &mut Harness<'static, OpenPhotoApp>, x: f32, y: f32, m: Modifiers) {
     move_to(h, x, y);
     button(h, screen(h, x, y), false, m);
     h.run_steps(2);
 }
 
-fn selection(h: &Harness<'static, PhotocraftApp>) -> Rect {
+fn selection(h: &Harness<'static, OpenPhotoApp>) -> Rect {
     h.state().session.active().unwrap().doc.selection.as_ref().map_or(Rect::EMPTY, |s| s.content_bounds())
 }
 
 /// The two-row readout shows `W: {w} px` and `H: {ht} px` (Photoshop's format).
-fn readout(h: &Harness<'static, PhotocraftApp>, w: i32, ht: i32) -> bool {
+fn readout(h: &Harness<'static, OpenPhotoApp>, w: i32, ht: i32) -> bool {
     let labels = h.query_by_label("W:").is_some() && h.query_by_label("H:").is_some();
     let count = |v: i32| h.query_all_by_label(&format!("{v} px")).count();
     let values = if w == ht { count(w) == 2 } else { count(w) == 1 && count(ht) == 1 };
@@ -171,17 +171,17 @@ fn modifiers_held_before_the_drag_pick_the_mode_not_the_shape() {
     assert!(sel.sample_channel(120, 110, 0) < 0.01 && sel.sample_channel(90, 110, 0) > 0.99, "subtracted, not centred");
 }
 
-/// `cargo test --release -p photocraft-ui-egui marquee_drag_bench -- --ignored --nocapture`
+/// `cargo test --release -p openphoto-ui-egui marquee_drag_bench -- --ignored --nocapture`
 #[test]
 #[ignore]
 fn marquee_drag_bench() {
-    let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+    let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({"width": 6000, "height": 4000})).unwrap();
     app.run("filter.render.clouds", json!({})).unwrap();
     app.sync_views();
     app.ui.tool = Tool::RectMarquee;
     let mut h = Harness::builder().with_size(vec2(1600.0, 1000.0)).build_ui_state(
-        |ui, app: &mut PhotocraftApp| {
+        |ui, app: &mut OpenPhotoApp| {
             if !ui.ctx().fonts(|f| f.families().contains(&egui::FontFamily::Name("medium".into()))) {
                 return;
             }
@@ -189,7 +189,7 @@ fn marquee_drag_bench() {
         },
         app,
     );
-    PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+    OpenPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
     h.run_steps(6);
     press_at(&mut h, 1000.0, 1000.0, Modifiers::NONE);
     mods(&mut h, Modifiers::SHIFT | Modifiers::ALT);

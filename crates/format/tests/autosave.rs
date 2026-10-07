@@ -4,8 +4,8 @@ mod common;
 use std::sync::Arc;
 
 use common::*;
-use photocraft_color::{ColorMode, SampleType};
-use photocraft_format::*;
+use openphoto_color::{ColorMode, SampleType};
+use openphoto_format::*;
 
 #[test]
 fn autosave_then_recover() {

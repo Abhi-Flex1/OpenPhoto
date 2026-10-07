@@ -12,7 +12,7 @@ use std::f32::consts::PI;
 
 use crate::photo_util::{par_rows, par_rows2};
 
-use photocraft_geom::Rect;
+use openphoto_geom::Rect;
 
 use crate::Ctx;
 use crate::artistic::GalleryEffect;
@@ -1135,8 +1135,8 @@ fn normalize3(v: [f32; 3]) -> [f32; 3] {
 
 #[cfg(test)]
 mod tests {
-    use photocraft_color::{ColorMode, PixelFormat, SampleType};
-    use photocraft_raster::Surface;
+    use openphoto_color::{ColorMode, PixelFormat, SampleType};
+    use openphoto_raster::Surface;
 
     use super::*;
     use crate::{FilterParams, apply_tiled};
@@ -1190,7 +1190,7 @@ mod tests {
         assert_eq!(e.get("relief"), 50.0);
     }
 
-    /// Release timing on 24 MP: `cargo test -p photocraft-algo --release bench_gallery -- --ignored --nocapture`.
+    /// Release timing on 24 MP: `cargo test -p openphoto-algo --release bench_gallery -- --ignored --nocapture`.
     #[test]
     #[ignore]
     fn bench_gallery() {
@@ -1223,7 +1223,7 @@ mod tests {
         println!("{:>18}: {total:>7.0} ms", "total");
     }
 
-    /// Visual check: `GALLERY_RAW=src.raw GALLERY_W=480 GALLERY_H=322 cargo test -p photocraft-algo --release gallery_sheet -- --ignored`
+    /// Visual check: `GALLERY_RAW=src.raw GALLERY_W=480 GALLERY_H=322 cargo test -p openphoto-algo --release gallery_sheet -- --ignored`
     /// writes `<key>.raw` (RGB8) beside the input for every filter.
     #[test]
     #[ignore]

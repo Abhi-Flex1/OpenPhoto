@@ -6,7 +6,7 @@
 
 use serde_json::json;
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 
 /// Notice title when the device was lost.
 pub const LOST_MESSAGE: &str = "GPU device was lost; using the CPU renderer.";
@@ -15,11 +15,11 @@ pub const ERROR_MESSAGE: &str = "GPU error; using the CPU renderer.";
 /// Frames after which startup counts as done even if a document never drew.
 const STARTED_MAX_FRAMES: u64 = 120;
 
-/// Hook run once the app has rendered its first frames (see [`PhotocraftApp::on_started`]).
-pub type StartedHook = Box<dyn FnOnce(&mut PhotocraftApp)>;
+/// Hook run once the app has rendered its first frames (see [`OpenPhotoApp::on_started`]).
+pub type StartedHook = Box<dyn FnOnce(&mut OpenPhotoApp)>;
 
 /// Per-frame check: switch to the CPU canvas when the GPU faulted, and run the started hook.
-pub fn check(app: &mut PhotocraftApp, ctx: &egui::Context) {
+pub fn check(app: &mut OpenPhotoApp, ctx: &egui::Context) {
     if let Some(fault) = app.gpu.as_ref().and_then(|g| g.fault()) {
         fall_back(app, &fault);
         ctx.request_repaint();
@@ -40,7 +40,7 @@ pub fn check(app: &mut PhotocraftApp, ctx: &egui::Context) {
 
 /// Drop the GPU canvas after `fault`: free its resources, send every view through the CPU
 /// path, record why, and tell the user. Documents are untouched.
-pub fn fall_back(app: &mut PhotocraftApp, fault: &photocraft_gpu::Fault) {
+pub fn fall_back(app: &mut OpenPhotoApp, fault: &openphoto_gpu::Fault) {
     let Some(gpu) = app.gpu.take() else { return };
     log::error!("{fault}; using the CPU renderer for the rest of the session");
     gpu.release();
@@ -65,17 +65,17 @@ pub fn fall_back(app: &mut PhotocraftApp, fault: &photocraft_gpu::Fault) {
 }
 
 /// Help › System Info: version, platform and the graphics state.
-pub fn system_info(app: &PhotocraftApp) -> Vec<String> {
+pub fn system_info(app: &OpenPhotoApp) -> Vec<String> {
     let mut v =
-        vec![format!("PhotoCraft {}", photocraft_engine::build_info::long_version()), format!("Platform: {} {}", std::env::consts::OS, std::env::consts::ARCH)];
+        vec![format!("OpenPhoto {}", openphoto_engine::build_info::long_version()), format!("Platform: {} {}", std::env::consts::OS, std::env::consts::ARCH)];
     v.extend(app.perf.gpu_info.lines());
     v
 }
 
 /// The `help.systemInfo` result: the same facts as JSON.
-pub fn system_info_json(app: &PhotocraftApp) -> serde_json::Value {
+pub fn system_info_json(app: &OpenPhotoApp) -> serde_json::Value {
     json!({
-        "version": photocraft_engine::build_info::long_version(),
+        "version": openphoto_engine::build_info::long_version(),
         "os": std::env::consts::OS,
         "arch": std::env::consts::ARCH,
         "gpu": app.perf.gpu_info,

@@ -1,9 +1,9 @@
 //! The command registry. Ids follow Photoshop's menu structure (see the parity checklist).
 
-use photocraft_color::{BlendMode, Color, ColorMode, SampleType};
-use photocraft_doc::{Adjustment, Document, Fill, Layer, LayerContent, LayerId, LayerMask, Size};
-use photocraft_geom::Rect;
-use photocraft_raster::Surface;
+use openphoto_color::{BlendMode, Color, ColorMode, SampleType};
+use openphoto_doc::{Adjustment, Document, Fill, Layer, LayerContent, LayerId, LayerMask, Size};
+use openphoto_geom::Rect;
+use openphoto_raster::Surface;
 use serde_json::{Value, json};
 
 use crate::{EngineError, Result, Session, inspect, pixels};
@@ -62,7 +62,7 @@ pub(crate) fn has_paintable(s: &Session) -> std::result::Result<(), String> {
 }
 
 /// Surface a paint command writes to: the layer's pixels, or its mask with `"target":"mask"`.
-pub(crate) fn paint_surface<'a>(l: &'a mut Layer, p: &Value) -> Result<&'a mut photocraft_raster::Surface> {
+pub(crate) fn paint_surface<'a>(l: &'a mut Layer, p: &Value) -> Result<&'a mut openphoto_raster::Surface> {
     if !is_mask_target(p) && (l.locks.pixels || l.locks.all) {
         return Err(EngineError::Other(format!("Could not complete your request because the layer \"{}\" is locked", l.name)));
     }
@@ -289,7 +289,7 @@ fn build() -> Vec<CommandSpec> {
         // Select
         cmd!("select.all", "All", ["Select"], Some("Cmd+A"), "{}", has_doc, |s, _| {
             s.edit("Select All", |doc, _| {
-                let mut m = Surface::new(photocraft_color::PixelFormat::GRAY8);
+                let mut m = Surface::new(openphoto_color::PixelFormat::GRAY8);
                 m.fill_rect(doc.bounds(), &[1.0]);
                 doc.selection = Some(m);
                 Ok(())
@@ -305,10 +305,10 @@ fn build() -> Vec<CommandSpec> {
         }),
         cmd!("select.inverse", "Inverse", ["Select"], Some("Cmd+Shift+I"), "{}", has_selection, |s, _| {
             s.edit("Inverse", |doc, _| {
-                let old = doc.selection.take().unwrap_or_else(|| Surface::new(photocraft_color::PixelFormat::GRAY8));
+                let old = doc.selection.take().unwrap_or_else(|| Surface::new(openphoto_color::PixelFormat::GRAY8));
                 let b = doc.bounds();
                 let data: Vec<f32> = old.read_region(b).into_iter().map(|v| 1.0 - v).collect();
-                let mut m = Surface::new(photocraft_color::PixelFormat::GRAY8);
+                let mut m = Surface::new(openphoto_color::PixelFormat::GRAY8);
                 m.write_region(b, &data);
                 m.prune();
                 doc.selection = Some(m);
@@ -336,7 +336,7 @@ fn build() -> Vec<CommandSpec> {
                     // A marquee dragged past the canvas stops at its edge (Photoshop); the ellipse
                     // keeps the dragged shape and is only cut there.
                     let cut = r.intersect(&area);
-                    let mut shape = Surface::new(photocraft_color::PixelFormat::GRAY8);
+                    let mut shape = Surface::new(openphoto_color::PixelFormat::GRAY8);
                     if ellipse {
                         let (cx, cy) = ((r.x0 + r.x1) as f32 / 2.0, (r.y0 + r.y1) as f32 / 2.0);
                         let (rx, ry) = (r.width() as f32 / 2.0, r.height() as f32 / 2.0);
@@ -365,7 +365,7 @@ fn build() -> Vec<CommandSpec> {
                         shape.fill_rect(cut, &[1.0]);
                     }
                     if feather > 0.0 {
-                        use photocraft_algo::selection as sel;
+                        use openphoto_algo::selection as sel;
                         let m = sel::feather(&sel::mask_from_surface(Some(&shape), area), area.width() as usize, area.height() as usize, feather);
                         doc.selection = sel::combine(doc.selection.as_ref(), &m, area, sel::SelectionMode::parse(&mode));
                         return Ok(());
@@ -592,7 +592,7 @@ fn build() -> Vec<CommandSpec> {
                 let fmt = doc.pixel_format();
                 let mut bg = Layer::raster("Background", fmt);
                 bg.locks.transparency = true;
-                *crate::pixels_mut(&mut bg)? = photocraft_compose::flatten_to_surface(doc, fmt, Some([1.0, 1.0, 1.0]));
+                *crate::pixels_mut(&mut bg)? = openphoto_compose::flatten_to_surface(doc, fmt, Some([1.0, 1.0, 1.0]));
                 *active = Some(bg.id);
                 doc.layers = vec![bg];
                 Ok(())
@@ -728,7 +728,7 @@ fn build() -> Vec<CommandSpec> {
                     saturation: -100.0,
                     lightness: 0.0,
                     colorize: false,
-                    ranges: photocraft_doc::adjust::HueRange::defaults(),
+                    ranges: openphoto_doc::adjust::HueRange::defaults(),
                 },
                 &Value::Null,
             )
@@ -827,7 +827,7 @@ fn build() -> Vec<CommandSpec> {
                 let x = int(p, "x").unwrap_or(0) as i32;
                 let y = int(p, "y").unwrap_or(0) as i32;
                 let d = s.active().ok_or(EngineError::NoDocument)?;
-                let px = photocraft_compose::render(&d.doc, Rect::from_xywh(x, y, 1, 1)).px[0];
+                let px = openphoto_compose::render(&d.doc, Rect::from_xywh(x, y, 1, 1)).px[0];
                 Ok(json!(px))
             },
             journal: false,
@@ -1071,7 +1071,7 @@ fn combine(a: &Surface, b: &Surface, area: Rect, f: impl Fn(f32, f32) -> f32) ->
     let ra = a.read_region(area);
     let rb = b.read_region(area);
     let data: Vec<f32> = ra.iter().zip(&rb).map(|(x, y)| f(*x, *y)).collect();
-    let mut out = Surface::new(photocraft_color::PixelFormat::GRAY8);
+    let mut out = Surface::new(openphoto_color::PixelFormat::GRAY8);
     out.write_region(area, &data);
     out.prune();
     out
@@ -1093,7 +1093,7 @@ pub(crate) fn translate_layer(doc: &Document, l: &mut Layer, dx: i32, dy: i32) {
     match &mut l.content {
         LayerContent::Raster(s) => *s = translate_surface(s, dx, dy),
         LayerContent::Text(t) => {
-            t.transform = photocraft_geom::Affine::translate(dx as f64, dy as f64).mul(&t.transform);
+            t.transform = openphoto_geom::Affine::translate(dx as f64, dy as f64).mul(&t.transform);
             crate::type_cmds::refresh(doc, t);
         }
         LayerContent::Group(g) => {

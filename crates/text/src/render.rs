@@ -1,9 +1,9 @@
 //! Rasterizes a [`TextLayout`] into a document-space [`Surface`] of any pixel format.
 
-use photocraft_color::{Color, PixelFormat};
-use photocraft_doc::text::AntiAlias;
-use photocraft_geom::{Affine, Rect};
-use photocraft_raster::Surface;
+use openphoto_color::{Color, PixelFormat};
+use openphoto_doc::text::AntiAlias;
+use openphoto_geom::{Affine, Rect};
+use openphoto_raster::Surface;
 use skrifa::instance::{LocationRef, NormalizedCoord, Size};
 use skrifa::outline::DrawSettings;
 use skrifa::{GlyphId, MetadataProvider};
@@ -126,7 +126,7 @@ fn glyph_xform(layout: &TextLayout, g: &PlacedGlyph, face_skew_deg: f32) -> Xfor
 }
 
 /// The warp to apply to `layout` (None when `warp` is absent, `warpNone` or flat).
-pub fn layout_warp(layout: &TextLayout, warp: Option<&photocraft_doc::text::TextWarp>) -> Option<Warp> {
+pub fn layout_warp(layout: &TextLayout, warp: Option<&openphoto_doc::text::TextWarp>) -> Option<Warp> {
     Warp::new(warp?, layout.bounds()?)
 }
 
@@ -137,7 +137,7 @@ fn color_in(format: &PixelFormat, c: &Color) -> Vec<f32> {
         c.c[..n].to_vec()
     } else {
         let [r, g, b] = c.to_rgb();
-        let mut v = photocraft_raster::from_rgba(&PixelFormat { alpha: false, ..*format }, [r, g, b, 1.0]);
+        let mut v = openphoto_raster::from_rgba(&PixelFormat { alpha: false, ..*format }, [r, g, b, 1.0]);
         v.truncate(n);
         v
     }

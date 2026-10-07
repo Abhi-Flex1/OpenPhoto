@@ -14,9 +14,9 @@
 //! All pixel data here is the surface's *native* channels as normalised `f32` (any depth, any colour
 //! model); colour-space-specific work happens in the callbacks.
 
-use photocraft_color::{BlendMode, PixelFormat};
-use photocraft_geom::Rect;
-use photocraft_raster::{Surface, from_rgba_into, to_rgba};
+use openphoto_color::{BlendMode, PixelFormat};
+use openphoto_geom::Rect;
+use openphoto_raster::{Surface, from_rgba_into, to_rgba};
 
 use crate::{Dab, Stroke, dab_coverage, dabs};
 
@@ -203,7 +203,7 @@ pub fn apply_coverage(
         } else {
             let d = to_rgba(&fmt, px);
             let s = to_rgba(&fmt, src);
-            let mut o = photocraft_color::blend::composite(blend, d, s, k);
+            let mut o = openphoto_color::blend::composite(blend, d, s, k);
             if lock_transparency {
                 o[3] = d[3];
             }

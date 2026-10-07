@@ -2,11 +2,11 @@
 //! Home button at the start of the options bar.
 
 use egui::{RichText, Sense, Stroke, vec2};
-use photocraft_doc::{Document, LayerContent};
+use openphoto_doc::{Document, LayerContent};
 use serde::{Deserialize, Serialize};
 
 use crate::theme::Tokens;
-use crate::{PhotocraftApp, icons, widgets};
+use crate::{OpenPhotoApp, icons, widgets};
 
 /// Shell-only chrome state (serialised with the UI state, so `ui.inspect` reports it).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -104,11 +104,11 @@ fn profile_name(doc: &Document) -> String {
     if doc.icc_profile.is_none() {
         return crate::i18n::fmt(tl!("Untagged {mode}"), &[("mode", tl!(&crate::canvas::mode_label(doc)))]);
     }
-    photocraft_engine::color_cmds::document_profile(doc).description.clone()
+    openphoto_engine::color_cmds::document_profile(doc).description.clone()
 }
 
 /// Status bar body (Pro): zoom %, the chosen info field and its ">" menu, then status messages.
-pub fn status_bar_pro(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+pub fn status_bar_pro(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     let (Some(st), Some(i)) = (app.session.active(), app.session.active_index()) else {
         ui.label(RichText::new(tl!("No document")).color(t.text_dim));
@@ -148,7 +148,7 @@ pub fn status_bar_pro(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
 
 /// Home button at the very start of Photoshop 2026's options bar: toggles the Home (start)
 /// screen over the open documents, which stay open.
-pub fn home_button(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+pub fn home_button(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let n = app.session.documents().len();
     let auto = app.session.prefs().general.auto_show_home_screen;
     let on = app.ui.chrome.shows_home(n, auto);
@@ -205,7 +205,7 @@ mod tests {
     use serde_json::json;
 
     fn doc() -> Document {
-        let mut s = photocraft_engine::Session::new();
+        let mut s = openphoto_engine::Session::new();
         s.execute("file.new", json!({"width": 2400, "height": 1500, "resolution": 72, "background": "white"})).unwrap();
         (*s.active().unwrap().doc).clone()
     }

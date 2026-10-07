@@ -5,10 +5,10 @@
 //! once every affected document has been answered. Cancel at any point drops it. Documents are
 //! tracked by id, not tab index, so closing one elsewhere while the prompt is up can't retarget it.
 
-use photocraft_doc::DocId;
+use openphoto_doc::DocId;
 use serde_json::{Value, json};
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 
 const EXIT: &str = "file.exit";
 
@@ -21,7 +21,7 @@ pub struct Prompt {
     docs: Vec<DocId>,
 }
 
-fn index_of(app: &PhotocraftApp, id: DocId) -> Option<usize> {
+fn index_of(app: &OpenPhotoApp, id: DocId) -> Option<usize> {
     app.session.documents().iter().position(|d| d.doc.id == id)
 }
 
@@ -44,7 +44,7 @@ const DISCARDING: &[(&str, Reach)] = &[
 
 /// The command's target document and the unsaved documents it would discard (empty for commands
 /// that discard nothing).
-fn discarded(app: &PhotocraftApp, id: &str, params: &Value) -> (Option<DocId>, Vec<DocId>) {
+fn discarded(app: &OpenPhotoApp, id: &str, params: &Value) -> (Option<DocId>, Vec<DocId>) {
     let docs = app.session.documents();
     let target = params.get("document").and_then(Value::as_u64).map(|i| i as usize).or(app.session.active_index());
     let affected: Vec<usize> = match DISCARDING.iter().find(|(c, _)| *c == id) {
@@ -58,7 +58,7 @@ fn discarded(app: &PhotocraftApp, id: &str, params: &Value) -> (Option<DocId>, V
 }
 
 /// Park `id` behind a prompt if it would discard unsaved work. Returns whether it did.
-pub fn intercept(app: &mut PhotocraftApp, id: &str, params: &Value) -> bool {
+pub fn intercept(app: &mut OpenPhotoApp, id: &str, params: &Value) -> bool {
     let (target, docs) = discarded(app, id, params);
     if docs.is_empty() {
         return false;
@@ -79,7 +79,7 @@ pub fn intercept(app: &mut PhotocraftApp, id: &str, params: &Value) -> bool {
 }
 
 /// Called once per frame: holds back a window close request while there is unsaved work.
-pub fn guard_window_close(app: &mut PhotocraftApp, ctx: &egui::Context) {
+pub fn guard_window_close(app: &mut OpenPhotoApp, ctx: &egui::Context) {
     if app.allow_close || !ctx.input(|i| i.viewport().close_requested()) {
         return;
     }
@@ -89,7 +89,7 @@ pub fn guard_window_close(app: &mut PhotocraftApp, ctx: &egui::Context) {
 }
 
 /// Moves on to the next document, or runs the parked action once none are left.
-fn advance(app: &mut PhotocraftApp, ctx: &egui::Context) {
+fn advance(app: &mut OpenPhotoApp, ctx: &egui::Context) {
     let Some(p) = app.discard.as_mut() else { return };
     if !p.docs.is_empty() {
         p.docs.remove(0);
@@ -115,7 +115,7 @@ fn advance(app: &mut PhotocraftApp, ctx: &egui::Context) {
 }
 
 /// Saves `doc` in place; false when it is gone, the save failed or its file dialog was cancelled.
-fn save(app: &mut PhotocraftApp, ctx: &egui::Context, doc: DocId) -> bool {
+fn save(app: &mut OpenPhotoApp, ctx: &egui::Context, doc: DocId) -> bool {
     let Some(i) = index_of(app, doc) else { return false };
     app.session.set_active(i);
     match crate::menus::invoke_unguarded(app, ctx, "file.save", json!({})) {
@@ -130,7 +130,7 @@ fn save(app: &mut PhotocraftApp, ctx: &egui::Context, doc: DocId) -> bool {
     }
 }
 
-pub fn show(app: &mut PhotocraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut OpenPhotoApp, ctx: &egui::Context) {
     let Some(p) = &app.discard else { return };
     let Some(&doc) = p.docs.first() else { return };
     let (exits, reverts) = (p.id == EXIT, p.id == "file.revert");
@@ -182,8 +182,8 @@ pub fn show(app: &mut PhotocraftApp, ctx: &egui::Context) {
 mod tests {
     use super::*;
 
-    fn app_with_docs(n: usize) -> PhotocraftApp {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+    fn app_with_docs(n: usize) -> OpenPhotoApp {
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
         for _ in 0..n {
             app.run("file.new", json!({"width": 8, "height": 8})).unwrap();
         }
@@ -191,12 +191,12 @@ mod tests {
         app
     }
 
-    fn make_dirty(app: &mut PhotocraftApp, doc: usize) {
+    fn make_dirty(app: &mut OpenPhotoApp, doc: usize) {
         app.session.set_active(doc);
         app.run("layer.new.layer", json!({})).unwrap();
     }
 
-    fn doc_id(app: &PhotocraftApp, i: usize) -> DocId {
+    fn doc_id(app: &OpenPhotoApp, i: usize) -> DocId {
         app.session.documents()[i].doc.id
     }
 
@@ -290,7 +290,7 @@ mod tests {
     }
 
     /// One frame with the window's close button pressed; whether the guard cancelled the close.
-    fn press_window_close(app: &mut PhotocraftApp) -> bool {
+    fn press_window_close(app: &mut OpenPhotoApp) -> bool {
         let mut info = egui::ViewportInfo::default();
         info.events.push(egui::ViewportEvent::Close);
         let mut input = egui::RawInput::default();

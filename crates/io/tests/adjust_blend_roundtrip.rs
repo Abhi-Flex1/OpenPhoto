@@ -2,20 +2,20 @@
 //!
 //! Asserts doc-model equality where the PSD encoding is lossless, and that the re-imported
 //! document flattens to the same composite (within 1/255) in every case, so nothing a user made
-//! in PhotoCraft silently disappears or changes when Photoshop opens the file.
+//! in OpenPhoto silently disappears or changes when Photoshop opens the file.
 
 mod common;
 
 use std::sync::Arc;
 
 use common::*;
-use photocraft_color::{BlendMode, ColorMode, SampleType};
-use photocraft_doc::adjust::{CurvePoint, LevelsChannel};
-use photocraft_doc::adjust::{HueRange, ToneSpace};
-use photocraft_doc::*;
-use photocraft_geom::Rect;
-use photocraft_io::*;
-use photocraft_psd::PsdFile;
+use openphoto_color::{BlendMode, ColorMode, SampleType};
+use openphoto_doc::adjust::{CurvePoint, LevelsChannel};
+use openphoto_doc::adjust::{HueRange, ToneSpace};
+use openphoto_doc::*;
+use openphoto_geom::Rect;
+use openphoto_io::*;
+use openphoto_psd::PsdFile;
 
 const TOL: f32 = 1.0 / 255.0 + 1e-5;
 
@@ -27,7 +27,7 @@ fn export_import(doc: &Document) -> (Document, Vec<String>, PsdFile) {
 }
 
 fn assert_composite_eq(a: &Document, b: &Document, ctx: &str) {
-    let (x, y) = (photocraft_compose::flatten(a), photocraft_compose::flatten(b));
+    let (x, y) = (openphoto_compose::flatten(a), openphoto_compose::flatten(b));
     assert_eq!(x.rect, y.rect, "{ctx}: composite rect");
     let m = max_diff(&x.px, &y.px);
     assert!(m <= TOL, "{ctx}: composite differs by {m} (> 1/255)");
@@ -42,7 +42,7 @@ fn q16(v: u16) -> f32 {
 fn adjustments() -> Vec<(Adjustment, bool)> {
     let pts = |v: &[(u8, u8)]| v.iter().map(|&(i, o)| CurvePoint { input: g(i), output: g(o) }).collect::<Vec<_>>();
     let lc = |a: u8, b: u8, gamma: f32| LevelsChannel { in_black: g(a), in_white: g(b), gamma, out_black: g(5), out_white: g(250) };
-    let lut = photocraft_cms::lutfile::LutFile::from_fn("t", 5, |c| [c[1], c[2] * 0.5, 1.0 - c[0]]);
+    let lut = openphoto_cms::lutfile::LutFile::from_fn("t", 5, |c| [c[1], c[2] * 0.5, 1.0 - c[0]]);
     let all = vec![
         (Adjustment::BrightnessContrast { brightness: 30.0, contrast: -20.0, legacy: false }, true),
         (Adjustment::BrightnessContrast { brightness: -40.0, contrast: 50.0, legacy: true }, true),
@@ -130,7 +130,7 @@ fn adjustments() -> Vec<(Adjustment, bool)> {
 /// A colourful base, a clipping base, and `adj` three times: plain; at half opacity with a mask
 /// and a blend mode; clipped to a pixel layer.
 fn adjustment_doc(adj: &Adjustment, depth: SampleType) -> Document {
-    let mut d = Document::new("adj", photocraft_geom::Size::new(32, 20), ColorMode::Rgb, depth);
+    let mut d = Document::new("adj", openphoto_geom::Size::new(32, 20), ColorMode::Rgb, depth);
     let fmt = d.pixel_format();
     d.layers.push(raster("Background", fmt, d.bounds(), 1, false));
     let mut plain = Layer::new("plain", LayerContent::Adjustment(adj.clone()));
@@ -155,7 +155,7 @@ fn check_adjustment(adj: &Adjustment, lossless: bool, depth: SampleType) {
     let (back, warnings, file) = export_import(&d);
     assert!(!warnings.iter().any(|w| w.contains("adjustment")), "{ctx}: export warned {warnings:?}");
     // The adjustment layers carry an adjustment block, never an empty pixel layer.
-    let with_adj = file.layers().iter().filter(|l| l.blocks.iter().any(|b| photocraft_io::ADJUSTMENT_KEYS.contains(&&b.key))).count();
+    let with_adj = file.layers().iter().filter(|l| l.blocks.iter().any(|b| openphoto_io::ADJUSTMENT_KEYS.contains(&&b.key))).count();
     assert_eq!(with_adj, 3, "{ctx}: adjustment blocks written");
     assert_eq!(back.layers.len(), d.layers.len(), "{ctx}: layer count");
     for (x, y) in d.layers.iter().zip(&back.layers) {
@@ -203,7 +203,7 @@ fn every_adjustment_kind_round_trips_16bit() {
 /// One document per blend mode: the mode on a pixel layer (with fill opacity and a mask), on a
 /// clipped layer, on a group, inside a pass-through group, and on an adjustment layer.
 fn blend_doc(mode: BlendMode) -> Document {
-    let mut d = Document::new("blend", photocraft_geom::Size::new(24, 16), ColorMode::Rgb, SampleType::U8);
+    let mut d = Document::new("blend", openphoto_geom::Size::new(24, 16), ColorMode::Rgb, SampleType::U8);
     let fmt = d.pixel_format();
     d.layers.push(raster("Background", fmt, d.bounds(), 1, false));
     let mut l = raster("layer", fmt, Rect::new(2, 1, 20, 12), 2, true);
@@ -244,7 +244,7 @@ fn every_blend_mode_round_trips() {
             let adj = Layer::new("inside", LayerContent::Adjustment(Adjustment::Invert));
             d.layers.push(Layer::group("pass-through adj", vec![raster("px", fmt, Rect::new(0, 0, 6, 6), 6, true), adj]));
             let (back, _, file) = export_import(&d);
-            assert!(file.layers().iter().any(|l| l.blend_mode == photocraft_psd::BlendMode::PassThrough), "pass key written");
+            assert!(file.layers().iter().any(|l| l.blend_mode == openphoto_psd::BlendMode::PassThrough), "pass key written");
             assert_docs_eq(&d, &back);
             assert_composite_eq(&d, &back, "pass-through");
             continue;

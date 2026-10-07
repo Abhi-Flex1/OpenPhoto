@@ -1,6 +1,6 @@
 //! Select › Sky, Select › Isolate Layers and Select › Transform Selection.
 //!
-//! * `select.sky` runs the classical sky segmentation of `photocraft_algo::segment::sky` on the
+//! * `select.sky` runs the classical sky segmentation of `openphoto_algo::segment::sky` on the
 //!   composite (or the active layer) and combines it with the selection.
 //! * `select.isolateLayers` toggles the Layers panel's isolation filter: only the layers selected
 //!   when it was turned on are listed ([`crate::DocState::isolated_layers`], view state).
@@ -8,13 +8,13 @@
 //!   quad (distort / perspective), an affine matrix, scale / rotate / skew / move about a
 //!   reference point, or a warp (same params as `edit.transform.warp`).
 
-use photocraft_algo::segment::sky::{self, SkyParams};
-use photocraft_algo::segment::{Sampler, SurfaceSampler};
-use photocraft_algo::selection::{SelectionMode, combine_region};
-use photocraft_algo::transform::{Homography, Interp};
-use photocraft_algo::warp::warp_mesh_gray;
-use photocraft_doc::{Document, LayerId};
-use photocraft_geom::Rect;
+use openphoto_algo::segment::sky::{self, SkyParams};
+use openphoto_algo::segment::{Sampler, SurfaceSampler};
+use openphoto_algo::selection::{SelectionMode, combine_region};
+use openphoto_algo::transform::{Homography, Interp};
+use openphoto_algo::warp::warp_mesh_gray;
+use openphoto_doc::{Document, LayerId};
+use openphoto_geom::Rect;
 use serde_json::{Value, json};
 
 use crate::commands::CommandSpec;
@@ -40,7 +40,7 @@ struct CompositeSampler<'a>(&'a Document);
 
 impl Sampler for CompositeSampler<'_> {
     fn rgba(&self, r: Rect) -> Vec<[f32; 4]> {
-        photocraft_compose::render(self.0, r).px
+        openphoto_compose::render(self.0, r).px
     }
 }
 
@@ -89,9 +89,9 @@ pub fn isolation_shows(doc: &Document, isolated: &[LayerId], id: LayerId) -> boo
     if isolated.is_empty() || isolated.contains(&id) {
         return true;
     }
-    fn contains(l: &photocraft_doc::Layer, set: &[LayerId]) -> bool {
+    fn contains(l: &openphoto_doc::Layer, set: &[LayerId]) -> bool {
         match &l.content {
-            photocraft_doc::LayerContent::Group(g) => g.children.iter().any(|c| set.contains(&c.id) || contains(c, set)),
+            openphoto_doc::LayerContent::Group(g) => g.children.iter().any(|c| set.contains(&c.id) || contains(c, set)),
             _ => false,
         }
     }

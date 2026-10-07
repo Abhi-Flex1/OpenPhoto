@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Build and package PhotoCraft for Linux (<arch> is x86_64 or aarch64):
+# Build and package OpenPhoto for Linux (<arch> is x86_64 or aarch64):
 #
-#   $DIST/photocraft-<version>-linux-<arch>.AppImage  any distro with glibc >= the build host's
-#   $DIST/photocraft-<version>-linux-<arch>.deb       Debian, Ubuntu, Mint, Pop!_OS, ...
-#   $DIST/photocraft-<version>-linux-<arch>.rpm       Fedora, openSUSE, RHEL, ...
-#   $DIST/photocraft-<version>-linux-<arch>.tar.gz    plain FHS-style tree (bin/, share/)
+#   $DIST/openphoto-<version>-linux-<arch>.AppImage  any distro with glibc >= the build host's
+#   $DIST/openphoto-<version>-linux-<arch>.deb       Debian, Ubuntu, Mint, Pop!_OS, ...
+#   $DIST/openphoto-<version>-linux-<arch>.rpm       Fedora, openSUSE, RHEL, ...
+#   $DIST/openphoto-<version>-linux-<arch>.tar.gz    plain FHS-style tree (bin/, share/)
 #
 # Usage: packaging/linux/package.sh [--skip-build] [--formats "appimage deb rpm tar"]
 #
@@ -15,7 +15,7 @@ set -euo pipefail
 # shellcheck source=../env.sh
 . "$(dirname "${BASH_SOURCE[0]}")/../env.sh"
 HERE="$ROOT/packaging/linux"
-APP_ID=ai.storyteller.photocraft
+APP_ID=ai.storyteller.openphoto
 
 SKIP_BUILD=0
 FORMATS="appimage deb rpm tar"
@@ -34,13 +34,13 @@ case "$ARCH" in
   aarch64 | arm64) ARCH=aarch64; DEB_ARCH=arm64 ;;
   *) echo "unsupported architecture $ARCH" >&2; exit 2 ;;
 esac
-export PHOTOCRAFT_MAINTAINER="${PHOTOCRAFT_MAINTAINER:-PhotoCraft maintainers <photocraft@storyteller.ai>}"
-BASENAME="photocraft-$VERSION-linux-$ARCH"
+export OPENPHOTO_MAINTAINER="${OPENPHOTO_MAINTAINER:-OpenPhoto maintainers <openphoto@storyteller.ai>}"
+BASENAME="openphoto-$VERSION-linux-$ARCH"
 
-echo "==> PhotoCraft $VERSION for Linux $ARCH ($FORMATS)"
+echo "==> OpenPhoto $VERSION for Linux $ARCH ($FORMATS)"
 
 if [ "$SKIP_BUILD" = 0 ]; then
-  (cd "$ROOT" && cargo build --release --locked -p photocraft -p photocraft-cli)
+  (cd "$ROOT" && cargo build --release --locked -p openphoto -p openphoto-cli)
 fi
 BIN="$CARGO_TARGET_DIR/release"
 WORK="$CARGO_TARGET_DIR/linux-package"
@@ -48,18 +48,18 @@ STAGE="$WORK/root"
 rm -rf "$WORK"
 
 # ---- stage an FHS tree (shared by every format) -------------------------------------------------
-install -Dm755 "$BIN/photocraft" "$STAGE/usr/bin/photocraft"
-install -Dm755 "$BIN/photocraft-cli" "$STAGE/usr/bin/photocraft-cli"
-strip "$STAGE/usr/bin/photocraft" "$STAGE/usr/bin/photocraft-cli" 2>/dev/null || true
+install -Dm755 "$BIN/openphoto" "$STAGE/usr/bin/openphoto"
+install -Dm755 "$BIN/openphoto-cli" "$STAGE/usr/bin/openphoto-cli"
+strip "$STAGE/usr/bin/openphoto" "$STAGE/usr/bin/openphoto-cli" 2>/dev/null || true
 install -Dm644 "$HERE/$APP_ID.desktop" "$STAGE/usr/share/applications/$APP_ID.desktop"
 install -Dm644 "$HERE/$APP_ID.mime.xml" "$STAGE/usr/share/mime/packages/$APP_ID.xml"
 mkdir -p "$STAGE/usr/share/metainfo"
-sed -e "s/@VERSION@/$VERSION/g" -e "s/@DATE@/$PHOTOCRAFT_BUILD_DATE/g" \
+sed -e "s/@VERSION@/$VERSION/g" -e "s/@DATE@/$OPENPHOTO_BUILD_DATE/g" \
   "$HERE/$APP_ID.metainfo.xml.in" >"$STAGE/usr/share/metainfo/$APP_ID.metainfo.xml"
 mkdir -p "$STAGE/usr/share/icons"
 cp -R "$ROOT/assets/app-icon/hicolor" "$STAGE/usr/share/icons/"
-mkdir -p "$STAGE/usr/share/doc/photocraft"
-copy_docs "$STAGE/usr/share/doc/photocraft"
+mkdir -p "$STAGE/usr/share/doc/openphoto"
+copy_docs "$STAGE/usr/share/doc/openphoto"
 
 if command -v desktop-file-validate >/dev/null; then
   desktop-file-validate "$STAGE/usr/share/applications/$APP_ID.desktop"
@@ -92,10 +92,10 @@ fi
 
 # ---- AppImage -----------------------------------------------------------------------------------
 if has appimage; then
-  APPDIR="$WORK/PhotoCraft.AppDir"
+  APPDIR="$WORK/OpenPhoto.AppDir"
   cp -R "$STAGE" "$APPDIR"
   mv "$APPDIR/usr/share/doc" "$WORK/doc-unused"
-  ln -s usr/bin/photocraft "$APPDIR/AppRun"
+  ln -s usr/bin/openphoto "$APPDIR/AppRun"
   cp "$HERE/$APP_ID.desktop" "$APPDIR/$APP_ID.desktop"
   cp "$ROOT/assets/app-icon/hicolor/256x256/apps/$APP_ID.png" "$APPDIR/$APP_ID.png"
   ln -s "$APP_ID.png" "$APPDIR/.DirIcon"
@@ -115,6 +115,6 @@ if has appimage; then
   echo "wrote $OUT"
 fi
 
-"$STAGE/usr/bin/photocraft-cli" --version
+"$STAGE/usr/bin/openphoto-cli" --version
 echo "==> done"
 ls -lh "$DIST"

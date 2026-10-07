@@ -29,7 +29,7 @@ use std::sync::mpsc::Sender;
 use base64::Engine as _;
 use serde_json::{Value, json};
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 use crate::canvas::{ToolEvent, tool_event};
 use crate::state::{DialogKind, Tool, UiState};
 
@@ -72,7 +72,7 @@ fn wrap(r: Result<Value, String>) -> Outcome {
     }
 }
 
-pub fn handle(app: &mut PhotocraftApp, ctx: &egui::Context, req: &ControlRequest) -> Outcome {
+pub fn handle(app: &mut OpenPhotoApp, ctx: &egui::Context, req: &ControlRequest) -> Outcome {
     let p = &req.params;
     let s = |k: &str| p.get(k).and_then(Value::as_str);
     let u = |k: &str| p.get(k).and_then(Value::as_u64);
@@ -88,7 +88,7 @@ pub fn handle(app: &mut PhotocraftApp, ctx: &egui::Context, req: &ControlRequest
             // `engine.execute` is programmatic: engine commands run directly with their default
             // params and never open a dialog (an agent would otherwise get a modal instead of a
             // result). `ui.menu.invoke` behaves like a menu click, so it may open the dialog.
-            if req.method == "engine.execute" && photocraft_engine::commands::find(id).is_some() {
+            if req.method == "engine.execute" && openphoto_engine::commands::find(id).is_some() {
                 return wrap(app.run_automation(id, params));
             }
             let events_enabled = app.session.prefs().script_events.enabled;
@@ -212,7 +212,7 @@ pub fn handle(app: &mut PhotocraftApp, ctx: &egui::Context, req: &ControlRequest
                 }
                 "command" | "Command" => {
                     let Some(cmd) = s("command") else { return err("command dialogs need `command`") };
-                    let label = photocraft_engine::commands::find(cmd).map(|c| c.label).unwrap_or(cmd);
+                    let label = openphoto_engine::commands::find(cmd).map(|c| c.label).unwrap_or(cmd);
                     return ok(json!({"dialog": crate::dialogs::open_command_dialog(app, cmd, label)}));
                 }
                 other => return err(format!("unknown dialog kind `{other}`")),
@@ -372,9 +372,9 @@ pub fn handle(app: &mut PhotocraftApp, ctx: &egui::Context, req: &ControlRequest
         "ui.gpu.simulateLoss" => {
             let error = p.get("error").and_then(Value::as_bool).unwrap_or(false);
             let fault = if error {
-                photocraft_gpu::Fault::Error("simulated error (ui.gpu.simulateLoss)".into())
+                openphoto_gpu::Fault::Error("simulated error (ui.gpu.simulateLoss)".into())
             } else {
-                photocraft_gpu::Fault::Lost("simulated (ui.gpu.simulateLoss)".into())
+                openphoto_gpu::Fault::Lost("simulated (ui.gpu.simulateLoss)".into())
             };
             let active = match app.gpu_health() {
                 Some(h) => {
@@ -399,7 +399,7 @@ pub fn handle(app: &mut PhotocraftApp, ctx: &egui::Context, req: &ControlRequest
             if p.get("focus").and_then(Value::as_bool).unwrap_or(true) {
                 ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
             }
-            // The capture itself is issued by `PhotocraftApp::issue_screenshots` once open/close
+            // The capture itself is issued by `OpenPhotoApp::issue_screenshots` once open/close
             // animations (modals, popups) have settled.
             let token = app.ui.alloc_id();
             ctx.request_repaint();
@@ -436,7 +436,7 @@ pub fn handle(app: &mut PhotocraftApp, ctx: &egui::Context, req: &ControlRequest
 }
 
 /// Snapshot of everything on screen, addressable by id.
-pub fn inspect(app: &PhotocraftApp, ctx: &egui::Context) -> Value {
+pub fn inspect(app: &OpenPhotoApp, ctx: &egui::Context) -> Value {
     let screen = ctx.content_rect();
     let dialogs: Vec<Value> =
         app.ui.dialogs.iter().map(|d| json!({"id": d.id, "kind": d.kind, "title": crate::dialogs::title(d), "fields": d.fields})).collect();
@@ -453,15 +453,15 @@ pub fn inspect(app: &PhotocraftApp, ctx: &egui::Context) -> Value {
         "statusError": app.ui.status_error,
         "notices": app.ui.notices,
         "frame": app.frame,
-        "session": photocraft_engine::inspect::session(&app.session),
-        "document": app.session.active().map(photocraft_engine::inspect::document),
+        "session": openphoto_engine::inspect::session(&app.session),
+        "document": app.session.active().map(openphoto_engine::inspect::document),
         "perf": {"fps": app.fps, "timings": app.perf},
         "brush": {"size": app.session.tools.brush.size, "hardness": app.session.tools.brush.hardness, "opacity": app.session.tools.brush.opacity},
         "distort": app.distort.describe(),
     })
 }
 
-pub fn save_screenshot(app: &mut PhotocraftApp, image: &egui::ColorImage, path: Option<&str>) -> Value {
+pub fn save_screenshot(app: &mut OpenPhotoApp, image: &egui::ColorImage, path: Option<&str>) -> Value {
     let [w, h] = image.size;
     let rgba: Vec<u8> = image.pixels.iter().flat_map(|c| c.to_array()).collect();
     let png = match app.services.encode_png.as_ref() {
@@ -496,7 +496,7 @@ pub fn save_screenshot(app: &mut PhotocraftApp, image: &egui::ColorImage, path: 
 mod tests {
     use super::*;
 
-    fn call(app: &mut PhotocraftApp, ctx: &egui::Context, method: &str, params: Value) -> Value {
+    fn call(app: &mut OpenPhotoApp, ctx: &egui::Context, method: &str, params: Value) -> Value {
         let (req, _rx) = ControlRequest::new(method, params);
         match handle(app, ctx, &req) {
             Outcome::Done(v) => v,
@@ -506,7 +506,7 @@ mod tests {
 
     #[test]
     fn engine_execute_runs_with_defaults_but_menu_invoke_opens_the_dialog() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
         let ctx = egui::Context::default();
         app.run("file.new", json!({"width": 32, "height": 32})).unwrap();
         app.run("edit.fill", json!({"color": "#808080"})).unwrap();
@@ -526,7 +526,7 @@ mod tests {
             automation_command: Some(Box::new(|id, _| if id.starts_with("file.") { Err("filesystem command denied".into()) } else { Ok(()) })),
             ..Default::default()
         };
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), services);
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), services);
         let ctx = egui::Context::default();
         app.automation_input = true;
         let error = crate::menus::invoke(&mut app, &ctx, "file.open", json!({})).unwrap_err();
@@ -535,9 +535,9 @@ mod tests {
 
     #[test]
     fn automation_open_and_save_use_the_roots_and_reply_with_warnings() {
-        use photocraft_color::{ColorMode, SampleType};
-        use photocraft_doc::Document;
-        use photocraft_geom::Size;
+        use openphoto_color::{ColorMode, SampleType};
+        use openphoto_doc::Document;
+        use openphoto_geom::Size;
         use std::cell::RefCell;
         use std::rc::Rc;
 
@@ -547,7 +547,7 @@ mod tests {
             write: Some(Box::new(|_p: &str, _b: &[u8]| Err("ambient writer used".into()))),
             ..Default::default()
         };
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), services);
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), services);
         let ctx = egui::Context::default();
         let r = call(&mut app, &ctx, "app.open", json!({"path": "in/warn.psd"}));
         assert!(r.to_string().contains("automation read authority is not configured"), "{r}");
@@ -569,7 +569,7 @@ mod tests {
             })),
             ..Default::default()
         };
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), services);
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), services);
         let r = call(&mut app, &ctx, "app.open", json!({"path": "in/warn.psd"}));
         assert_eq!(r["result"]["warnings"], json!(["Adjustment layer flattened"]), "{r}");
         assert_eq!(r["result"]["name"], "warn.psd");

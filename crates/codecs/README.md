@@ -1,4 +1,4 @@
-# photocraft-codecs
+# openphoto-codecs
 
 Codecs for flat raster image formats, written in pure Rust. The crate is standalone: it depends on no other
 workspace crate and defines its own `Image` type. It also builds for `wasm32-unknown-unknown` and
@@ -18,7 +18,7 @@ It follows the "avoid GIMP's hole" rules in `plan/architecture.md` §1.1:
   changes.
 
 ```rust
-use photocraft_codecs::*;
+use openphoto_codecs::*;
 
 let img = decode(&bytes)?;                               // detect + decode (default Limits)
 for w in fidelity_warnings(&img, Format::Jpeg) {         // e.g. "16-bit will be reduced to 8-bit"
@@ -61,8 +61,8 @@ the same.
 ## Documented asymmetries and limitations
 
 * **Camera raw files** (DNG, CR2, NEF, ARW… which are TIFF-structured) are recognised and refused
-  with `CodecError::Unsupported`: they are sensor data, not flat images. `photocraft-raw` decodes
-  and develops them, and `photocraft-io` routes them there.
+  with `CodecError::Unsupported`: they are sensor data, not flat images. `openphoto-raw` decodes
+  and develops them, and `openphoto-io` routes them there.
 
 * **AVIF (the only asymmetric format).** Encoding uses `ravif`, which is pure Rust. Decoding
   needs `dav1d`, which is C. AVIF is therefore read-unsupported, and write support is gated
@@ -103,7 +103,7 @@ the same.
   P6, and anything with alpha or CMYK gives P7 (PAM). Writing a `.pbm` file therefore produces
   whichever of these fits the data.
 * **Colour conversions** (CMYK↔RGB, RGB→gray) are naive. Colour-managed conversion belongs in
-  `photocraft-color`.
+  `openphoto-color`.
 
 ## Limits (decompression bombs)
 
@@ -114,7 +114,7 @@ defaults are 262144 px per side, 2^30 pixels and 8 GiB (2 GiB on 32-bit targets 
 
 ## Tests
 
-`cargo test -p photocraft-codecs` covers:
+`cargo test -p openphoto-codecs` covers:
 
 * the full round-trip matrix (every writable format × 4 sample types × 6 layouts), exact for
   lossless formats and above a PSNR threshold for lossy ones;

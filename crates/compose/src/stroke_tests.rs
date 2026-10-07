@@ -1,10 +1,10 @@
 //! Stroke effects on shape layers: the outline, the vector stroke's place, gradient frames.
 
 use super::*;
-use photocraft_color::{Color, ColorMode, PixelFormat, SampleType};
-use photocraft_doc::vector::{Path, ShapeLayer, ShapeStroke, StrokeAlign, Subpath};
-use photocraft_doc::{Effect, FxCommon, FxPaint, Gradient, GradientStyle, Layer, LayerContent, LayerMask, StrokeFx, StrokePosition};
-use photocraft_geom::Size;
+use openphoto_color::{Color, ColorMode, PixelFormat, SampleType};
+use openphoto_doc::vector::{Path, ShapeLayer, ShapeStroke, StrokeAlign, Subpath};
+use openphoto_doc::{Effect, FxCommon, FxPaint, Gradient, GradientStyle, Layer, LayerContent, LayerMask, StrokeFx, StrokePosition};
+use openphoto_geom::Size;
 
 const E: f32 = 2.0 / 255.0;
 
@@ -32,7 +32,7 @@ fn blue() -> FxPaint {
 fn shape(x0: f64, x1: f64, fill: Fill, stroke: Option<ShapeStroke>) -> Layer {
     let path = Path::new(vec![Subpath::polygon(&[(x0, x0), (x1, x0), (x1, x1), (x0, x1)])]);
     let mut sh = ShapeLayer { path, fill: Some(fill), stroke, live: None, cache: None, psd_raw: None };
-    sh.cache = Some(photocraft_vector::render_shape(&sh, PixelFormat::RGBA8, Rect::new(0, 0, 40, 40)));
+    sh.cache = Some(openphoto_vector::render_shape(&sh, PixelFormat::RGBA8, Rect::new(0, 0, 40, 40)));
     Layer::new("shape", LayerContent::Shape(sh))
 }
 
@@ -106,7 +106,7 @@ fn a_stroked_shapes_mask_applies_to_fill_and_stroke_together() {
     let vs = ShapeStroke { width: 4.0, align: StrokeAlign::Inside, paint: Fill::Solid(Color::rgb(0.0, 1.0, 0.0)), ..ShapeStroke::default() };
     let mut l = shape(10.0, 30.0, Fill::Solid(Color::rgb(1.0, 0.0, 0.0)), Some(vs));
     let mut m = LayerMask::reveal_all();
-    m.surface = photocraft_raster::Surface::with_default(PixelFormat::GRAY8, &[0.5]);
+    m.surface = openphoto_raster::Surface::with_default(PixelFormat::GRAY8, &[0.5]);
     l.mask = Some(m);
     let mut clip = Layer::raster("clip", PixelFormat::RGBA8);
     clip.surface_mut().unwrap().fill_rect(Rect::new(0, 0, 40, 40), &[0.0, 0.0, 1.0, 1.0]);

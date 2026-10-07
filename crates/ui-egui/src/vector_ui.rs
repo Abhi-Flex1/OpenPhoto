@@ -2,13 +2,13 @@
 //! All edits go through the engine's `shape.*` / `path.*` commands.
 
 use egui::{Color32, Pos2, Rect, Sense, Stroke, pos2, vec2};
-use photocraft_doc::vector::Path;
-use photocraft_doc::{Document, LayerContent};
-use photocraft_geom::Affine;
+use openphoto_doc::vector::Path;
+use openphoto_doc::{Document, LayerContent};
+use openphoto_geom::Affine;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 use crate::canvas::ViewXform;
 use crate::state::{Tool, ToolOptions};
 use crate::theme::Tokens;
@@ -35,7 +35,7 @@ fn hex(c: [f32; 4]) -> String {
     format!("#{:02x}{:02x}{:02x}", c.r(), c.g(), c.b())
 }
 
-fn stroke_param(app: &PhotocraftApp) -> Value {
+fn stroke_param(app: &OpenPhotoApp) -> Value {
     let o = &app.ui.tool_options;
     if o.stroke_width > 0.0 { json!({"width": o.stroke_width, "color": hex(app.session.tools.background)}) } else { Value::Null }
 }
@@ -78,7 +78,7 @@ fn shape_geometry(o: &ToolOptions, tool: Tool, start: [f64; 2], end: [f64; 2], m
 }
 
 /// Finish a Shape-tool drag: ⇧ constrains proportions, ⌥ draws from the centre.
-pub fn finish_shape(app: &mut PhotocraftApp, tool: Tool, start: [f64; 2], end: [f64; 2], mods: egui::Modifiers) {
+pub fn finish_shape(app: &mut OpenPhotoApp, tool: Tool, start: [f64; 2], end: [f64; 2], mods: egui::Modifiers) {
     let Some(mut p) = shape_geometry(&app.ui.tool_options, tool, start, end, mods) else { return };
     let fill = if app.ui.tool_options.shape_fill { json!(hex(app.session.tools.foreground)) } else { Value::Null };
     let stroke = stroke_param(app);
@@ -99,9 +99,9 @@ pub fn finish_shape(app: &mut PhotocraftApp, tool: Tool, start: [f64; 2], end: [
 
 /// Shape-tool drag preview: the shape `finish_shape` will create, filled and stroked, under its
 /// path outline. Custom shapes show their box outline only.
-pub fn draw_shape_preview(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXform, tool: Tool, start: [f64; 2], end: [f64; 2], mods: egui::Modifiers) {
+pub fn draw_shape_preview(app: &OpenPhotoApp, painter: &egui::Painter, xf: &ViewXform, tool: Tool, start: [f64; 2], end: [f64; 2], mods: egui::Modifiers) {
     let o = &app.ui.tool_options;
-    let Some(path) = shape_geometry(o, tool, start, end, mods).and_then(|p| photocraft_engine::vector_cmds::shape_path(&p).ok()) else { return };
+    let Some(path) = shape_geometry(o, tool, start, end, mods).and_then(|p| openphoto_engine::vector_cmds::shape_path(&p).ok()) else { return };
     let custom = tool == Tool::CustomShape;
     // ponytail: preview colours skip the canvas's colour management; the commit renders them exactly.
     let fill = if o.shape_fill && !custom { rgb32(app.session.tools.foreground) } else { Color32::TRANSPARENT };
@@ -123,7 +123,7 @@ fn pen_to_json(pen: &PenPath, closed: bool) -> Value {
 }
 
 /// Pen press: close on the first anchor, else add an anchor (dragging pulls smooth handles).
-pub fn pen_down(app: &mut PhotocraftApp, x: f64, y: f64) {
+pub fn pen_down(app: &mut OpenPhotoApp, x: f64, y: f64) {
     let tol = 6.0 / app.current_zoom().max(0.01) as f64;
     let pen = app.ui.pen.get_or_insert_with(PenPath::default);
     if let Some(first) = pen.knots.first().map(|k| k[0])
@@ -137,7 +137,7 @@ pub fn pen_down(app: &mut PhotocraftApp, x: f64, y: f64) {
     pen.dragging = true;
 }
 
-pub fn pen_move(app: &mut PhotocraftApp, x: f64, y: f64) {
+pub fn pen_move(app: &mut OpenPhotoApp, x: f64, y: f64) {
     if let Some(pen) = app.ui.pen.as_mut()
         && pen.dragging
         && let Some(k) = pen.knots.last_mut()
@@ -148,14 +148,14 @@ pub fn pen_move(app: &mut PhotocraftApp, x: f64, y: f64) {
     }
 }
 
-pub fn pen_up(app: &mut PhotocraftApp) {
+pub fn pen_up(app: &mut OpenPhotoApp) {
     if let Some(pen) = app.ui.pen.as_mut() {
         pen.dragging = false;
     }
 }
 
 /// Finish the pen path: a work path (Path mode) or a new shape layer (Shape mode).
-pub fn pen_commit(app: &mut PhotocraftApp, closed: bool) {
+pub fn pen_commit(app: &mut OpenPhotoApp, closed: bool) {
     let Some(pen) = app.ui.pen.take() else { return };
     if pen.knots.len() < 2 {
         return;
@@ -168,7 +168,7 @@ pub fn pen_commit(app: &mut PhotocraftApp, closed: bool) {
         app.run("shape.create", json!({"kind": "path", "path": path, "fill": fill, "stroke": stroke}))
     } else if let Some((id, existing)) = targeted_vector_mask(app) {
         // A targeted vector mask takes the new subpath (#196), as in Photoshop.
-        let mut p = photocraft_engine::vector_cmds::path_json(&existing);
+        let mut p = openphoto_engine::vector_cmds::path_json(&existing);
         if let (Some(subs), Some(new)) = (p.get_mut("subpaths").and_then(Value::as_array_mut), path.get("subpaths").and_then(Value::as_array)) {
             subs.extend(new.iter().cloned());
         }
@@ -194,7 +194,7 @@ enum PathTarget {
 }
 
 /// The targeted vector mask of the active layer, if the Layers panel targets it.
-fn targeted_vector_mask(app: &PhotocraftApp) -> Option<(u64, Path)> {
+fn targeted_vector_mask(app: &OpenPhotoApp) -> Option<(u64, Path)> {
     let st = app.session.active()?;
     let l = st.active_layer.and_then(|id| st.doc.layer(id))?;
     (app.ui.vector_mask_target && !matches!(l.content, LayerContent::Shape(_))).then_some(())?;
@@ -203,7 +203,7 @@ fn targeted_vector_mask(app: &PhotocraftApp) -> Option<(u64, Path)> {
 
 /// The path Path Selection edits: the targeted vector mask, the active shape layer's path, else
 /// the work path.
-fn target_path(app: &PhotocraftApp) -> Option<(PathTarget, Path)> {
+fn target_path(app: &OpenPhotoApp) -> Option<(PathTarget, Path)> {
     if let Some((id, p)) = targeted_vector_mask(app) {
         return Some((PathTarget::VectorMask(id), p));
     }
@@ -216,7 +216,7 @@ fn target_path(app: &PhotocraftApp) -> Option<(PathTarget, Path)> {
     st.doc.work_path.clone().map(|p| (PathTarget::Work, p))
 }
 
-pub fn path_selection_finish(app: &mut PhotocraftApp, start: [f64; 2], end: [f64; 2]) {
+pub fn path_selection_finish(app: &mut OpenPhotoApp, start: [f64; 2], end: [f64; 2]) {
     let (dx, dy) = (end[0] - start[0], end[1] - start[1]);
     if dx.abs() + dy.abs() < 0.5 {
         return;
@@ -226,11 +226,11 @@ pub fn path_selection_finish(app: &mut PhotocraftApp, start: [f64; 2], end: [f64
         PathTarget::Shape(id) => app.run("shape.edit", json!({"layer": id, "move": [dx.round(), dy.round()]})),
         PathTarget::VectorMask(id) => {
             let moved = path.transform(&Affine::translate(dx.round(), dy.round()));
-            app.run("layer.vectorMask.edit", json!({"layer": id, "path": photocraft_engine::vector_cmds::path_json(&moved)}))
+            app.run("layer.vectorMask.edit", json!({"layer": id, "path": openphoto_engine::vector_cmds::path_json(&moved)}))
         }
         PathTarget::Work => {
             let moved = path.transform(&Affine::translate(dx.round(), dy.round()));
-            app.run("path.set", json!({"name": "work", "path": photocraft_engine::vector_cmds::path_json(&moved)}))
+            app.run("path.set", json!({"name": "work", "path": openphoto_engine::vector_cmds::path_json(&moved)}))
         }
     };
 }
@@ -271,7 +271,7 @@ fn path_lines(path: &Path, xf: &dyn Fn([f64; 2]) -> Pos2) -> Vec<(Vec<Pos2>, boo
 }
 
 /// Work path / active shape path outlines, anchors, and the pen path in progress.
-pub fn draw_overlay(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXform, doc: &Document) {
+pub fn draw_overlay(app: &OpenPhotoApp, painter: &egui::Painter, xf: &ViewXform, doc: &Document) {
     let tool = app.ui.tool;
     let vector_tool = matches!(tool, Tool::Pen | Tool::PathSelection) || is_shape_tool(tool);
     let accent = Tokens::get(painter.ctx()).accent;
@@ -343,7 +343,7 @@ pub fn draw_overlay(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXform
 // Options bars
 
 /// Options bar for vector tools; false for other tools.
-pub fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui, tool: Tool) -> bool {
+pub fn options_bar(app: &mut OpenPhotoApp, ui: &mut egui::Ui, tool: Tool) -> bool {
     if !(is_shape_tool(tool) || matches!(tool, Tool::Pen | Tool::PathSelection)) {
         return false;
     }
@@ -410,9 +410,9 @@ pub fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui, tool: Tool) -> bo
 // ---------------------------------------------------------------------------------------------
 // Properties (shape layers)
 
-fn color_of(f: &photocraft_doc::Fill) -> Option<Color32> {
+fn color_of(f: &openphoto_doc::Fill) -> Option<Color32> {
     match f {
-        photocraft_doc::Fill::Solid(c) => {
+        openphoto_doc::Fill::Solid(c) => {
             let v = c.to_rgba8();
             Some(Color32::from_rgb(v[0], v[1], v[2]))
         }
@@ -421,7 +421,7 @@ fn color_of(f: &photocraft_doc::Fill) -> Option<Color32> {
 }
 
 /// A colour swatch that opens a picker; returns the new `#rrggbb` when changed.
-fn swatch(ui: &mut egui::Ui, fill: Option<&photocraft_doc::Fill>, tip: &str) -> Option<String> {
+fn swatch(ui: &mut egui::Ui, fill: Option<&openphoto_doc::Fill>, tip: &str) -> Option<String> {
     let t = Tokens::get(ui.ctx());
     let (r, resp) = ui.allocate_exact_size(vec2(26.0, 18.0), Sense::click());
     let current = fill.and_then(color_of);
@@ -429,9 +429,9 @@ fn swatch(ui: &mut egui::Ui, fill: Option<&photocraft_doc::Fill>, tip: &str) -> 
         (Some(c), _) => {
             ui.painter().rect_filled(r, 2.0, c);
         }
-        (None, Some(photocraft_doc::Fill::Gradient { stops, .. })) if !stops.is_empty() => {
+        (None, Some(openphoto_doc::Fill::Gradient { stops, .. })) if !stops.is_empty() => {
             // Gradient fills preview as a left-to-right ramp through their stops.
-            let rgb = |c: &photocraft_doc::Color| {
+            let rgb = |c: &openphoto_doc::Color| {
                 let v = c.to_rgba8();
                 Color32::from_rgb(v[0], v[1], v[2])
             };
@@ -477,7 +477,7 @@ fn swatch(ui: &mut egui::Ui, fill: Option<&photocraft_doc::Fill>, tip: &str) -> 
 }
 
 /// Properties panel for a shape layer: Appearance (fill, stroke) and live shape geometry.
-pub fn shape_properties(app: &mut PhotocraftApp, ui: &mut egui::Ui, id: photocraft_doc::LayerId) {
+pub fn shape_properties(app: &mut OpenPhotoApp, ui: &mut egui::Ui, id: openphoto_doc::LayerId) {
     let Some(sh) = app.session.active().and_then(|s| s.doc.layer(id)).and_then(|l| match &l.content {
         LayerContent::Shape(sh) => Some(sh.clone()),
         _ => None,
@@ -509,8 +509,8 @@ pub fn shape_properties(app: &mut PhotocraftApp, ui: &mut egui::Ui, id: photocra
             }
             if sh.stroke.is_some() {
                 let mut align = match sh.stroke.as_ref().map(|s| s.align) {
-                    Some(photocraft_doc::vector::StrokeAlign::Inside) => "inside",
-                    Some(photocraft_doc::vector::StrokeAlign::Outside) => "outside",
+                    Some(openphoto_doc::vector::StrokeAlign::Inside) => "inside",
+                    Some(openphoto_doc::vector::StrokeAlign::Outside) => "outside",
                     _ => "center",
                 }
                 .to_string();
@@ -529,9 +529,9 @@ pub fn shape_properties(app: &mut PhotocraftApp, ui: &mut egui::Ui, id: photocra
             crate::widgets::value_field(ui, v, range, unit, 64.0).changed()
         };
         match live {
-            photocraft_doc::vector::LiveShape::Rect { rect, .. }
-            | photocraft_doc::vector::LiveShape::Ellipse { rect }
-            | photocraft_doc::vector::LiveShape::Polygon { rect, .. } => {
+            openphoto_doc::vector::LiveShape::Rect { rect, .. }
+            | openphoto_doc::vector::LiveShape::Ellipse { rect }
+            | openphoto_doc::vector::LiveShape::Polygon { rect, .. } => {
                 ui.horizontal(|ui| {
                     let (mut w, mut h) = (rect[2] as f32, rect[3] as f32);
                     let cw = num(ui, "W", &mut w, 1.0..=300000.0, "px");
@@ -541,16 +541,16 @@ pub fn shape_properties(app: &mut PhotocraftApp, ui: &mut egui::Ui, id: photocra
                     }
                 });
             }
-            photocraft_doc::vector::LiveShape::Line { .. } => {}
+            openphoto_doc::vector::LiveShape::Line { .. } => {}
         }
         ui.horizontal(|ui| match live {
-            photocraft_doc::vector::LiveShape::Rect { radii, .. } => {
+            openphoto_doc::vector::LiveShape::Rect { radii, .. } => {
                 let mut r = radii[0] as f32;
                 if num(ui, tl!("Corner radius"), &mut r, 0.0..=100000.0, "px") {
                     edit = Some(json!({"radii": r, "coalesce": key("radius")}));
                 }
             }
-            photocraft_doc::vector::LiveShape::Polygon { sides, star_ratio, .. } => {
+            openphoto_doc::vector::LiveShape::Polygon { sides, star_ratio, .. } => {
                 let mut n = *sides as f32;
                 if num(ui, tl!("Sides"), &mut n, 3.0..=100.0, "") {
                     edit = Some(json!({"sides": n.round() as u32, "coalesce": key("sides")}));
@@ -560,7 +560,7 @@ pub fn shape_properties(app: &mut PhotocraftApp, ui: &mut egui::Ui, id: photocra
                     edit = Some(json!({"starRatio": sr as f64 / 100.0, "coalesce": key("star")}));
                 }
             }
-            photocraft_doc::vector::LiveShape::Line { weight, .. } => {
+            openphoto_doc::vector::LiveShape::Line { weight, .. } => {
                 let mut w = *weight as f32;
                 if num(ui, tl!("Weight"), &mut w, 1.0..=10000.0, "px") {
                     edit = Some(json!({"weight": w, "coalesce": key("weight")}));
@@ -618,7 +618,7 @@ pub struct PathEntry {
 
 /// The Paths panel's rows, top to bottom: saved paths, the work path, then the selected layer's
 /// shape path ("<Layer> Shape Path") or vector mask ("<Layer> Vector Mask"), like Photoshop.
-pub fn path_rows(doc: &Document, active: Option<photocraft_doc::LayerId>) -> Vec<PathEntry> {
+pub fn path_rows(doc: &Document, active: Option<openphoto_doc::LayerId>) -> Vec<PathEntry> {
     let mut rows: Vec<_> = doc.paths.iter().map(|p| PathEntry { name: p.name.clone(), path: p.path.clone(), kind: PathRow::Saved }).collect();
     if let Some(wp) = &doc.work_path {
         rows.push(PathEntry { name: "Work Path".into(), path: wp.clone(), kind: PathRow::Work });
@@ -648,7 +648,7 @@ pub fn paths_footer(ctx: &egui::Context) -> Option<Rect> {
     ctx.data(|d| d.get_temp(footer_id()))
 }
 
-pub fn paths_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+pub fn paths_panel(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     let Some(st) = app.session.active() else {
         ui.label(egui::RichText::new(tl!("No document")).color(t.text_faint));
@@ -752,8 +752,8 @@ pub fn paths_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
 mod tests {
     use super::*;
 
-    fn app() -> PhotocraftApp {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+    fn app() -> OpenPhotoApp {
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
         app.session.execute("file.new", json!({"width": 200, "height": 200})).unwrap();
         app.sync_views();
         app
@@ -778,9 +778,8 @@ mod tests {
     fn shape_preview_is_the_committed_path() {
         let mut app = app();
         app.ui.tool_options.corner_radius = 8.0;
-        let preview = |app: &PhotocraftApp, tool, end| {
-            shape_geometry(&app.ui.tool_options, tool, [10.0, 10.0], end, egui::Modifiers::ALT)
-                .and_then(|p| photocraft_engine::vector_cmds::shape_path(&p).ok())
+        let preview = |app: &OpenPhotoApp, tool, end| {
+            shape_geometry(&app.ui.tool_options, tool, [10.0, 10.0], end, egui::Modifiers::ALT).and_then(|p| openphoto_engine::vector_cmds::shape_path(&p).ok())
         };
         for tool in [Tool::Rectangle, Tool::EllipseShape, Tool::Triangle, Tool::Polygon, Tool::Line] {
             let shown = preview(&app, tool, [60.0, 30.0]).unwrap();
@@ -790,8 +789,8 @@ mod tests {
             assert_eq!(sh.path, shown, "{tool:?}");
         }
         assert!(preview(&app, Tool::Rectangle, [10.2, 40.0]).is_none(), "too thin to draw");
-        assert!(photocraft_engine::vector_cmds::shape_path(&json!({"kind": "nope", "rect": [0, 0, 5, 5]})).is_err());
-        assert!(photocraft_engine::vector_cmds::shape_path(&json!({"kind": "rect"})).is_err());
+        assert!(openphoto_engine::vector_cmds::shape_path(&json!({"kind": "nope", "rect": [0, 0, 5, 5]})).is_err());
+        assert!(openphoto_engine::vector_cmds::shape_path(&json!({"kind": "rect"})).is_err());
     }
 
     #[test]

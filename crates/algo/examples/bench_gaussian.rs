@@ -1,9 +1,9 @@
 //! Timing: Gaussian Blur radius 10 on a 6016×6016 RGBA8 layer.
-//! `cargo run --release -p photocraft-algo --example bench_gaussian`
-use photocraft_algo::{FilterParams, apply, output_area};
-use photocraft_color::PixelFormat;
-use photocraft_geom::Rect;
-use photocraft_raster::Surface;
+//! `cargo run --release -p openphoto-algo --example bench_gaussian`
+use openphoto_algo::{FilterParams, apply, output_area};
+use openphoto_color::PixelFormat;
+use openphoto_geom::Rect;
+use openphoto_raster::Surface;
 
 fn main() {
     let n: i32 = std::env::args().nth(1).and_then(|v| v.parse().ok()).unwrap_or(6016);

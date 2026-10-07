@@ -21,8 +21,8 @@ use parley::{
     Alignment, AlignmentOptions, FontData, FontFamily, FontFeatures, FontStyle, FontVariations, FontWeight, IndentOptions, Layout, LayoutContext,
     PositionedLayoutItem, StyleProperty,
 };
-use photocraft_doc::TextLayer;
-use photocraft_doc::text::{Caps, CharStyle, Kerning, Orientation, TextAlign, TextDirection, TextShape};
+use openphoto_doc::TextLayer;
+use openphoto_doc::text::{Caps, CharStyle, Kerning, Orientation, TextAlign, TextDirection, TextShape};
 
 use crate::fonts::FontDb;
 

@@ -2,10 +2,10 @@
 
 mod common;
 use common::*;
-use photocraft_color::{ColorMode, SampleType};
-use photocraft_doc::{Document, Layer, LayerId};
-use photocraft_format::*;
-use photocraft_raster::Rgba8Image;
+use openphoto_color::{ColorMode, SampleType};
+use openphoto_doc::{Document, Layer, LayerId};
+use openphoto_format::*;
+use openphoto_raster::Rgba8Image;
 
 const MODES: [ColorMode; 4] = [ColorMode::Rgb, ColorMode::Grayscale, ColorMode::Cmyk, ColorMode::Lab];
 
@@ -60,7 +60,7 @@ fn save_path_zip_file() {
 
 #[test]
 fn empty_document_roundtrips() {
-    let doc = Document::new("empty", photocraft_doc::Size::new(1, 1), ColorMode::Rgb, SampleType::U8);
+    let doc = Document::new("empty", openphoto_doc::Size::new(1, 1), ColorMode::Rgb, SampleType::U8);
     assert_eq!(load_from_bytes(&save_to_bytes(&doc, &SaveOptions::default()).unwrap()).unwrap(), doc);
 }
 
@@ -107,7 +107,7 @@ fn directory_incremental_and_gc() {
 
 #[test]
 fn identical_tiles_are_stored_once() {
-    let mut doc = Document::new("d", photocraft_doc::Size::new(10, 10), ColorMode::Rgb, SampleType::U8);
+    let mut doc = Document::new("d", openphoto_doc::Size::new(10, 10), ColorMode::Rgb, SampleType::U8);
     let mut a = Layer::raster("a", doc.pixel_format());
     scribble(a.surface_mut().unwrap(), 5, false);
     let b = a.duplicate();
@@ -157,7 +157,7 @@ fn previews_embedded_and_readable() {
     let opts = SaveOptions { thumbnail: Some(thumb.clone()), composite: Some(thumb.clone()) };
     let bytes = save_to_bytes(&doc, &opts).unwrap();
     let png = read_thumbnail(&bytes).unwrap().unwrap();
-    let img = photocraft_codecs::decode(&png).unwrap();
+    let img = openphoto_codecs::decode(&png).unwrap();
     assert_eq!(img.dimensions(), (4, 3));
     assert_eq!(img.to_rgba8(), thumb.pixels);
     let m = read_manifest(&bytes).unwrap();
@@ -226,7 +226,7 @@ fn vector_fields_roundtrip_and_default_when_absent() {
         }
     }
     strip(&mut v["layers"]);
-    let old: photocraft_format::manifest::DocM = serde_json::from_value(v).unwrap();
+    let old: openphoto_format::manifest::DocM = serde_json::from_value(v).unwrap();
     assert!(old.paths.is_empty() && old.work_path.is_none());
     assert!(old.layers.iter().all(|l| l.vector_mask.is_none()));
 }
@@ -235,8 +235,8 @@ fn vector_fields_roundtrip_and_default_when_absent() {
 /// before `kern` existed load with no manual kerning.
 #[test]
 fn text_kerning_roundtrips_and_defaults() {
-    use photocraft_doc::LayerContent;
-    use photocraft_doc::text::Kerning;
+    use openphoto_doc::LayerContent;
+    use openphoto_doc::text::Kerning;
     let doc = rich_doc(ColorMode::Rgb, SampleType::U8);
     let bytes = save_to_bytes(&doc, &SaveOptions::default()).unwrap();
     let back = load_from_bytes(&bytes).unwrap();
@@ -265,20 +265,20 @@ fn text_kerning_roundtrips_and_defaults() {
     }
     strip(&mut v);
     assert!(!v.to_string().contains("\"kern\""));
-    let old: photocraft_format::manifest::DocM = serde_json::from_value(v).unwrap();
+    let old: openphoto_format::manifest::DocM = serde_json::from_value(v).unwrap();
     let s = serde_json::to_string(&old).unwrap();
     assert!(s.contains("\"kern\":0.0"), "kern defaults to 0");
 }
 
 #[test]
 fn channel_restrictions_and_bevel_elements_roundtrip() {
-    use photocraft_doc::{Bevel, BevelContour, BevelTexture, Contour, Effect};
+    use openphoto_doc::{Bevel, BevelContour, BevelTexture, Contour, Effect};
     let mut doc = rich_doc(ColorMode::Rgb, SampleType::U8);
     doc.layers[0].excluded_channels = 0b101;
     let mut b = Bevel {
         enabled: true,
-        style: photocraft_doc::BevelStyle::Emboss,
-        technique: photocraft_doc::BevelTechnique::ChiselHard,
+        style: openphoto_doc::BevelStyle::Emboss,
+        technique: openphoto_doc::BevelTechnique::ChiselHard,
         depth: 1.2,
         up: false,
         size: 9.0,
@@ -287,10 +287,10 @@ fn channel_restrictions_and_bevel_elements_roundtrip() {
         altitude: 40.0,
         use_global_light: false,
         gloss_contour: Contour::Linear,
-        highlight: photocraft_doc::FxCommon::new(photocraft_color::BlendMode::Screen, 0.7),
-        highlight_color: photocraft_color::Color::WHITE,
-        shadow: photocraft_doc::FxCommon::new(photocraft_color::BlendMode::Multiply, 0.6),
-        shadow_color: photocraft_color::Color::BLACK,
+        highlight: openphoto_doc::FxCommon::new(openphoto_color::BlendMode::Screen, 0.7),
+        highlight_color: openphoto_color::Color::WHITE,
+        shadow: openphoto_doc::FxCommon::new(openphoto_color::BlendMode::Multiply, 0.6),
+        shadow_color: openphoto_color::Color::BLACK,
         contour: None,
         texture: None,
     };
@@ -304,7 +304,7 @@ fn channel_restrictions_and_bevel_elements_roundtrip() {
 
 #[test]
 fn blend_if_roundtrips() {
-    use photocraft_doc::{BlendIf, BlendRange};
+    use openphoto_doc::{BlendIf, BlendRange};
     let mut doc = rich_doc(ColorMode::Rgb, SampleType::U16);
     let mut bi = BlendIf::default();
     bi.set(0, [BlendRange { black: [20, 60], white: [255, 255] }, BlendRange::FULL]);
@@ -319,17 +319,17 @@ fn blend_if_roundtrips() {
 
 #[test]
 fn video_layer_frames_survive_roundtrip() {
-    use photocraft_doc::{Timeline, VideoData, VideoSource};
-    use photocraft_geom::Rect;
-    let mut doc = Document::new("Vid", photocraft_geom::Size { width: 8, height: 6 }, ColorMode::Rgb, SampleType::U8);
+    use openphoto_doc::{Timeline, VideoData, VideoSource};
+    use openphoto_geom::Rect;
+    let mut doc = Document::new("Vid", openphoto_geom::Size { width: 8, height: 6 }, ColorMode::Rgb, SampleType::U8);
     doc.timeline = Some(Timeline::new(3, 24.0));
     let fmt = doc.pixel_format();
     let mut l = Layer::raster("Clip", fmt);
     let mut frames = Vec::new();
     for i in 0..3u8 {
-        let mut s = photocraft_raster::Surface::new(fmt);
+        let mut s = openphoto_raster::Surface::new(fmt);
         let v = i as f32 / 2.0;
-        s.fill_rect(Rect::new(0, 0, 8, 6), &photocraft_raster::from_rgba(&fmt, [v, 0.0, 1.0 - v, 1.0]));
+        s.fill_rect(Rect::new(0, 0, 8, 6), &openphoto_raster::from_rgba(&fmt, [v, 0.0, 1.0 - v, 1.0]));
         frames.push(s);
     }
     let mut vd = VideoData::new(frames, 24.0);

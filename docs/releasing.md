@@ -1,13 +1,13 @@
-# Releasing PhotoCraft
+# Releasing OpenPhoto
 
 Every push to the `release` branch runs `.github/workflows/release.yml`. The workflow builds
 signed installers for macOS, Windows, Linux and the web, plus a FreeBSD tarball, then creates
-or updates a **draft** GitHub Release named `PhotoCraft v<version>`. Nobody sees a draft until a
+or updates a **draft** GitHub Release named `OpenPhoto v<version>`. Nobody sees a draft until a
 maintainer publishes it.
 
-This is PhotoCraft's implementation of the shared
-[release playbook](release-playbook.md). User-facing names say **PhotoCraft**. Files, binaries
-and ids stay lowercase (`photocraft-<version>-<platform>-<arch>.<ext>`, `ai.storyteller.photocraft`).
+This is OpenPhoto's implementation of the shared
+[release playbook](release-playbook.md). User-facing names say **OpenPhoto**. Files, binaries
+and ids stay lowercase (`openphoto-<version>-<platform>-<arch>.<ext>`, `ai.storyteller.openphoto`).
 
 ## Cutting a release
 
@@ -22,7 +22,7 @@ and ids stay lowercase (`photocraft-<version>-<platform>-<arch>.<ext>`, `ai.stor
    Commit the change (`Cargo.toml` + `Cargo.lock`) through the normal review flow.
 2. **Merge `main` into `release`** (or fast-forward it) and push. The workflow starts by itself.
 3. **Wait for the draft.** After about 30 to 45 minutes (notarization is the slow part), the
-   Releases page has a draft `PhotoCraft v0.2.0`, tagged `v0.2.0` on the pushed commit, with
+   Releases page has a draft `OpenPhoto v0.2.0`, tagged `v0.2.0` on the pushed commit, with
    every artifact and `SHA256SUMS.txt`. The notes are generated from the merged PRs.
 4. **Check it.** Download an installer or two and look at the job summaries. Any
    `::warning::` there means a signing secret was missing and that artifact is unsigned.
@@ -48,28 +48,28 @@ in the dialog.
 
 | Platform | Artifacts | Built on |
 |---|---|---|
-| macOS 11+ (universal: Apple silicon + Intel) | `photocraft-<v>-macos-universal.dmg`, `photocraft-cli-<v>-macos-universal.zip` | `macos-15` |
-| Windows 10+ x64 | `photocraft-<v>-windows-x64.msi`, `photocraft-<v>-windows-x64-portable.zip` | `windows-latest` |
-| Windows 10+ x86 (32-bit) | `photocraft-<v>-windows-x86.msi`, `photocraft-<v>-windows-x86-portable.zip` | `windows-latest` |
-| Linux x86_64 | `photocraft-<v>-linux-x86_64.{AppImage,deb,rpm,tar.gz,flatpak}` | `ubuntu-22.04` (Flatpak: `ubuntu-24.04`) |
-| Linux aarch64 | `photocraft-<v>-linux-aarch64.{AppImage,deb,rpm,tar.gz,flatpak}` | `ubuntu-22.04-arm` (Flatpak: `ubuntu-24.04-arm`) |
-| FreeBSD 14 x86_64 | `photocraft-<v>-freebsd-x86_64.tar.gz` | FreeBSD 14.3 VM on `ubuntu-latest` |
-| Web | `photocraft-web-<v>.zip` (static site; see [`packaging/web/README.md`](../packaging/web/README.md)) | `ubuntu-latest` |
+| macOS 11+ (universal: Apple silicon + Intel) | `openphoto-<v>-macos-universal.dmg`, `openphoto-cli-<v>-macos-universal.zip` | `macos-15` |
+| Windows 10+ x64 | `openphoto-<v>-windows-x64.msi`, `openphoto-<v>-windows-x64-portable.zip` | `windows-latest` |
+| Windows 10+ x86 (32-bit) | `openphoto-<v>-windows-x86.msi`, `openphoto-<v>-windows-x86-portable.zip` | `windows-latest` |
+| Linux x86_64 | `openphoto-<v>-linux-x86_64.{AppImage,deb,rpm,tar.gz,flatpak}` | `ubuntu-22.04` (Flatpak: `ubuntu-24.04`) |
+| Linux aarch64 | `openphoto-<v>-linux-aarch64.{AppImage,deb,rpm,tar.gz,flatpak}` | `ubuntu-22.04-arm` (Flatpak: `ubuntu-24.04-arm`) |
+| FreeBSD 14 x86_64 | `openphoto-<v>-freebsd-x86_64.tar.gz` | FreeBSD 14.3 VM on `ubuntu-latest` |
+| Web | `openphoto-web-<v>.zip` (static site; see [`packaging/web/README.md`](../packaging/web/README.md)) | `ubuntu-latest` |
 
-Every binary reports its version, the commit and the build date: `photocraft --version`,
-`photocraft-cli --version`, and *Help › About PhotoCraft*. CI sets `PHOTOCRAFT_BUILD_SHA` and
-`PHOTOCRAFT_BUILD_DATE`, and `crates/engine/src/build_info.rs` reads them at compile time. A plain
+Every binary reports its version, the commit and the build date: `openphoto --version`,
+`openphoto-cli --version`, and *Help › About OpenPhoto*. CI sets `OPENPHOTO_BUILD_SHA` and
+`OPENPHOTO_BUILD_DATE`, and `crates/engine/src/build_info.rs` reads them at compile time. A plain
 `cargo build` doesn't set them and reports `0.2.0 (dev build)`.
 
 ### macOS
 
 `packaging/macos/package.sh` builds `aarch64-apple-darwin` and `x86_64-apple-darwin` with
-`MACOSX_DEPLOYMENT_TARGET=11.0`, joins them with `lipo`, and assembles `PhotoCraft.app`:
+`MACOSX_DEPLOYMENT_TARGET=11.0`, joins them with `lipo`, and assembles `OpenPhoto.app`:
 
-- `Info.plist` is generated from `Info.plist.in`. The bundle id is `ai.storyteller.photocraft`.
+- `Info.plist` is generated from `Info.plist.in`. The bundle id is `ai.storyteller.openphoto`.
   The plist sets `LSMinimumSystemVersion` 11.0, `NSHighResolutionCapable`, and document types:
-  `.pcraft` (Owner), plus PSD/PSB and the image formats PhotoCraft reads (Alternate, so it never
-  takes over Preview's defaults). The icon is `assets/app-icon/photocraft.icns`.
+  `.pcraft` (Owner), plus PSD/PSB and the image formats OpenPhoto reads (Alternate, so it never
+  takes over Preview's defaults). The icon is `assets/app-icon/openphoto.icns`.
 - **Signing** goes inside-out with the hardened runtime and a secure timestamp. The executable
   is signed first, then the bundle. There's no `--deep` on the final signature. The
   entitlements (`entitlements.plist`) are deliberately empty.
@@ -77,7 +77,7 @@ Every binary reports its version, the commit and the build date: `photocraft --v
   ticket is stapled to the app. The app goes on a DMG (`hdiutil`, with an `Applications` link
   to drag onto). The DMG is signed, notarized and stapled too. The script checks the results
   with `codesign --verify --strict`, `stapler validate` and `spctl -a -vvv`.
-- **CLI:** the universal `photocraft-cli` is signed with the hardened runtime, zipped and
+- **CLI:** the universal `openphoto-cli` is signed with the hardened runtime, zipped and
   notarized. A bare binary can't hold a stapled ticket, so Gatekeeper looks it up online.
 
 Locally, without certificates, the script signs ad-hoc (`codesign -s -`) and skips notarization.
@@ -86,7 +86,7 @@ That's enough to check the bundle and the DMG on your own Mac:
 ```sh
 packaging/macos/package.sh                    # universal; needs both rustup targets
 packaging/macos/package.sh --arch aarch64     # quicker, host-only
-open dist/release/photocraft-*-macos-*.dmg
+open dist/release/openphoto-*-macos-*.dmg
 ```
 
 ### Windows
@@ -96,24 +96,24 @@ The static C runtime means neither the MSI nor the portable zip needs the Visual
 redistributable, which matters for a standalone installer and costs only about 100 KB. The flag
 goes in `CARGO_TARGET_<TRIPLE>_RUSTFLAGS`, so host build scripts aren't affected.
 
-- `apps/photocraft/build.rs` embeds the icon (`assets/app-icon/photocraft.ico`) and
+- `apps/openphoto/build.rs` embeds the icon (`assets/app-icon/openphoto.ico`) and
   VERSIONINFO with the `winresource` crate. It only does this when targeting Windows. Elsewhere
   it's a no-op, and the web build doesn't touch that crate.
 - Release builds use the GUI subsystem, so Start Menu launches don't open a console window.
-- `photocraft.wxs` (WiX v5) is a per-machine install into Program Files with an advertised
-  Start Menu shortcut. PhotoCraft becomes the default app for `.pcraft` and is listed under
-  "Open with" for PSD/PSB and image files. It also registers App Paths (Win+R `photocraft`).
+- `openphoto.wxs` (WiX v5) is a per-machine install into Program Files with an advertised
+  Start Menu shortcut. OpenPhoto becomes the default app for `.pcraft` and is listed under
+  "Open with" for PSD/PSB and image files. It also registers App Paths (Win+R `openphoto`).
   The MSI version is the numeric `X.Y.Z`, because MSI has no pre-release field. Same-version
   upgrades are allowed so that release candidates replace each other.
 - Shortcut icon identifiers keep the executable's `.exe` extension: MSI uses the identifier
   as the cached icon filename, and an extensionless filename can render as a blank document
   icon. `packaging/windows/check-icons.ps1` checks the references and extensions in CI;
   `package.ps1` also validates the built MSI with ICE50 before signing it.
-- **Portable zip:** it ships `packaging/windows/portable.txt` beside `photocraft.exe`. That
-  marker (or a `PhotoCraft.portable` file) switches on portable mode: preferences, presets,
-  recovery autosaves and the GPU startup marker go to `PhotoCraftData\` next to the exe instead
-  of `%APPDATA%\Photocraft`. If that folder isn't writable the app warns and uses `%APPDATA%`.
-  The MSI has no marker. The logic is in `apps/photocraft/src/app_dirs.rs` and works the same
+- **Portable zip:** it ships `packaging/windows/portable.txt` beside `openphoto.exe`. That
+  marker (or a `OpenPhoto.portable` file) switches on portable mode: preferences, presets,
+  recovery autosaves and the GPU startup marker go to `OpenPhotoData\` next to the exe instead
+  of `%APPDATA%\OpenPhoto`. If that folder isn't writable the app warns and uses `%APPDATA%`.
+  The MSI has no marker. The logic is in `apps/openphoto/src/app_dirs.rs` and works the same
   on macOS and Linux.
 - **Signing:** `packaging/windows/sign.ps1` signs both `.exe` files and then the `.msi` with
   `signtool`, using SHA-256 and an RFC 3161 timestamp. It uses whichever material is present:
@@ -130,7 +130,7 @@ Locally on Windows: `dotnet tool install -g wix --version 5.0.2`, then
 ### Linux
 
 `packaging/linux/package.sh` stages one FHS tree and makes every format from it. The tree
-holds both binaries, `ai.storyteller.photocraft.desktop`, hicolor icons from 16 px to 512 px
+holds both binaries, `ai.storyteller.openphoto.desktop`, hicolor icons from 16 px to 512 px
 plus a scalable SVG, AppStream metainfo, and a shared-mime-info file for `.pcraft`, `.psb` and
 `.qoi`.
 
@@ -149,27 +149,27 @@ Why these formats:
 - **Flatpak bundle** (`.flatpak`) is a single file that installs into Flatpak, sandboxed and
   updatable by installing a newer bundle, for people who prefer Flatpak to AppImage.
   `packaging/linux/flatpak-bundle.sh` repackages the job's `.tar.gz` with
-  `packaging/linux/flatpak/ai.storyteller.photocraft.bundle.yml` on the freedesktop 26.08
+  `packaging/linux/flatpak/ai.storyteller.openphoto.bundle.yml` on the freedesktop 26.08
   runtime. It does no Rust build and needs no network inside `flatpak-builder`, so the bundle
   holds the same binaries as the other formats. A separate `flatpak` job per architecture
   (`ubuntu-24.04` and `ubuntu-24.04-arm`, for flatpak-builder 1.4) downloads the Linux job's
-  artifact, runs the script, installs the bundle and runs `photocraft-cli --version` inside the
+  artifact, runs the script, installs the bundle and runs `openphoto-cli --version` inside the
   sandbox as a smoke test. The bundle names Flathub as its runtime repo, so users install
   it with:
 
   ```sh
-  flatpak install --user photocraft-<v>-linux-x86_64.flatpak   # pulls org.freedesktop.Platform//26.08 from Flathub if missing
-  flatpak run ai.storyteller.photocraft
+  flatpak install --user openphoto-<v>-linux-x86_64.flatpak   # pulls org.freedesktop.Platform//26.08 from Flathub if missing
+  flatpak run ai.storyteller.openphoto
   ```
 
   Sandbox permissions (justified in the manifest): Wayland with X11 fallback, IPC (X11
   shared memory), `dri` for the GPU, and read/write access to Pictures and Documents. Every
   other file goes through the file-chooser and document portals. There's no network, so the
   `--control` server is only reachable from inside the sandbox until the user runs
-  `flatpak override --user --share=network ai.storyteller.photocraft`. Host fonts are read from
+  `flatpak override --user --share=network ai.storyteller.openphoto`. Host fonts are read from
   `/run/host/fonts` and `/run/host/user-fonts`. Locally (on Linux, with `flatpak` and
   `flatpak-builder`): `packaging/linux/package.sh --formats tar && packaging/linux/flatpak-bundle.sh`.
-- **Flathub**: `packaging/linux/flatpak/ai.storyteller.photocraft.yml` builds from source and
+- **Flathub**: `packaging/linux/flatpak/ai.storyteller.openphoto.yml` builds from source and
   is ready for a Flathub submission (it keeps the same runtime and `finish-args` as the bundle
   manifest, which packaging-lint checks). CI doesn't build it. A real build needs vendored crate
   sources (`cargo-sources.json` from `flatpak-cargo-generator.py`) and adds 20+ minutes per
@@ -181,10 +181,10 @@ Wayland, xkbcommon, Vulkan and EGL are loaded at runtime from the system, which 
 the GPU driver has to come from. That's why the .deb and .rpm declare them as dependencies
 (the full list, and why each is there, is in `packaging/linux/nfpm.yaml`) and the AppImage
 doesn't bundle them. The Flatpak gets them from the freedesktop runtime. Because the AppImage
-and the tarball can't declare dependencies, `photocraft` checks for the libraries its session
-(X11 or Wayland) needs before it opens a window (`apps/photocraft/src/linux_libs.rs`) and, if
+and the tarball can't declare dependencies, `openphoto` checks for the libraries its session
+(X11 or Wayland) needs before it opens a window (`apps/openphoto/src/linux_libs.rs`) and, if
 one is missing, prints the package to install and exits with status 1 instead of crashing.
-`PHOTOCRAFT_SKIP_LIB_CHECK=1` skips the check.
+`OPENPHOTO_SKIP_LIB_CHECK=1` skips the check.
 
 Locally (on Linux): install [nfpm](https://nfpm.goreleaser.com/install/), then
 `packaging/linux/package.sh` (or `--formats "deb tar"`).
@@ -195,15 +195,15 @@ GitHub has no FreeBSD runners, so the `freebsd` job runs `packaging/freebsd/pack
 FreeBSD 14.3 VM (`vmactions/freebsd-vm`, pinned by commit), with the same packages as the
 FreeBSD CI workflow (`.github/workflows/freebsd.yml`) plus `bash`. The script builds both
 binaries with `CARGO_BUILD_JOBS=4` (more runs the 12 GB VM out of memory) and writes
-`photocraft-<v>-freebsd-x86_64.tar.gz`. FreeBSD's `uname -m` says `amd64`; the file name uses
-`x86_64` like the other artifacts. The tarball is a `/usr/local`-style tree: `bin/photocraft`,
-`bin/photocraft-cli`, and under `share/` the same desktop entry, MIME type, AppStream metainfo
+`openphoto-<v>-freebsd-x86_64.tar.gz`. FreeBSD's `uname -m` says `amd64`; the file name uses
+`x86_64` like the other artifacts. The tarball is a `/usr/local`-style tree: `bin/openphoto`,
+`bin/openphoto-cli`, and under `share/` the same desktop entry, MIME type, AppStream metainfo
 and hicolor icons as Linux, plus the licences, `NOTICE` and `ATTRIBUTION.md` in
-`share/doc/photocraft/`. Users install it with:
+`share/doc/openphoto/`. Users install it with:
 
 ```sh
 pkg install libxkbcommon wayland libX11 libXcursor libXrandr libXi libxcb mesa-libs vulkan-loader gtk3 fontconfig freetype2 alsa-lib
-tar -xzf photocraft-<v>-freebsd-x86_64.tar.gz --strip-components 1 -C /usr/local
+tar -xzf openphoto-<v>-freebsd-x86_64.tar.gz --strip-components 1 -C /usr/local
 ```
 
 The job signs nothing, so it runs outside the `release` environment and gets no secrets. The
@@ -219,10 +219,10 @@ and lists the tarball, which checks the layout without a FreeBSD machine.
 
 ### Web
 
-`packaging/web/package.sh` runs `trunk build --release` (see `apps/photocraft-web/Trunk.toml`)
+`packaging/web/package.sh` runs `trunk build --release` (see `apps/openphoto-web/Trunk.toml`)
 and zips `dist/web` together with sample `_headers` and `.htaccess` files and the hosting guide.
 The site only uses relative URLs, so it works under any path and in an iframe. The wasm builds
-with the size-optimized `wasm-release` Cargo profile (set in `apps/photocraft-web/index.html`),
+with the size-optimized `wasm-release` Cargo profile (set in `apps/openphoto-web/index.html`),
 and the script fails if any `.wasm` exceeds 24 MiB, below Cloudflare's 25 MiB per-file limit.
 [`packaging/web/README.md`](../packaging/web/README.md) covers MIME types, compression,
 caching, the iframe snippet and the `?webgl` / `?cpu` flags.
@@ -258,7 +258,7 @@ The keychain is deleted at the end of the job.
 
 ## Icons
 
-`assets/app-icon/photocraft.svg` is the canonical icon: the owner's ArtCraft drawing of a
+`assets/app-icon/openphoto.svg` is the canonical icon: the owner's ArtCraft drawing of a
 nine-tailed kitsune, vectorised (MIT OR Apache-2.0, see `LICENSE.txt` there; palette and
 geometry in `README.md`). `packaging/icons.sh` regenerates the 1024 px PNG, the `.icns`, the `.ico` (packed by
 `cargo xtask ico`) and the hicolor PNGs from it. It needs `resvg`, plus `iconutil` on macOS.

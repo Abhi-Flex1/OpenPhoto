@@ -1,5 +1,5 @@
 use super::*;
-use photocraft_geom::Rect;
+use openphoto_geom::Rect;
 
 fn session() -> Session {
     let mut s = Session::new();

@@ -1,7 +1,7 @@
-//! Render the full Photocraft UI offscreen (no window, no focus stealing) and save a PNG.
+//! Render the full OpenPhoto UI offscreen (no window, no focus stealing) and save a PNG.
 //!
 //! ```sh
-//! cargo run --release -p photocraft-ui-egui --example snapshot -- \
+//! cargo run --release -p openphoto-ui-egui --example snapshot -- \
 //!     --out ui.png --size 1440x900 --scale 2 --open photo.jpg \
 //!     --script '[["ui.set", {"tool": "type"}], ["ui.menu.invoke", {"id": "image.imageSize"}]]'
 //! ```
@@ -11,8 +11,8 @@
 //! `--script` is a JSON array of `[method, params]` control-protocol calls (see
 //! docs/control-protocol.md), applied in order with a few frames between them.
 
-use photocraft_ui_egui::control::{ControlRequest, Outcome, handle};
-use photocraft_ui_egui::{PhotocraftApp, Services};
+use openphoto_ui_egui::control::{ControlRequest, Outcome, handle};
+use openphoto_ui_egui::{OpenPhotoApp, Services};
 use serde_json::Value;
 
 fn arg(args: &[String], name: &str) -> Option<String> {
@@ -30,23 +30,23 @@ fn main() {
         arg(&args, "--script").map(|s| serde_json::from_str::<Vec<(String, Value)>>(&s).expect("--script must be [[method, params], …]")).unwrap_or_default();
 
     let services = Services {
-        import: Some(Box::new(|name: &str, bytes: &[u8]| photocraft_io::import(name, bytes).map(|r| (r.document, r.warnings)).map_err(|e| e.to_string()))),
-        export: Some(Box::new(|doc: &photocraft_doc::Document, path: &str, settings: &photocraft_ui_egui::ExportSettings| {
-            let mut opts = photocraft_io::ExportOptions::default();
+        import: Some(Box::new(|name: &str, bytes: &[u8]| openphoto_io::import(name, bytes).map(|r| (r.document, r.warnings)).map_err(|e| e.to_string()))),
+        export: Some(Box::new(|doc: &openphoto_doc::Document, path: &str, settings: &openphoto_ui_egui::ExportSettings| {
+            let mut opts = openphoto_io::ExportOptions::default();
             if let Some(q) = settings.jpeg_quality {
                 opts.encode.jpeg_quality = q;
             }
-            photocraft_io::export(doc, path, &opts).map(|r| (r.bytes, r.warnings)).map_err(|e| e.to_string())
+            openphoto_io::export(doc, path, &opts).map(|r| (r.bytes, r.warnings)).map_err(|e| e.to_string())
         })),
-        write: Some(Box::new(|path: &str, bytes: &[u8]| photocraft_format::atomic_write(std::path::Path::new(path), bytes).map_err(|e| e.to_string()))),
+        write: Some(Box::new(|path: &str, bytes: &[u8]| openphoto_format::atomic_write(std::path::Path::new(path), bytes).map_err(|e| e.to_string()))),
         ..Default::default()
     };
     let open = arg(&args, "--open");
     let safe_gpu = args.iter().any(|a| a == "--safe-gpu");
     let mut harness =
         egui_kittest::Harness::builder().with_size(egui::vec2(w, h)).with_pixels_per_point(scale).with_max_steps(64).wgpu().build_eframe(move |cc| {
-            PhotocraftApp::setup_context(&cc.egui_ctx, Default::default());
-            let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), services);
+            OpenPhotoApp::setup_context(&cc.egui_ctx, Default::default());
+            let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), services);
             // `--safe-gpu`: the CPU canvas, as the desktop app's `--safe-gpu` launch.
             if safe_gpu {
                 app.perf.gpu_info.selected = "cpu".into();

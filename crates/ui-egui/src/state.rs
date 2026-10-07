@@ -478,7 +478,7 @@ pub struct TransformSession {
     pub interpolation: String,
     /// Warp mode (Edit › Transform › Warp): the warp being edited over `rect`, in document px.
     #[serde(default)]
-    pub warp: Option<photocraft_geom::warp::Warp>,
+    pub warp: Option<openphoto_geom::warp::Warp>,
     /// Select › Transform Selection: the box transforms the selection outline, not pixels.
     #[serde(default)]
     pub selection: bool,
@@ -570,7 +570,7 @@ pub struct UiState {
     #[serde(default)]
     pub smoothing_tool: Option<Tool>,
     #[serde(default)]
-    pub tool_smoothing: Vec<(Tool, photocraft_engine::paint::brush::Smoothing)>,
+    pub tool_smoothing: Vec<(Tool, openphoto_engine::paint::brush::Smoothing)>,
     /// Pen path under construction.
     #[serde(default)]
     pub pen: Option<crate::vector_ui::PenPath>,

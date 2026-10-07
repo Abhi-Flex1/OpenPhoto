@@ -1,6 +1,6 @@
-use photocraft_color::{Color, PixelFormat, SampleType};
-use photocraft_doc::{Fill, FillRule, LineCap, LineJoin, Path, PathOp, ShapeLayer, ShapeStroke, StrokeAlign, Subpath, VectorMask};
-use photocraft_geom::Rect;
+use openphoto_color::{Color, PixelFormat, SampleType};
+use openphoto_doc::{Fill, FillRule, LineCap, LineJoin, Path, PathOp, ShapeLayer, ShapeStroke, StrokeAlign, Subpath, VectorMask};
+use openphoto_geom::Rect;
 
 use crate::*;
 
@@ -33,7 +33,7 @@ fn rect_area_exact_and_rotated() {
     let got = area(&cov(&p, Rect::new(0, 0, 200, 100)));
     assert!((got - 100.45 * 50.2).abs() < 1e-2, "{got}");
     // Rotated square: area preserved.
-    let rot = p.transform(&photocraft_geom::Affine::rotate(0.4).then(&photocraft_geom::Affine::translate(60.0, 30.0)));
+    let rot = p.transform(&openphoto_geom::Affine::rotate(0.4).then(&openphoto_geom::Affine::translate(60.0, 30.0)));
     let got = area(&cov(&rot, Rect::new(-100, -100, 400, 400)));
     assert!((got - 100.45 * 50.2).abs() / (100.45 * 50.2) < 1e-4, "{got}");
 }
@@ -193,15 +193,15 @@ fn render_shape_formats_and_paint() {
         ..Default::default()
     };
     for sample in SampleType::ALL {
-        for mode in [photocraft_color::ColorMode::Rgb, photocraft_color::ColorMode::Grayscale, photocraft_color::ColorMode::Cmyk] {
+        for mode in [openphoto_color::ColorMode::Rgb, openphoto_color::ColorMode::Grayscale, openphoto_color::ColorMode::Cmyk] {
             let fmt = PixelFormat::new(mode, sample, true);
             let s = render_shape(&sh, fmt, Rect::new(0, 0, 20, 20));
             assert_eq!(s.format(), fmt);
             assert_eq!(s.content_bounds(), Rect::new(1, 1, 13, 13));
-            let centre = photocraft_raster::to_rgba(&fmt, &s.pixel(7, 7));
-            let edge = photocraft_raster::to_rgba(&fmt, &s.pixel(2, 7));
+            let centre = openphoto_raster::to_rgba(&fmt, &s.pixel(7, 7));
+            let edge = openphoto_raster::to_rgba(&fmt, &s.pixel(2, 7));
             assert!((centre[3] - 1.0).abs() < 1e-3);
-            if mode == photocraft_color::ColorMode::Rgb {
+            if mode == openphoto_color::ColorMode::Rgb {
                 assert!(centre[0] > 0.99 && centre[2] < 0.01);
                 assert!(edge[2] > 0.99, "{edge:?}");
             }
@@ -216,7 +216,7 @@ fn render_shape_formats_and_paint() {
 fn gradient_fill_spans_bounds() {
     let sh = ShapeLayer {
         path: shapes::rect(0.0, 0.0, 100.0, 10.0),
-        fill: Some(Fill::gradient(vec![(0.0, Color::BLACK), (1.0, Color::WHITE)], 0.0, 1.0, photocraft_doc::GradientStyle::Linear, false)),
+        fill: Some(Fill::gradient(vec![(0.0, Color::BLACK), (1.0, Color::WHITE)], 0.0, 1.0, openphoto_doc::GradientStyle::Linear, false)),
         ..Default::default()
     };
     let rgba = CompiledShape::new(&sh, DEFAULT_TOLERANCE).render_rgba(Rect::new(0, 0, 100, 10));
@@ -293,10 +293,10 @@ fn perf_6016() {
         let r = 2400.0 + 500.0 * (t * 37.0).sin() + 200.0 * (t * 101.0).cos();
         let (x, y) = (3008.0 + r * t.cos(), 3008.0 + r * t.sin());
         let d = 6.0;
-        knots.push(photocraft_doc::Knot::smooth(
-            photocraft_geom::Point::new(x, y),
-            photocraft_geom::Point::new(x - d * t.sin(), y + d * t.cos()),
-            photocraft_geom::Point::new(x + d * t.sin(), y - d * t.cos()),
+        knots.push(openphoto_doc::Knot::smooth(
+            openphoto_geom::Point::new(x, y),
+            openphoto_geom::Point::new(x - d * t.sin(), y + d * t.cos()),
+            openphoto_geom::Point::new(x + d * t.sin(), y - d * t.cos()),
         ));
     }
     let mut path = Path::new(vec![Subpath { closed: true, knots, op: PathOp::Combine }]);

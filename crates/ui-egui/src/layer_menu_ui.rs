@@ -2,7 +2,7 @@
 //! unavailable ones are greyed using the same enablement as the main menus. Items marked as menu
 //! invocations (`Value::Null` params) go through `menus::invoke`, so dialogs open like in the menu bar.
 
-use photocraft_doc::{Layer, LayerContent};
+use openphoto_doc::{Layer, LayerContent};
 use serde_json::{Value, json};
 
 /// One entry: label, command id. `None` = separator.
@@ -75,7 +75,7 @@ pub fn entries(l: &Layer, multi: bool, has_selection: bool) -> Vec<Entry> {
 
 /// Render the menu. Pushes `(command, params)` actions; `Value::Null` params mean "invoke like the
 /// menu item" (opens the command's dialog when it has one).
-pub fn show(app: &crate::PhotocraftApp, ui: &mut egui::Ui, l: &Layer, on_set: bool, actions: &mut Vec<(String, Value)>) -> bool {
+pub fn show(app: &crate::OpenPhotoApp, ui: &mut egui::Ui, l: &Layer, on_set: bool, actions: &mut Vec<(String, Value)>) -> bool {
     ui.set_min_width(220.0);
     let mut rename = false;
     let mut last_sep = true;
@@ -90,7 +90,7 @@ pub fn show(app: &crate::PhotocraftApp, ui: &mut egui::Ui, l: &Layer, on_set: bo
             }
             Some((label, id)) => {
                 // Skip commands this build doesn't have rather than showing dead items.
-                if photocraft_engine::commands::find(id).is_none() && !crate::menu_catalog::CATALOG.iter().any(|m| m.3 == id) {
+                if openphoto_engine::commands::find(id).is_none() && !crate::menu_catalog::CATALOG.iter().any(|m| m.3 == id) {
                     continue;
                 }
                 last_sep = false;
@@ -122,7 +122,7 @@ mod tests {
 
     #[test]
     fn entries_follow_layer_state() {
-        let mut s = photocraft_engine::Session::new();
+        let mut s = openphoto_engine::Session::new();
         s.execute("file.new", json!({"width": 10, "height": 10})).unwrap();
         s.execute("layer.new.layer", json!({})).unwrap();
         let st = s.active().unwrap();
@@ -143,7 +143,7 @@ mod tests {
         assert_eq!(add_mask_command(false, true), "layer.layerMask.hideAll");
         assert_eq!(add_mask_command(true, true), "layer.layerMask.hideSelection");
         // With a selection the new mask is the selection: inside revealed, outside hidden.
-        let mut s = photocraft_engine::Session::new();
+        let mut s = openphoto_engine::Session::new();
         s.execute("file.new", json!({"width": 10, "height": 10})).unwrap();
         s.execute("layer.new.layer", json!({})).unwrap();
         s.execute("select.rect", json!({"x": 0, "y": 0, "width": 4, "height": 10})).unwrap();
@@ -155,11 +155,11 @@ mod tests {
 
     #[test]
     fn every_entry_is_a_known_command() {
-        let mut s = photocraft_engine::Session::new();
+        let mut s = openphoto_engine::Session::new();
         s.execute("file.new", json!({"width": 10, "height": 10})).unwrap();
         let l = s.active().unwrap().doc.layers[0].clone();
         for (_, id) in entries(&l, false, true).into_iter().chain(entries(&l, false, false)).flatten() {
-            assert!(crate::menu_catalog::CATALOG.iter().any(|m| m.3 == id) || photocraft_engine::commands::find(id).is_some(), "{id}");
+            assert!(crate::menu_catalog::CATALOG.iter().any(|m| m.3 == id) || openphoto_engine::commands::find(id).is_some(), "{id}");
         }
     }
 }

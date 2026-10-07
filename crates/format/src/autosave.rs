@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use photocraft_doc::Document;
+use openphoto_doc::Document;
 use serde::{Deserialize, Serialize};
 
 use crate::store::write_atomic;

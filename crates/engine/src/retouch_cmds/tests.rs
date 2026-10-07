@@ -1,5 +1,5 @@
 use super::*;
-use photocraft_color::ColorMode;
+use openphoto_color::ColorMode;
 
 const DEPTHS: [u64; 3] = [8, 16, 32];
 
@@ -23,7 +23,7 @@ fn paint_layer(s: &mut Session, f: impl Fn(i32, i32) -> [f32; 4]) {
         let mut data = Vec::new();
         for y in b.y0..b.y1 {
             for x in b.x0..b.x1 {
-                data.extend(photocraft_raster::from_rgba(&fmt, f(x, y)));
+                data.extend(openphoto_raster::from_rgba(&fmt, f(x, y)));
             }
         }
         surf.write_region(b, &data);
@@ -203,7 +203,7 @@ fn sponge_reduces_and_increases_saturation() {
     for depth in DEPTHS {
         let mut s = session(40, 20, depth, "rgb");
         paint_layer(&mut s, |_, _| [0.8, 0.4, 0.3, 1.0]);
-        let sat = |p: [f32; 4]| photocraft_algo::retouch::saturation([p[0], p[1], p[2]]);
+        let sat = |p: [f32; 4]| openphoto_algo::retouch::saturation([p[0], p[1], p[2]]);
         let s0 = sat(rgba(&s, 10, 10));
         s.execute("paint.sponge", json!({"points": [[2, 10], [38, 10]], "size": 8, "hardness": 100})).unwrap();
         let s1 = sat(rgba(&s, 10, 10));
@@ -338,7 +338,7 @@ fn texture_surface(surf: &mut Surface, b: Rect) {
     surf.write_region(b, &data);
 }
 
-fn active_layer(s: &Session) -> &photocraft_doc::Layer {
+fn active_layer(s: &Session) -> &openphoto_doc::Layer {
     let d = s.active().unwrap();
     d.doc.layer(d.active_layer.unwrap()).unwrap()
 }

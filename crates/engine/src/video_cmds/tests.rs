@@ -1,5 +1,5 @@
 use super::*;
-use photocraft_doc::LayerId;
+use openphoto_doc::LayerId;
 use serde_json::json;
 
 fn session() -> Session {
@@ -59,7 +59,7 @@ fn scrub_keeps_content_a_raster() {
 fn write_png(path: &str, w: u32, h: u32, color: &str) {
     let mut s = Session::new();
     s.execute("file.new", json!({"width": w, "height": h, "background": color})).unwrap();
-    let bytes = photocraft_io::export(&s.active().unwrap().doc, "png", &photocraft_io::ExportOptions::default()).unwrap().bytes;
+    let bytes = openphoto_io::export(&s.active().unwrap().doc, "png", &openphoto_io::ExportOptions::default()).unwrap().bytes;
     std::fs::write(path, bytes).unwrap();
 }
 

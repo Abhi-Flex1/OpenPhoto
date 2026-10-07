@@ -3,7 +3,7 @@
 use std::io::Write;
 
 use base64::Engine as _;
-use photocraft_automation::{AuthorizedWorkspace, PhotocraftMcp};
+use openphoto_automation::{AuthorizedWorkspace, OpenPhotoMcp};
 use rmcp::model::{CallToolRequestParams, CallToolResult, ClientConfig};
 use rmcp::service::RunningService;
 use rmcp::{ClientHandler, RoleClient, ServiceExt};
@@ -20,7 +20,7 @@ impl ClientHandler for Client {
     }
 }
 
-async fn connect(server: PhotocraftMcp) -> RunningService<RoleClient, Client> {
+async fn connect(server: OpenPhotoMcp) -> RunningService<RoleClient, Client> {
     let (s, c) = tokio::io::duplex(1 << 20);
     tokio::spawn(async move {
         if let Ok(running) = server.serve(s).await {
@@ -65,14 +65,14 @@ fn cleanup(path: &std::path::Path) {
     std::fs::remove_dir_all(path).expect("remove test workspace after server shutdown");
 }
 
-fn headless_in(root: &std::path::Path) -> PhotocraftMcp {
+fn headless_in(root: &std::path::Path) -> OpenPhotoMcp {
     let workspace = AuthorizedWorkspace::new(Some(root), Some(root)).expect("test workspace");
-    PhotocraftMcp::headless_with_workspace(workspace)
+    OpenPhotoMcp::headless_with_workspace(workspace)
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn lists_expected_tools() {
-    let client = connect(PhotocraftMcp::headless()).await;
+    let client = connect(OpenPhotoMcp::headless()).await;
     let tools = client.list_all_tools().await.unwrap();
     let names: Vec<String> = tools.iter().map(|t| t.name.to_string()).collect();
     for n in [
@@ -102,7 +102,7 @@ async fn lists_expected_tools() {
         assert!(t.description.as_ref().is_some_and(|d| !d.is_empty()));
     }
     let info = client.peer_info().expect("server info");
-    assert_eq!(info.server_info.as_ref().unwrap().name, "photocraft");
+    assert_eq!(info.server_info.as_ref().unwrap().name, "openphoto");
     assert!(info.instructions.as_ref().is_some_and(|i| i.contains("command_list")));
     client.cancel().await.unwrap();
 }
@@ -129,7 +129,7 @@ async fn headless_edit_render_save_roundtrip() {
     let img = r.content.iter().find_map(|c| c.as_image()).expect("image content");
     assert_eq!(img.mime_type, "image/png");
     let png = base64::engine::general_purpose::STANDARD.decode(&img.data).unwrap();
-    let decoded = photocraft_codecs::decode(&png).unwrap();
+    let decoded = openphoto_codecs::decode(&png).unwrap();
     assert_eq!(decoded.dimensions(), (32, 24));
 
     let r = json_of(&call(&client, "doc_save", json!({"path": "agent.pcraft"})).await);
@@ -138,7 +138,7 @@ async fn headless_edit_render_save_roundtrip() {
     json_of(&call(&client, "doc_export", json!({"path": "agent.png"})).await);
     let jpg_path = dir.join("agent.jpg");
     json_of(&call(&client, "doc_export", json!({"path": "agent.jpg", "quality": 70})).await);
-    assert!(photocraft_codecs::decode(&std::fs::read(&png_path).unwrap()).is_ok());
+    assert!(openphoto_codecs::decode(&std::fs::read(&png_path).unwrap()).is_ok());
     assert!(std::fs::metadata(&jpg_path).unwrap().len() > 100);
 
     // Re-open the native file: identical layer tree.
@@ -156,7 +156,7 @@ async fn headless_edit_render_save_roundtrip() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn command_list_filters() {
-    let client = connect(PhotocraftMcp::headless()).await;
+    let client = connect(OpenPhotoMcp::headless()).await;
     let all = json_of(&call(&client, "command_list", json!({})).await);
     let n_all = all.as_array().unwrap().len();
     assert!(n_all > 20);
@@ -171,7 +171,7 @@ async fn command_list_filters() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn errors_are_tool_errors_not_crashes() {
-    let client = connect(PhotocraftMcp::headless()).await;
+    let client = connect(OpenPhotoMcp::headless()).await;
     let r = call(&client, "command_run", json!({"id": "no.such.command"})).await;
     assert_eq!(r.is_error, Some(true));
     assert!(text(&r).contains("unknown command"));
@@ -191,7 +191,7 @@ async fn errors_are_tool_errors_not_crashes() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn preview_budget_failure_preserves_the_mcp_session() {
-    let client = connect(PhotocraftMcp::headless()).await;
+    let client = connect(OpenPhotoMcp::headless()).await;
     json_of(&call(&client, "doc_new", json!({"width": 2049, "height": 1})).await);
     for side in [0, 2049] {
         let reply = call(&client, "doc_render_preview", json!({"max_side": side})).await;
@@ -207,7 +207,7 @@ async fn preview_budget_failure_preserves_the_mcp_session() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn bridge_response_budget_drops_connection_without_retrying_the_operation() {
-    use photocraft_automation::{BridgeClient, budgets::MAX_RESPONSE_BYTES};
+    use openphoto_automation::{BridgeClient, budgets::MAX_RESPONSE_BYTES};
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap().to_string();
     let app = tokio::spawn(async move {
@@ -242,9 +242,9 @@ async fn bridge_response_budget_drops_connection_without_retrying_the_operation(
 #[tokio::test(flavor = "multi_thread")]
 async fn open_png_and_inspect() {
     let dir = tmp("open");
-    let img = photocraft_codecs::Image::from_u8(8, 4, photocraft_codecs::ChannelLayout::Rgb, vec![200; 96]).unwrap();
+    let img = openphoto_codecs::Image::from_u8(8, 4, openphoto_codecs::ChannelLayout::Rgb, vec![200; 96]).unwrap();
     let path = dir.join("in.png");
-    std::fs::File::create(&path).unwrap().write_all(&photocraft_codecs::encode(&img, photocraft_codecs::Format::Png, &Default::default()).unwrap()).unwrap();
+    std::fs::File::create(&path).unwrap().write_all(&openphoto_codecs::encode(&img, openphoto_codecs::Format::Png, &Default::default()).unwrap()).unwrap();
     let client = connect(headless_in(&dir)).await;
     let o = json_of(&call(&client, "doc_open", json!({"path": "in.png"})).await);
     assert_eq!((o["width"].as_u64(), o["height"].as_u64()), (Some(8), Some(4)));
@@ -262,8 +262,8 @@ async fn filesystem_policy_rejects_absolute_and_escaping_paths_before_effects() 
     std::fs::create_dir_all(&root).unwrap();
     std::fs::create_dir_all(&outside).unwrap();
 
-    let img = photocraft_codecs::Image::from_u8(4, 3, photocraft_codecs::ChannelLayout::Rgb, vec![42; 36]).unwrap();
-    let bytes = photocraft_codecs::encode(&img, photocraft_codecs::Format::Png, &Default::default()).unwrap();
+    let img = openphoto_codecs::Image::from_u8(4, 3, openphoto_codecs::ChannelLayout::Rgb, vec![42; 36]).unwrap();
+    let bytes = openphoto_codecs::encode(&img, openphoto_codecs::Format::Png, &Default::default()).unwrap();
     std::fs::write(root.join("inside.png"), bytes).unwrap();
     let client = connect(headless_in(&root)).await;
 
@@ -323,8 +323,8 @@ async fn fake_app() -> (String, tokio::task::JoinHandle<Vec<Value>>) {
                     json!({"id": id, "ok": true, "result": [{"id": "file.new", "label": "New…", "enabled": true}]})
                 }
                 "ui.screenshot" => {
-                    let img = photocraft_codecs::Image::from_u8(40, 20, photocraft_codecs::ChannelLayout::Rgba, vec![9; 3200]).unwrap();
-                    let bytes = photocraft_codecs::encode(&img, photocraft_codecs::Format::Png, &Default::default()).unwrap();
+                    let img = openphoto_codecs::Image::from_u8(40, 20, openphoto_codecs::ChannelLayout::Rgba, vec![9; 3200]).unwrap();
+                    let bytes = openphoto_codecs::encode(&img, openphoto_codecs::Format::Png, &Default::default()).unwrap();
                     let png = base64::engine::general_purpose::STANDARD.encode(bytes);
                     json!({"id": id, "ok": true, "result": {"mimeType": "image/png", "base64": png}})
                 }
@@ -343,7 +343,7 @@ async fn fake_app() -> (String, tokio::task::JoinHandle<Vec<Value>>) {
 #[tokio::test(flavor = "multi_thread")]
 async fn bridge_forwards_to_control_protocol() {
     let (addr, app) = fake_app().await;
-    let client = connect(PhotocraftMcp::bridge(&addr, CONTROL_TOKEN).unwrap()).await;
+    let client = connect(OpenPhotoMcp::bridge(&addr, CONTROL_TOKEN).unwrap()).await;
 
     let ui = json_of(&call(&client, "ui_inspect", json!({})).await);
     assert_eq!(ui["tool"], "brush");
@@ -357,7 +357,7 @@ async fn bridge_forwards_to_control_protocol() {
     let shot = call(&client, "ui_screenshot", json!({"max_side": 20})).await;
     let img = shot.content.iter().find_map(|c| c.as_image()).expect("image");
     let png = base64::engine::general_purpose::STANDARD.decode(&img.data).unwrap();
-    assert_eq!(photocraft_codecs::decode(&png).unwrap().dimensions(), (20, 10));
+    assert_eq!(openphoto_codecs::decode(&png).unwrap().dimensions(), (20, 10));
     let e = call(&client, "control_call", json!({"method": "bogus.method"})).await;
     assert_eq!(e.is_error, Some(true));
     assert!(text(&e).contains("unknown tool"));
@@ -370,17 +370,17 @@ async fn bridge_forwards_to_control_protocol() {
 
 #[test]
 fn bridge_rejects_non_loopback() {
-    assert!(PhotocraftMcp::bridge("10.0.0.5:7878", CONTROL_TOKEN).is_err());
-    assert!(PhotocraftMcp::bridge("127.0.0.1:7878", CONTROL_TOKEN).is_ok());
-    assert!(PhotocraftMcp::bridge("localhost:1", CONTROL_TOKEN).is_ok());
-    assert!(PhotocraftMcp::bridge("localhost:1", "short").is_err());
+    assert!(OpenPhotoMcp::bridge("10.0.0.5:7878", CONTROL_TOKEN).is_err());
+    assert!(OpenPhotoMcp::bridge("127.0.0.1:7878", CONTROL_TOKEN).is_ok());
+    assert!(OpenPhotoMcp::bridge("localhost:1", CONTROL_TOKEN).is_ok());
+    assert!(OpenPhotoMcp::bridge("localhost:1", "short").is_err());
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn bridge_rejects_wrong_token_before_control_methods() {
     let (addr, app) = fake_app().await;
     let wrong = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-    let client = connect(PhotocraftMcp::bridge(&addr, wrong).unwrap()).await;
+    let client = connect(OpenPhotoMcp::bridge(&addr, wrong).unwrap()).await;
     let r = call(&client, "ui_inspect", json!({})).await;
     assert_eq!(r.is_error, Some(true));
     assert!(text(&r).contains("authentication required"), "{}", text(&r));
@@ -390,7 +390,7 @@ async fn bridge_rejects_wrong_token_before_control_methods() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn bridge_reports_unreachable_app() {
-    let client = connect(PhotocraftMcp::bridge("127.0.0.1:1", CONTROL_TOKEN).unwrap()).await;
+    let client = connect(OpenPhotoMcp::bridge("127.0.0.1:1", CONTROL_TOKEN).unwrap()).await;
     let r = call(&client, "ui_inspect", json!({})).await;
     assert_eq!(r.is_error, Some(true));
     assert!(text(&r).contains("--control"), "{}", text(&r));
@@ -399,7 +399,7 @@ async fn bridge_reports_unreachable_app() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn command_batch_runs_steps_in_order() {
-    let client = connect(PhotocraftMcp::headless()).await;
+    let client = connect(OpenPhotoMcp::headless()).await;
     json_of(&call(&client, "doc_new", json!({"width": 32, "height": 32})).await);
     let r = json_of(
         &call(
@@ -423,8 +423,8 @@ async fn command_batch_runs_steps_in_order() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn command_batch_rejects_too_many_steps() {
-    let client = connect(PhotocraftMcp::headless()).await;
-    let steps: Vec<Value> = (0..=photocraft_automation::security::MAX_BATCH_STEPS).map(|_| json!({"id": "command.list"})).collect();
+    let client = connect(OpenPhotoMcp::headless()).await;
+    let steps: Vec<Value> = (0..=openphoto_automation::security::MAX_BATCH_STEPS).map(|_| json!({"id": "command.list"})).collect();
     let r = call(&client, "command_batch", json!({"steps": steps})).await;
     assert_eq!(r.is_error, Some(true));
     assert!(text(&r).contains("maximum is 256"), "{}", text(&r));

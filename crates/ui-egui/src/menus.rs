@@ -2,7 +2,7 @@
 
 use serde_json::{Value, json};
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 use crate::state::{DialogKind, UiState};
 
 /// Top-level menus in Photoshop order.
@@ -52,12 +52,12 @@ pub const UI_COMMANDS: &[(&str, &str, &[&str], Option<&str>)] = &[
     ("window.theme.classic", "Classic Theme", &["Window", "Theme"], None),
     ("edit.search", "Search…", &["Edit"], Some("Cmd+K")),
     ("help.discord", "Join the ArtCraft Discord…", &["Help"], None),
-    ("help.website", "PhotoCraft Website", &["Help"], None),
+    ("help.website", "OpenPhoto Website", &["Help"], None),
     ("help.artcraftWebsite", "ArtCraft Website", &["Help"], None),
-    ("help.github", "PhotoCraft on GitHub", &["Help"], None),
+    ("help.github", "OpenPhoto on GitHub", &["Help"], None),
     ("help.reportIssue", "Report an Issue…", &["Help"], None),
     ("help.systemInfo", "System Info…", &["Help"], None),
-    ("help.about", "About PhotoCraft", &["Help"], None),
+    ("help.about", "About OpenPhoto", &["Help"], None),
 ];
 
 /// Photoshop's Window › <panel> ids for the panels the shell already has, as `window.toggle.*`.
@@ -98,7 +98,7 @@ fn workspace_name(id: &str) -> Option<&'static str> {
 }
 
 /// Run a command id from any source (menu, shortcut, palette, automation).
-pub fn invoke(app: &mut PhotocraftApp, ctx: &egui::Context, id: &str, params: Value) -> Result<Value, String> {
+pub fn invoke(app: &mut OpenPhotoApp, ctx: &egui::Context, id: &str, params: Value) -> Result<Value, String> {
     if app.automation_input
         && let Some(authorize) = app.services.automation_command.as_ref()
     {
@@ -111,7 +111,7 @@ pub fn invoke(app: &mut PhotocraftApp, ctx: &egui::Context, id: &str, params: Va
 }
 
 /// [`invoke`] without the unsaved-changes prompt, for once the user has already answered it.
-pub(crate) fn invoke_unguarded(app: &mut PhotocraftApp, ctx: &egui::Context, id: &str, params: Value) -> Result<Value, String> {
+pub(crate) fn invoke_unguarded(app: &mut OpenPhotoApp, ctx: &egui::Context, id: &str, params: Value) -> Result<Value, String> {
     // Help › Discord, website, GitHub, Report an Issue.
     if let Some(url) = crate::links::url_for(id) {
         return Ok(crate::links::open(app, ctx, url));
@@ -202,7 +202,7 @@ pub(crate) fn invoke_unguarded(app: &mut PhotocraftApp, ctx: &egui::Context, id:
         "layer.renameLayer" if params.get("name").is_none() => {
             let st = app.session.active().ok_or("no document")?;
             let id = params.get("layer").and_then(Value::as_u64).or(st.active_layer.map(|l| l.0)).ok_or("no active layer")?;
-            let name = st.doc.layer(photocraft_doc::LayerId(id)).map(|l| l.name.clone()).ok_or("no such layer")?;
+            let name = st.doc.layer(openphoto_doc::LayerId(id)).map(|l| l.name.clone()).ok_or("no such layer")?;
             ctx.data_mut(|d| d.insert_temp(egui::Id::new(("rename", id)), name));
             Ok(Value::Null)
         }
@@ -314,7 +314,7 @@ pub(crate) fn invoke_unguarded(app: &mut PhotocraftApp, ctx: &egui::Context, id:
         "select.colorRange" if params.as_object().is_none_or(|o| o.is_empty()) => Ok(json!({"dialog": crate::color_range_ui::open(app)})),
         // Edit › Fill… from the menu or its shortcuts: the Fill dialog (with params: the engine).
         crate::fill_ui::COMMAND if params.as_object().is_none_or(|o| o.is_empty()) => {
-            if let Some(Err(why)) = photocraft_engine::commands::find(id).map(|c| (c.enabled)(&app.session)) {
+            if let Some(Err(why)) = openphoto_engine::commands::find(id).map(|c| (c.enabled)(&app.session)) {
                 return Err(why);
             }
             Ok(json!({"dialog": crate::fill_ui::open(app)}))
@@ -335,7 +335,7 @@ pub(crate) fn invoke_unguarded(app: &mut PhotocraftApp, ctx: &egui::Context, id:
                     let v = &app.ui.views[i];
                     let (hw, hh) = (app.last_canvas_rect.width() / 2.0 / v.zoom, app.last_canvas_rect.height() / 2.0 / v.zoom);
                     let r =
-                        photocraft_geom::Rect::new((v.center[0] - hw) as i32, (v.center[1] - hh) as i32, (v.center[0] + hw) as i32, (v.center[1] + hh) as i32);
+                        openphoto_geom::Rect::new((v.center[0] - hw) as i32, (v.center[1] - hh) as i32, (v.center[0] + hw) as i32, (v.center[1] + hh) as i32);
                     !clip.bounds.intersect(&r).is_empty()
                 });
             let p = match app.session.active_index() {
@@ -420,7 +420,7 @@ pub(crate) fn invoke_unguarded(app: &mut PhotocraftApp, ctx: &egui::Context, id:
     }
 }
 
-fn open_path(app: &mut PhotocraftApp, path: &str) -> Result<Value, String> {
+fn open_path(app: &mut OpenPhotoApp, path: &str) -> Result<Value, String> {
     app.open_path(path).map(|w| json!({"warnings": w}))
 }
 
@@ -431,7 +431,7 @@ fn saves_in_place(path: &str) -> bool {
     matches!(ext.as_str(), "psd" | "psb" | "pcraft")
 }
 
-pub fn is_enabled(app: &PhotocraftApp, id: &str) -> bool {
+pub fn is_enabled(app: &OpenPhotoApp, id: &str) -> bool {
     // Photoshop greys these for the Background layer, other layer kinds or single-layer documents.
     if crate::enable_rules::disabled(app, id) {
         return false;
@@ -486,8 +486,8 @@ pub fn is_enabled(app: &PhotocraftApp, id: &str) -> bool {
 }
 
 /// Is a UI-level panel toggle currently on (for checkmarks)?
-fn checked(app: &PhotocraftApp, id: &str) -> Option<bool> {
-    use photocraft_doc::{ColorMode, SampleType};
+fn checked(app: &OpenPhotoApp, id: &str) -> Option<bool> {
+    use openphoto_doc::{ColorMode, SampleType};
     if let Some(c) = crate::view_cmds::checked(app, id) {
         return Some(c);
     }
@@ -575,7 +575,7 @@ pub struct MenuItem {
 /// Is `id` implemented by the engine or the shell (a live menu item)? Shared by the menus and
 /// the parity report ([`crate::parity`]).
 pub fn is_live(id: &str) -> bool {
-    photocraft_engine::commands::find(id).is_some()
+    openphoto_engine::commands::find(id).is_some()
         || UI_COMMANDS.iter().any(|c| c.0 == id)
         || panel_alias(id).is_some()
         || workspace_name(id).is_some()
@@ -589,7 +589,7 @@ pub fn is_live(id: &str) -> bool {
         || crate::timeline_ui::handles(id)
 }
 
-pub fn menu_items(app: &PhotocraftApp) -> Vec<MenuItem> {
+pub fn menu_items(app: &OpenPhotoApp) -> Vec<MenuItem> {
     // 1) Photoshop's full menu tree, in Photoshop order; live where we implement the command.
     let known = is_live;
     let mut items: Vec<MenuItem> = crate::menu_catalog::CATALOG
@@ -617,7 +617,7 @@ pub fn menu_items(app: &PhotocraftApp) -> Vec<MenuItem> {
             color: None,
         });
     }
-    for c in photocraft_engine::command_specs().iter().filter(|c| !c.menu.is_empty()) {
+    for c in openphoto_engine::command_specs().iter().filter(|c| !c.menu.is_empty()) {
         extra.push(MenuItem {
             id: c.id.into(),
             label: c.label.into(),
@@ -709,11 +709,11 @@ fn menu_tint(name: &str) -> Option<egui::Color32> {
 }
 
 /// Draws the menu bar; returns the right edge of the last menu title (the bar itself fills the row).
-pub fn menu_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui) -> f32 {
+pub fn menu_bar(app: &mut OpenPhotoApp, ui: &mut egui::Ui) -> f32 {
     // Built only while a menu is open: every item's enabled/checked state scales with the
     // document (layer lookups), which cost milliseconds per frame on large layouts (#125).
     let items: std::cell::OnceCell<Vec<MenuItem>> = std::cell::OnceCell::new();
-    let app_ref: &PhotocraftApp = app;
+    let app_ref: &OpenPhotoApp = app;
     let mut right = ui.cursor().left();
     let lang = crate::i18n::current();
     let mut clicked: Option<String> = None;
@@ -858,7 +858,7 @@ fn render_level_rows(ui: &mut egui::Ui, items: &[&MenuItem], depth: usize, click
 }
 
 /// Workspace presets (Window → Workspace): which panels are visible.
-pub fn apply_workspace(app: &mut PhotocraftApp) {
+pub fn apply_workspace(app: &mut OpenPhotoApp) {
     // Saved workspaces (Window › Workspace › New Workspace…) restore their own layout.
     if crate::workspace_ui::apply_custom(app) {
         return;
@@ -891,14 +891,14 @@ mod tests {
 
         for theme in crate::theme::ThemeKind::ALL {
             for width in [640.0, 1440.0] {
-                let app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+                let app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
                 let mut harness = Harness::builder().with_size(egui::vec2(width, 200.0)).build_ui_state(
                     |ui, app| {
                         menu_bar(app, ui);
                     },
                     app,
                 );
-                PhotocraftApp::setup_context(&harness.ctx, theme);
+                OpenPhotoApp::setup_context(&harness.ctx, theme);
                 harness.run_steps(3);
 
                 let font = egui::TextStyle::Button.resolve(&harness.ctx.global_style());
@@ -950,14 +950,14 @@ mod tests {
     fn hovering_another_title_switches_the_open_menu() {
         use egui_kittest::{Harness, kittest::Queryable};
 
-        let app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
         let mut harness = Harness::builder().with_size(egui::vec2(1200.0, 700.0)).build_ui_state(
             |ui, app| {
                 menu_bar(app, ui);
             },
             app,
         );
-        PhotocraftApp::setup_context(&harness.ctx, crate::theme::ThemeKind::ALL[0]);
+        OpenPhotoApp::setup_context(&harness.ctx, crate::theme::ThemeKind::ALL[0]);
         harness.run_steps(3);
         // Nothing open: hovering a title does not open it.
         harness.get_by_label("Image").hover();
@@ -977,14 +977,14 @@ mod tests {
         use egui_kittest::{Harness, kittest::Queryable};
 
         for theme in crate::theme::ThemeKind::ALL {
-            let app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+            let app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
             let mut harness = Harness::builder().with_size(egui::vec2(1200.0, 900.0)).build_ui_state(
                 |ui, app| {
                     menu_bar(app, ui);
                 },
                 app,
             );
-            PhotocraftApp::setup_context(&harness.ctx, theme);
+            OpenPhotoApp::setup_context(&harness.ctx, theme);
             harness.run_steps(3);
             harness.get_by_label("File").click();
             harness.run_steps(3);
@@ -1000,14 +1000,14 @@ mod tests {
     fn menu_level_height_is_bounded_by_viewport() {
         use egui_kittest::Harness;
 
-        let app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
         let mut harness = Harness::builder().with_size(egui::vec2(900.0, 240.0)).build_ui_state(
             |ui, app| {
                 menu_bar(app, ui);
             },
             app,
         );
-        PhotocraftApp::setup_context(&harness.ctx, crate::theme::ThemeKind::ALL[0]);
+        OpenPhotoApp::setup_context(&harness.ctx, crate::theme::ThemeKind::ALL[0]);
         harness.run_steps(3);
         // Opening a top-level menu with many entries must not grow its popup past the viewport.
         use egui_kittest::kittest::Queryable;
@@ -1028,14 +1028,14 @@ mod tests {
     fn tall_menu_scrolls_with_mouse_wheel_on_short_display() {
         use egui_kittest::{Harness, kittest::Queryable};
 
-        let app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
         let mut harness = Harness::builder().with_size(egui::vec2(900.0, 220.0)).build_ui_state(
             |ui, app| {
                 menu_bar(app, ui);
             },
             app,
         );
-        PhotocraftApp::setup_context(&harness.ctx, crate::theme::ThemeKind::ALL[0]);
+        OpenPhotoApp::setup_context(&harness.ctx, crate::theme::ThemeKind::ALL[0]);
         harness.run_steps(3);
         harness.get_by_label("Filter").click();
         harness.run_steps(3);
@@ -1057,7 +1057,7 @@ mod tests {
 
     #[test]
     fn window_panel_and_workspace_ids_drive_the_shell() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
         let ctx = egui::Context::default();
         assert!(!app.ui.panels.history);
         invoke(&mut app, &ctx, "window.panel.history", Value::Null).unwrap();
@@ -1078,7 +1078,7 @@ mod tests {
 
     #[test]
     fn proof_setup_presets_and_checkmarks() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
         let ctx = egui::Context::default();
         app.run("file.new", json!({"width": 8, "height": 8})).unwrap();
         app.sync_views();
@@ -1095,7 +1095,7 @@ mod tests {
         assert_eq!((at(0, 8, 0), at(4, 4, 4)), (255, 0));
         // Custom… opens the generated Proof Setup dialog with a profile choice.
         assert!(invoke(&mut app, &ctx, "view.proofSetup.custom", Value::Null).unwrap()["dialog"].is_u64());
-        let spec = photocraft_engine::commands::find("edit.convertToProfile").unwrap();
+        let spec = openphoto_engine::commands::find("edit.convertToProfile").unwrap();
         let params = crate::filter_dialog::parse_spec(spec.params);
         assert!(matches!(&params[0].kind, crate::filter_dialog::Kind::Choice(c) if c[0] == "srgb" && !c.iter().any(|v| v.contains('/'))));
     }
@@ -1108,7 +1108,7 @@ mod open_recent_tests {
 
     #[test]
     fn tracks_dedupes_caps_and_lists() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
         app.push_recent("/tmp/a.png");
         app.push_recent("/tmp/b.psd");
         app.push_recent("/tmp/a.png"); // de-dupe → moves to front
@@ -1145,14 +1145,14 @@ mod open_recent_tests {
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn opening_a_file_records_it_as_recent() {
-        use photocraft_color::{ColorMode, SampleType};
-        use photocraft_geom::Size;
+        use openphoto_color::{ColorMode, SampleType};
+        use openphoto_geom::Size;
         let services = crate::Services {
-            import: Some(Box::new(|_n: &str, _b: &[u8]| Ok((photocraft_doc::Document::new("t", Size::new(4, 4), ColorMode::Rgb, SampleType::U8), Vec::new())))),
+            import: Some(Box::new(|_n: &str, _b: &[u8]| Ok((openphoto_doc::Document::new("t", Size::new(4, 4), ColorMode::Rgb, SampleType::U8), Vec::new())))),
             ..Default::default()
         };
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), services);
-        let path = std::env::temp_dir().join("photocraft_recent_test.pcraft");
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), services);
+        let path = std::env::temp_dir().join("openphoto_recent_test.pcraft");
         std::fs::write(&path, b"x").unwrap();
         let p = path.to_string_lossy().to_string();
         let ctx = egui::Context::default();

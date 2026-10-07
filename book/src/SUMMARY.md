@@ -1,6 +1,6 @@
 # Summary
 
-[PhotoCraft Documentation](README.md)
+[OpenPhoto Documentation](README.md)
 
 # Getting started
 

@@ -2,14 +2,14 @@
 
 use std::sync::Arc;
 
-use photocraft_color::{BlendMode, ColorMode, PixelFormat, SampleType};
-use photocraft_doc::{AlphaChannel, Document, Effects, FillCache, Group, Layer, LayerContent, LayerMask, ShapeLayer, SmartObject, SmartSource, TextLayer};
-use photocraft_geom::{Rect, Size, TILE_SIZE};
-use photocraft_psd::layer::{CHANNEL_REAL_USER_MASK, CHANNEL_TRANSPARENCY, CHANNEL_USER_MASK};
-use photocraft_psd::resources::ids;
-use photocraft_psd::tagged::BlockData;
-use photocraft_psd::{ColorMode as PsdMode, LayerNode, LayerRecord, PsdFile, TaggedBlock};
-use photocraft_raster::Surface;
+use openphoto_color::{BlendMode, ColorMode, PixelFormat, SampleType};
+use openphoto_doc::{AlphaChannel, Document, Effects, FillCache, Group, Layer, LayerContent, LayerMask, ShapeLayer, SmartObject, SmartSource, TextLayer};
+use openphoto_geom::{Rect, Size, TILE_SIZE};
+use openphoto_psd::layer::{CHANNEL_REAL_USER_MASK, CHANNEL_TRANSPARENCY, CHANNEL_USER_MASK};
+use openphoto_psd::resources::ids;
+use openphoto_psd::tagged::BlockData;
+use openphoto_psd::{ColorMode as PsdMode, LayerNode, LayerRecord, PsdFile, TaggedBlock};
+use openphoto_raster::Surface;
 
 use crate::adjust_map::{self, ADJUSTMENT_KEYS};
 use crate::blocks;
@@ -52,9 +52,9 @@ pub(crate) struct Ctx<'a> {
     /// Document resolution (type sizes are converted to points with it).
     pub dpi: f32,
     /// The parsed `Txt2` block (type settings EngineData lacks, e.g. optical kerning).
-    pub txt2: Option<photocraft_text::engine_data::Value>,
+    pub txt2: Option<openphoto_text::engine_data::Value>,
     /// Smart-filter caches from the global `FEid`/`FXid` blocks (filter masks, by placed id).
-    pub filter_effects: Vec<photocraft_psd::filter_effects::FilterEffectsItem>,
+    pub filter_effects: Vec<openphoto_psd::filter_effects::FilterEffectsItem>,
 }
 
 fn doc_mode(m: PsdMode) -> Option<ColorMode> {
@@ -72,7 +72,7 @@ fn doc_mode(m: PsdMode) -> Option<ColorMode> {
 }
 
 // Real-mask metadata without a -3 channel still selects the synthetic -2 mask.
-fn selected_real_mask(rec: &LayerRecord) -> Option<photocraft_psd::RealMask> {
+fn selected_real_mask(rec: &LayerRecord) -> Option<openphoto_psd::RealMask> {
     rec.channel(CHANNEL_REAL_USER_MASK)?;
     rec.layer_mask()?.real
 }
@@ -80,7 +80,7 @@ fn selected_real_mask(rec: &LayerRecord) -> Option<photocraft_psd::RealMask> {
 /// The fill of a plain shape layer (fill block + vector path, no stroke) to import as a fill layer
 /// with a vector mask: when its mask parameters give the vector mask a density below 100 % or a
 /// feather, or when it stores no pixels and fills with a pattern.
-fn soft_shape_fill(rec: &LayerRecord, has_vector: bool, fill_key: Option<&[u8; 4]>) -> Option<photocraft_doc::Fill> {
+fn soft_shape_fill(rec: &LayerRecord, has_vector: bool, fill_key: Option<&[u8; 4]>) -> Option<openphoto_doc::Fill> {
     if !has_vector || rec.block(b"vstk").is_some() || rec.block(b"vscg").is_some() {
         return None;
     }
@@ -90,7 +90,7 @@ fn soft_shape_fill(rec: &LayerRecord, has_vector: bool, fill_key: Option<&[u8; 4
     let soft = p.is_some_and(|p| p.vector_density.is_some_and(|d| d < 255) || p.vector_feather.is_some_and(|f| f > 0.0));
     // Without stored pixels a pattern-filled shape cannot be rasterized on its own (the
     // compositor resolves the document's patterns for fill layers).
-    let unrendered_pattern = (rec.rect.is_empty() || rec.rect.size().is_err()) && matches!(fill, photocraft_doc::Fill::Pattern { .. });
+    let unrendered_pattern = (rec.rect.is_empty() || rec.rect.size().is_err()) && matches!(fill, openphoto_doc::Fill::Pattern { .. });
     (soft || unrendered_pattern).then_some(fill)
 }
 
@@ -179,7 +179,7 @@ impl Ctx<'_> {
         }
     }
 
-    fn apply_common(&mut self, l: &mut Layer, rec: &LayerRecord, blend_override: Option<photocraft_psd::BlendMode>) {
+    fn apply_common(&mut self, l: &mut Layer, rec: &LayerRecord, blend_override: Option<openphoto_psd::BlendMode>) {
         l.visible = rec.is_visible();
         l.opacity = f32::from(rec.opacity) / 255.0;
         l.fill_opacity = f32::from(rec.fill_opacity()) / 255.0;
@@ -263,14 +263,14 @@ impl Ctx<'_> {
                 },
             ))
         } else if rec.block(b"TySh").is_some() {
-            // Typed model from TySh/EngineData (photocraft-text); Photoshop's pixels stay the cache.
+            // Typed model from TySh/EngineData (openphoto-text); Photoshop's pixels stay the cache.
             let data = rec.block(b"TySh").map(|b| b.data.clone()).unwrap_or_default();
-            let mut t = photocraft_text::psd::text_layer_from_tysh(&data, self.dpi).unwrap_or_else(|| {
+            let mut t = openphoto_text::psd::text_layer_from_tysh(&data, self.dpi).unwrap_or_else(|| {
                 let (text, transform) = blocks::parse_tysh(&data).unwrap_or_default();
                 TextLayer { text, transform, ..Default::default() }
             });
             if let Some(txt2) = &self.txt2 {
-                photocraft_text::psd::apply_txt2(&mut t, &data, txt2);
+                openphoto_text::psd::apply_txt2(&mut t, &data, txt2);
             }
             t.cache = Some(self.record_surface(rec, &name));
             t.psd_raw = principal(b"TySh");
@@ -309,7 +309,7 @@ impl Ctx<'_> {
             // shape from its path and fill, as Photoshop does when it opens the file.
             if (rec.rect.is_empty() || rec.rect.size().is_err()) && (!sh.path.subpaths.is_empty() || sh.path.inverted) {
                 let canvas = Rect::new(0, 0, self.file.header.width as i32, self.file.header.height as i32);
-                sh.cache = Some(photocraft_vector::render_shape(&sh, self.fmt, canvas));
+                sh.cache = Some(openphoto_vector::render_shape(&sh, self.fmt, canvas));
             }
             LayerContent::Shape(sh)
         } else if let Some(k) = fill_key {
@@ -374,7 +374,7 @@ impl Ctx<'_> {
                     let rec = &layers[*index];
                     let children = self.build(children);
                     let sd = rec.section_divider();
-                    let expanded = sd.is_none_or(|s| s.kind != photocraft_psd::SectionType::ClosedFolder);
+                    let expanded = sd.is_none_or(|s| s.kind != openphoto_psd::SectionType::ClosedFolder);
                     let artboard = crate::comps_map::ARTBOARD_KEYS.iter().find_map(|k| rec.block(k)).and_then(|b| crate::comps_map::parse_artboard(&b.data));
                     let mut l = Layer::new(rec.name(), LayerContent::Group(Group { children, expanded, artboard }));
                     l.psd_blocks = preserved_blocks(rec);
@@ -457,7 +457,7 @@ pub fn psd_to_document(file: &PsdFile) -> (Document, Vec<String>) {
     for r in &file.resources {
         match r.id {
             ids::RESOLUTION_INFO => {
-                if let Ok(ri) = photocraft_psd::ResolutionInfo::from_bytes(&r.data) {
+                if let Ok(ri) = openphoto_psd::ResolutionInfo::from_bytes(&r.data) {
                     let f = if ri.h_res_unit == 2 { 2.54 } else { 1.0 };
                     doc.resolution_dpi = (ri.h_res() * f) as f32;
                 }
@@ -477,7 +477,7 @@ pub fn psd_to_document(file: &PsdFile) -> (Document, Vec<String>) {
                 }
             }
             id if crate::vector_map::SAVED_PATHS.contains(&id) => match crate::vector_map::path_from_resource(&r.data, h.width, h.height) {
-                Some(path) => doc.paths.push(photocraft_doc::NamedPath {
+                Some(path) => doc.paths.push(openphoto_doc::NamedPath {
                     name: String::from_utf8_lossy(&r.name).into_owned(),
                     path,
                     psd_raw: Some(Arc::new(r.data.clone())),
@@ -491,7 +491,7 @@ pub fn psd_to_document(file: &PsdFile) -> (Document, Vec<String>) {
                 // Kept raw (layout beyond the name is not modelled); the name is exposed.
                 let n = usize::from(r.data.first().copied().unwrap_or(0));
                 let name = r.data.get(1..1 + n).map(|b| String::from_utf8_lossy(b).into_owned()).unwrap_or_default();
-                doc.clipping_path = Some(photocraft_doc::ClippingPath { name, flatness: 0.0 });
+                doc.clipping_path = Some(openphoto_doc::ClippingPath { name, flatness: 0.0 });
                 doc.metadata.psd_resources.push((r.id, String::from_utf8_lossy(&r.name).into_owned(), Arc::new(r.data.clone())));
             }
             id if MAPPED_RESOURCES.contains(&id) => {}
@@ -518,11 +518,11 @@ pub fn psd_to_document(file: &PsdFile) -> (Document, Vec<String>) {
         cmyk: fmt.mode == ColorMode::Cmyk,
         warnings,
         dpi: doc.resolution_dpi,
-        txt2: file.global_blocks.iter().find(|b| &b.key == b"Txt2").and_then(|b| photocraft_text::psd::parse_txt2(&b.data)),
+        txt2: file.global_blocks.iter().find(|b| &b.key == b"Txt2").and_then(|b| openphoto_text::psd::parse_txt2(&b.data)),
         filter_effects: Vec::new(),
     };
     for b in file.global_blocks.iter().filter(|b| matches!(&b.key, b"FEid" | b"FXid")) {
-        match photocraft_psd::filter_effects::FilterEffects::parse(&b.data) {
+        match openphoto_psd::filter_effects::FilterEffects::parse(&b.data) {
             Ok(fx) => cx.filter_effects.extend(fx.items),
             Err(e) => cx.warn(format!("smart filter masks ({}) could not be read: {e}", b.key_str())),
         }
@@ -549,8 +549,8 @@ pub fn psd_to_document(file: &PsdFile) -> (Document, Vec<String>) {
         let tree = file.layer_tree();
         doc.layers = cx.build(&tree);
         // Layer › Link Layers: resource 1026 holds one group id per layer record (0 = unlinked).
-        if let Some(Ok(photocraft_psd::resources::ResourceData::LayerGroupInfo(groups))) =
-            file.resources.iter().find(|r| r.id == ids::LAYER_GROUP_INFO).and_then(photocraft_psd::resources::ImageResource::parsed)
+        if let Some(Ok(openphoto_psd::resources::ResourceData::LayerGroupInfo(groups))) =
+            file.resources.iter().find(|r| r.id == ids::LAYER_GROUP_INFO).and_then(openphoto_psd::resources::ImageResource::parsed)
         {
             apply_link_groups(&tree, &mut doc.layers, &groups);
         }
@@ -574,7 +574,7 @@ pub fn psd_to_document(file: &PsdFile) -> (Document, Vec<String>) {
             if alpha_idx.is_some() {
                 // Undo Photoshop's white matting of the merged image.
                 // A band of tile rows at a time (no full-size float copy of the image).
-                let white = photocraft_raster::from_rgba(&fmt, [1.0, 1.0, 1.0, 1.0]);
+                let white = openphoto_raster::from_rgba(&fmt, [1.0, 1.0, 1.0, 1.0]);
                 let mut vals = Vec::new();
                 let mut y = canvas.y0;
                 while y < canvas.y1 {
@@ -608,11 +608,11 @@ pub fn psd_to_document(file: &PsdFile) -> (Document, Vec<String>) {
             // Planar palette: 256 reds, 256 greens, 256 blues (the Color Table).
             let m = &file.color_mode_data;
             let colors = (0..256).map(|i| [m[i], m[256 + i], m[512 + i]]).collect();
-            doc.color_table = Some(photocraft_doc::ColorTable { colors, transparent: None });
+            doc.color_table = Some(openphoto_doc::ColorTable { colors, transparent: None });
         } else if h.color_mode == PsdMode::Duotone && !file.color_mode_data.is_empty() {
             // The duotone ink block is undocumented: keep it raw; the image shows as its gray plate.
             doc.duotone =
-                Some(photocraft_doc::Duotone { inks: vec![photocraft_doc::DuotoneInk::new("Black", [0.0; 3])], psd_raw: Some(file.color_mode_data.clone()) });
+                Some(openphoto_doc::Duotone { inks: vec![openphoto_doc::DuotoneInk::new("Black", [0.0; 3])], psd_raw: Some(file.color_mode_data.clone()) });
             cx.warn("duotone inks are not interpreted (shown as grayscale)");
         } else if !file.color_mode_data.is_empty() {
             cx.warn("color mode data is not preserved");
@@ -623,12 +623,12 @@ pub fn psd_to_document(file: &PsdFile) -> (Document, Vec<String>) {
             let plane = h.row_bytes() * hh;
             let mut data = vec![255u8; n * 4];
             for c in 0..3.min(usize::from(h.channels)) {
-                let p = photocraft_psd::pixels::plane_to_u8(&all[c * plane..(c + 1) * plane], h.depth, w, hh)?;
+                let p = openphoto_psd::pixels::plane_to_u8(&all[c * plane..(c + 1) * plane], h.depth, w, hh)?;
                 for i in 0..n {
                     data[i * 4 + c] = p[i];
                 }
             }
-            Ok::<_, photocraft_psd::PsdError>(photocraft_psd::RgbaImage { left: 0, top: 0, width: h.width, height: h.height, data })
+            Ok::<_, openphoto_psd::PsdError>(openphoto_psd::RgbaImage { left: 0, top: 0, width: h.width, height: h.height, data })
         });
         if let Ok(img) = rgba {
             let mut s = Surface::new(fmt);
@@ -638,7 +638,7 @@ pub fn psd_to_document(file: &PsdFile) -> (Document, Vec<String>) {
                 .0
                 .iter()
                 .flat_map(|p| {
-                    let v = photocraft_raster::from_rgba(&fmt, [p[0], p[1], p[2], p[3]].map(|x| f32::from(x) / 255.0));
+                    let v = openphoto_raster::from_rgba(&fmt, [p[0], p[1], p[2], p[3]].map(|x| f32::from(x) / 255.0));
                     v.into_iter()
                 })
                 .collect();

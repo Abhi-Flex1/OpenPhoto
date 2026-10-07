@@ -1,7 +1,7 @@
 //! `layer.layerStyle.*` commands: add/replace layer effects on a layer.
 
-use photocraft_color::{BlendMode, Color};
-use photocraft_doc::{
+use openphoto_color::{BlendMode, Color};
+use openphoto_doc::{
     Bevel, BevelStyle, BevelTechnique, Contour, Effect, FxCommon, FxPaint, Glow, GlowSource, GlowTechnique, Gradient, GradientStyle, Satin, Shadow, StrokeFx,
     StrokePosition,
 };
@@ -149,12 +149,12 @@ pub fn effect_from_params(kind: &str, p: &Value) -> Option<Effect> {
             highlight_color: Color::WHITE,
             shadow: FxCommon::new(BlendMode::Multiply, 0.75),
             shadow_color: Color::BLACK,
-            contour: b(p, "contour", false).then(|| photocraft_doc::BevelContour {
+            contour: b(p, "contour", false).then(|| openphoto_doc::BevelContour {
                 contour: Contour::Linear,
                 range: (f(p, "contourRange", 50.0) / 100.0).clamp(0.01, 1.0),
                 anti_alias: false,
             }),
-            texture: p.get("texture").and_then(Value::as_str).filter(|t| !t.is_empty()).map(|t| photocraft_doc::BevelTexture {
+            texture: p.get("texture").and_then(Value::as_str).filter(|t| !t.is_empty()).map(|t| openphoto_doc::BevelTexture {
                 name: t.to_string(),
                 id: t.to_string(),
                 scale: (f(p, "textureScale", 100.0) / 100.0).clamp(0.01, 10.0),
@@ -178,7 +178,7 @@ fn set_effect(s: &mut Session, p: &Value, kind: &str) -> Result<Value> {
     let label = format!("Layer Style: {}", fx.label());
     let add = b(p, "add", false);
     let id = match p.get("layer").and_then(Value::as_u64) {
-        Some(id) => photocraft_doc::LayerId(id),
+        Some(id) => openphoto_doc::LayerId(id),
         None => s.active().and_then(|d| d.active_layer).ok_or(EngineError::Other("no active layer".into()))?,
     };
     s.edit(&label, |doc, _| {
@@ -270,12 +270,12 @@ pub fn specs() -> Vec<CommandSpec> {
             enabled: has_layer,
             run: |s, p| {
                 let id = match p.get("layer").and_then(Value::as_u64) {
-                    Some(id) => photocraft_doc::LayerId(id),
+                    Some(id) => openphoto_doc::LayerId(id),
                     None => s.active().and_then(|d| d.active_layer).ok_or(EngineError::Other("no active layer".into()))?,
                 };
                 s.edit("Clear Layer Style", |doc, _| {
                     let l = doc.layer_mut(id).ok_or(EngineError::NoLayer(id))?;
-                    l.effects = photocraft_doc::Effects { enabled: true, ..Default::default() };
+                    l.effects = openphoto_doc::Effects { enabled: true, ..Default::default() };
                     Ok(())
                 })?;
                 Ok(Value::Null)
@@ -308,7 +308,7 @@ mod tests {
         s.execute("layer.layerStyle.bevelEmboss", json!({"style": "pillow", "technique": "chiselHard", "contour": true, "contourRange": 70, "texture": "Bubbles", "textureDepth": -200, "textureInvert": true})).unwrap();
         let fx = effects(&s);
         let Effect::BevelEmboss(b) = &fx[0] else { panic!("{fx:?}") };
-        assert_eq!((b.style, b.technique), (photocraft_doc::BevelStyle::PillowEmboss, BevelTechnique::ChiselHard));
+        assert_eq!((b.style, b.technique), (openphoto_doc::BevelStyle::PillowEmboss, BevelTechnique::ChiselHard));
         assert!((b.contour.as_ref().unwrap().range - 0.7).abs() < 1e-6);
         let t = b.texture.as_ref().unwrap();
         assert_eq!((t.name.as_str(), t.depth, t.invert), ("Bubbles", -2.0, true));

@@ -1,6 +1,6 @@
 //! Paint helpers: Paint Bucket and Gradient tool.
 
-use photocraft_algo::paint::{GradientShape, bucket_fill, bucket_fill_src, paint_gradient};
+use openphoto_algo::paint::{GradientShape, bucket_fill, bucket_fill_src, paint_gradient};
 use serde_json::{Value, json};
 
 use crate::commands::{CommandSpec, blend_from_str};
@@ -43,7 +43,7 @@ fn bucket(s: &mut Session, p: &Value) -> Result<Value> {
     let source = p.get("contents").or_else(|| p.get("source")).and_then(Value::as_str).unwrap_or("foreground");
     let pattern = if source == "pattern" {
         let pat = crate::pattern_cmds::resolve_param(s, "paint.bucket", p)?;
-        let tile = photocraft_compose::pattern::Tile::new(&pat)
+        let tile = openphoto_compose::pattern::Tile::new(&pat)
             .ok_or_else(|| EngineError::BadParams { cmd: "paint.bucket".into(), msg: "the pattern is empty".into() })?;
         let (scale, angle, _, phase) = crate::pattern_cmds::placement(p);
         Some((tile, scale, angle, phase))
@@ -56,8 +56,8 @@ fn bucket(s: &mut Session, p: &Value) -> Result<Value> {
         let (surf, _) = crate::channel_cmds::target_surface(doc, *active, p)?;
         let ok = if let Some((tile, scale, angle, phase)) = &pattern {
             // Render the pattern over the canvas once, then sample it at each filled pixel.
-            let place = photocraft_compose::pattern::Placement::new(photocraft_geom::Rect::EMPTY, false, *phase, *scale, *angle);
-            let rendered = photocraft_compose::pattern::render(tile, &place, area);
+            let place = openphoto_compose::pattern::Placement::new(openphoto_geom::Rect::EMPTY, false, *phase, *scale, *angle);
+            let rendered = openphoto_compose::pattern::render(tile, &place, area);
             let w = area.width() as usize;
             bucket_fill_src(surf, area, (x, y), tol, contiguous, aa, opacity, sel.as_ref(), |px, py| {
                 rendered[(py - area.y0) as usize * w + (px - area.x0) as usize]
@@ -95,7 +95,7 @@ fn gradient(s: &mut Session, p: &Value) -> Result<Value> {
     };
     let reverse = b(p, "reverse", false);
     let opacity = f(p, "opacity", 100.0) / 100.0;
-    let blend = p.get("mode").and_then(Value::as_str).and_then(blend_from_str).unwrap_or(photocraft_color::BlendMode::Normal);
+    let blend = p.get("mode").and_then(Value::as_str).and_then(blend_from_str).unwrap_or(openphoto_color::BlendMode::Normal);
     let dither = b(p, "dither", true); // Photoshop dithers gradients by default (reduces banding).
     s.edit("Gradient", |doc, active| {
         let sel = doc.selection.clone();
@@ -136,7 +136,7 @@ pub fn specs() -> Vec<CommandSpec> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use photocraft_geom::Rect;
+    use openphoto_geom::Rect;
 
     fn session() -> Session {
         let mut s = Session::new();

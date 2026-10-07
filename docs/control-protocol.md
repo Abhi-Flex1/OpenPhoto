@@ -3,11 +3,11 @@
 The desktop app listens on `127.0.0.1:<port>` (loopback only). Start it with a token file so the credential is not exposed in the process command line:
 
 ```sh
-photocraft --control 7878 --control-token-file /private/path/photocraft-control.token \
+openphoto --control 7878 --control-token-file /private/path/openphoto-control.token \
   --automation-read-root /work/project --automation-write-root /work/project
 ```
 
-If the file does not exist, PhotoCraft creates it with a fresh 256-bit token. On Unix the new file is mode `0600`; on Windows, protect it with an appropriate user-only ACL. An existing file is reused. If neither a token nor token file is configured, PhotoCraft generates a token for that launch and writes it to standard error. `PHOTOCRAFT_CONTROL_TOKEN` and `PHOTOCRAFT_CONTROL_TOKEN_FILE` are the environment-variable equivalents.
+If the file does not exist, OpenPhoto creates it with a fresh 256-bit token. On Unix the new file is mode `0600`; on Windows, protect it with an appropriate user-only ACL. An existing file is reused. If neither a token nor token file is configured, OpenPhoto generates a token for that launch and writes it to standard error. `OPENPHOTO_CONTROL_TOKEN` and `OPENPHOTO_CONTROL_TOKEN_FILE` are the environment-variable equivalents.
 
 The first request on every TCP connection must authenticate. No other method is dispatched before this succeeds:
 
@@ -28,7 +28,7 @@ Each reply is one JSON line with the same `id`:
 {"id": 2, "ok": false, "error": "unknown tool `foo`"}
 ```
 
-The transport is `apps/photocraft/src/control_server.rs`, and the handlers are in `crates/ui-egui/src/control.rs`. The MCP server (`photocraft-cli mcp --bridge 127.0.0.1:<port>`, crate `photocraft-automation`) wraps this same protocol. See [MCP bridge](#mcp-bridge) below.
+The transport is `apps/openphoto/src/control_server.rs`, and the handlers are in `crates/ui-egui/src/control.rs`. The MCP server (`openphoto-cli mcp --bridge 127.0.0.1:<port>`, crate `openphoto-automation`) wraps this same protocol. See [MCP bridge](#mcp-bridge) below.
 
 ## Methods
 
@@ -102,15 +102,15 @@ shortcuts, hidden and coloured menu items, autosave interval and crash recovery,
 log text file. GPU on/off and the GPU tile size apply at the next launch.
 
 The desktop app stores them in `preferences.json` in the platform config directory (macOS
-`~/Library/Application Support/Photocraft`, Windows `%APPDATA%\Photocraft`, Linux
-`$XDG_CONFIG_HOME/photocraft`; override with `PHOTOCRAFT_CONFIG_DIR`); autosaves go to its
-`Recovery` folder. In portable mode (a `portable.txt` or `PhotoCraft.portable` file beside the
-executable, as in the Windows portable zip) that directory is `PhotoCraftData` next to the
+`~/Library/Application Support/OpenPhoto`, Windows `%APPDATA%\OpenPhoto`, Linux
+`$XDG_CONFIG_HOME/openphoto`; override with `OPENPHOTO_CONFIG_DIR`); autosaves go to its
+`Recovery` folder. In portable mode (a `portable.txt` or `OpenPhoto.portable` file beside the
+executable, as in the Windows portable zip) that directory is `OpenPhotoData` next to the
 executable instead. The web build keeps them in `localStorage`.
 
 User and imported (`.abr`) brush presets live in the config directory's `Presets` folder: one
 `.pcbrushes` JSON file per preset group, content-addressed tip bitmaps under `tips/`, and an
-`index.json` with the group order and deleted built-ins (see `photocraft_engine::preset_store`).
+`index.json` with the group order and deleted built-ins (see `openphoto_engine::preset_store`).
 The store loads in the background at launch and syncs after every brush preset change; built-ins
 are never written. Headless CLI/MCP sessions and the web build keep brush presets for the session
 only. Gradient presets (including imported `.grd` groups) persist with the preferences.
@@ -126,16 +126,16 @@ magenta alignment lines. `ui.pointer` drives the same code, so agents get identi
 
 ## MCP bridge
 
-`photocraft-automation` provides an MCP server built on the official Rust SDK (`rmcp`). It runs in one of two modes:
+`openphoto-automation` provides an MCP server built on the official Rust SDK (`rmcp`). It runs in one of two modes:
 
-- **Headless** (`photocraft-cli mcp`): an in-process `photocraft_engine::Session`. There is no window.
-- **Bridge** (`photocraft-cli mcp --bridge 127.0.0.1:7878 --control-token-file <path>`): every tool is forwarded to a running `photocraft --control 7878 --control-token-file <path>` over this protocol, so agents see and drive the live app.
+- **Headless** (`openphoto-cli mcp`): an in-process `openphoto_engine::Session`. There is no window.
+- **Bridge** (`openphoto-cli mcp --bridge 127.0.0.1:7878 --control-token-file <path>`): every tool is forwarded to a running `openphoto --control 7878 --control-token-file <path>` over this protocol, so agents see and drive the live app.
 
-The bridge keeps one authenticated TCP connection open. It reconnects and authenticates once if a request fails, and it skips reply lines whose `id` doesn't match the request (for example, stale replies to requests that timed out). It only accepts loopback addresses, because the app only listens on loopback. Supply its bearer token with `--control-token-file`, `--control-token`, `PHOTOCRAFT_CONTROL_TOKEN_FILE`, or `PHOTOCRAFT_CONTROL_TOKEN`:
+The bridge keeps one authenticated TCP connection open. It reconnects and authenticates once if a request fails, and it skips reply lines whose `id` doesn't match the request (for example, stale replies to requests that timed out). It only accepts loopback addresses, because the app only listens on loopback. Supply its bearer token with `--control-token-file`, `--control-token`, `OPENPHOTO_CONTROL_TOKEN_FILE`, or `OPENPHOTO_CONTROL_TOKEN`:
 
 ```sh
-photocraft-cli mcp --bridge 127.0.0.1:7878 \
-  --control-token-file /private/path/photocraft-control.token
+openphoto-cli mcp --bridge 127.0.0.1:7878 \
+  --control-token-file /private/path/openphoto-control.token
 ```
 
 How each MCP tool maps onto control methods in bridge mode:
@@ -167,7 +167,7 @@ it to an untrusted host.
 
 Filesystem access fails closed unless launch-time read and/or write roots are granted with
 `--automation-read-root` and `--automation-write-root` (or
-`PHOTOCRAFT_AUTOMATION_READ_ROOT` / `PHOTOCRAFT_AUTOMATION_WRITE_ROOT`). Request paths must be
+`OPENPHOTO_AUTOMATION_READ_ROOT` / `OPENPHOTO_AUTOMATION_WRITE_ROOT`). Request paths must be
 non-empty, forward-slash relative paths beneath the applicable root. Absolute paths, parent
 traversal, alternate separators, drive/device/stream prefixes, malformed components, and link
 escapes are rejected before file effects. Read and write authority are independent; the parent of
@@ -177,7 +177,7 @@ desktop file pickers retain normal user-selected access.
 
 ## Headless server
 
-`photocraft-cli serve` keeps one headless engine session (no window, no GPU) and answers the same
+`openphoto-cli serve` keeps one headless engine session (no window, no GPU) and answers the same
 JSON-lines envelope on stdio, or on `127.0.0.1:<port>` with `--port <port>` (loopback only; each
 authenticated connection shares the session). TCP uses the same first-frame `auth` exchange and
 token options as desktop control. Stdio does not require this TCP handshake because access is
@@ -204,7 +204,7 @@ printf '%s\n' \
   '{"id":1,"method":"doc.open","params":{"path":"in.jpg"}}' \
   '{"id":2,"method":"batch","params":{"steps":[{"command":"image.adjustments.invert"},{"command":"filter.blur.gaussianBlur","params":{"radius":3}}]}}' \
   '{"id":3,"method":"doc.save","params":{"path":"out.png"}}' | \
-  photocraft-cli serve --automation-read-root /work/project --automation-write-root /work/project
+  openphoto-cli serve --automation-read-root /work/project --automation-write-root /work/project
 ```
 
 The MCP server has the same batching as the `command_batch` tool (`{steps:[{id, params}], stop_on_error}`),

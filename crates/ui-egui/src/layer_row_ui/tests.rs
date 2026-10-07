@@ -4,17 +4,17 @@
 use egui::{Modifiers, PointerButton, Pos2, Rect, pos2, vec2};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
-use photocraft_doc::LayerContent;
+use openphoto_doc::LayerContent;
 use serde_json::json;
 
 use super::{Indicator, RowRects, layout, recorded};
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 
 const LONG: &str = "Button / Primary / Hover state — a very long descriptive layer name 背景のテクスチャ that keeps going";
 
 /// Long-named layers with every indicator, nested four groups deep.
-fn busy() -> photocraft_engine::Session {
-    let mut s = photocraft_engine::Session::new();
+fn busy() -> openphoto_engine::Session {
+    let mut s = openphoto_engine::Session::new();
     s.execute("file.new", json!({"width": 64, "height": 48})).unwrap();
     let mut prev = None;
     for depth in 0..4 {
@@ -40,10 +40,10 @@ fn busy() -> photocraft_engine::Session {
     s
 }
 
-fn harness(session: photocraft_engine::Session, ppp: f32, theme: &str, dock_width: f32) -> Harness<'static, PhotocraftApp> {
+fn harness(session: openphoto_engine::Session, ppp: f32, theme: &str, dock_width: f32) -> Harness<'static, OpenPhotoApp> {
     let mut h = Harness::builder().with_size(vec2(1440.0, 1000.0)).with_pixels_per_point(ppp).with_max_steps(64).build_eframe(move |cc| {
-        PhotocraftApp::setup_context(&cc.egui_ctx, Default::default());
-        PhotocraftApp::new(session, crate::Services::default())
+        OpenPhotoApp::setup_context(&cc.egui_ctx, Default::default());
+        OpenPhotoApp::new(session, crate::Services::default())
     });
     let ctx = h.ctx.clone();
     let (req, _rx) = crate::control::ControlRequest::new(
@@ -106,7 +106,7 @@ fn long_names_never_run_under_the_indicators() {
     }
 }
 
-fn click(h: &mut Harness<'_, PhotocraftApp>, at: Pos2) {
+fn click(h: &mut Harness<'_, OpenPhotoApp>, at: Pos2) {
     h.hover_at(at);
     h.run_steps(1);
     h.event(egui::Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: true, modifiers: Modifiers::NONE });
@@ -119,7 +119,7 @@ fn click(h: &mut Harness<'_, PhotocraftApp>, at: Pos2) {
 fn the_fx_triangle_hides_and_shows_the_effects_rows() {
     let mut h = harness(busy(), 1.0, "promedium", 290.0);
     let top = h.state().session.active().unwrap().doc.layers.last().unwrap().clone();
-    let rows = |h: &Harness<'_, PhotocraftApp>| recorded(&h.ctx).iter().map(|r| r.row.top()).collect::<Vec<_>>();
+    let rows = |h: &Harness<'_, OpenPhotoApp>| recorded(&h.ctx).iter().map(|r| r.row.top()).collect::<Vec<_>>();
     let before = rows(&h);
     let label = format!("Collapse effects {}", top.name);
     let p = h.get_by_label(&label).rect().center();
@@ -135,7 +135,7 @@ fn the_fx_triangle_hides_and_shows_the_effects_rows() {
     assert!(h.state().session.active().unwrap().fx_collapsed.is_empty());
 }
 
-fn groups_open(s: &photocraft_engine::Session) -> Vec<bool> {
+fn groups_open(s: &openphoto_engine::Session) -> Vec<bool> {
     s.active().unwrap().doc.walk().into_iter().filter_map(|(_, _, l)| if let LayerContent::Group(g) = &l.content { Some(g.expanded) } else { None }).collect()
 }
 
@@ -154,9 +154,9 @@ fn collapse_all_groups_from_the_panel_menu_and_it_is_saved() {
     // Collapsed state is document data: it survives a PSD and a .pcraft round trip.
     let doc = (*h.state().session.active().unwrap().doc).clone();
     for name in ["c.psd", "c.pcraft"] {
-        let bytes = photocraft_io::export(&doc, name, &Default::default()).unwrap().bytes;
-        let back = photocraft_io::import(name, &bytes).unwrap().document;
-        let mut s = photocraft_engine::Session::new();
+        let bytes = openphoto_io::export(&doc, name, &Default::default()).unwrap().bytes;
+        let back = openphoto_io::import(name, &bytes).unwrap().document;
+        let mut s = openphoto_engine::Session::new();
         s.add_document(back, None);
         assert!(groups_open(&s).iter().all(|o| !o), "{name}: groups stay closed");
     }

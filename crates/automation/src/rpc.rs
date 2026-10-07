@@ -1,7 +1,7 @@
 //! Headless JSON-lines server: the control protocol's envelope
 //! (`{"id","method","params"}` → `{"id","ok","result"|"error"}`) over a
 //! [`Headless`] session, so scripts and agents can keep one editing session
-//! open without MCP or the GUI. `photocraft-cli serve` runs it on stdio or a
+//! open without MCP or the GUI. `openphoto-cli serve` runs it on stdio or a
 //! loopback TCP port.
 //!
 //! Methods (camelCase params):
@@ -88,7 +88,7 @@ impl Headless {
             }
             "doc.new" => self.command_run("file.new", p),
             "doc.save" => {
-                let mut opts = photocraft_io::ExportOptions::default();
+                let mut opts = openphoto_io::ExportOptions::default();
                 if let Some(q) = p.get("quality").and_then(Value::as_u64) {
                     opts.encode.jpeg_quality = q.clamp(1, 100) as u8;
                 }
@@ -369,12 +369,12 @@ mod tests {
         g.handle("doc.new", json!({"width": 40, "height": 20, "background": "black"})).unwrap();
         let b = g.handle("doc.render", json!({"maxSide": 10})).unwrap();
         let png = base64::engine::general_purpose::STANDARD.decode(b["base64"].as_str().unwrap()).unwrap();
-        let img = photocraft_codecs::decode(&png).unwrap();
+        let img = openphoto_codecs::decode(&png).unwrap();
         assert_eq!(img.dimensions(), (10, 5));
         let path = std::env::temp_dir().join(format!("pc-rpc-{}.png", std::process::id()));
         let r = g.handle("doc.render", json!({"path": path.to_string_lossy(), "maxSide": 0})).unwrap();
         assert!(r["bytes"].as_u64().unwrap() > 0);
-        assert_eq!(photocraft_codecs::decode(&std::fs::read(&path).unwrap()).unwrap().dimensions(), (40, 20));
+        assert_eq!(openphoto_codecs::decode(&std::fs::read(&path).unwrap()).unwrap().dimensions(), (40, 20));
         let _ = std::fs::remove_file(path);
     }
 
@@ -388,7 +388,7 @@ mod tests {
         // A smaller preview still works, and rejection leaves the source document intact.
         let rendered = h.handle("doc.render", json!({"maxSide": 32})).unwrap();
         let png = base64::engine::general_purpose::STANDARD.decode(rendered["base64"].as_str().unwrap()).unwrap();
-        assert_eq!(photocraft_codecs::decode(&png).unwrap().dimensions(), (32, 1));
+        assert_eq!(openphoto_codecs::decode(&png).unwrap().dimensions(), (32, 1));
         assert_eq!(h.session.active().unwrap().doc.size.width, 2049);
     }
 
@@ -428,7 +428,7 @@ mod tests {
         h.handle("doc.new", json!({"width": 2049, "height": 1})).unwrap();
         let rendered = h.handle("doc.render", json!({"maxSide": 0})).unwrap();
         let png = base64::engine::general_purpose::STANDARD.decode(rendered["base64"].as_str().unwrap()).unwrap();
-        assert_eq!(photocraft_codecs::decode(&png).unwrap().dimensions(), (2049, 1));
+        assert_eq!(openphoto_codecs::decode(&png).unwrap().dimensions(), (2049, 1));
     }
 
     #[test]

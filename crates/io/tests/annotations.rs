@@ -4,12 +4,12 @@
 #[cfg(feature = "corpus")]
 use std::path::PathBuf;
 
-use photocraft_color::{ColorMode, SampleType};
-use photocraft_doc::{Document, MeasurementScale, Note};
-use photocraft_geom::Size;
-use photocraft_io::annotations_map::MEASUREMENT_SCALE;
-use photocraft_io::{ExportOptions, export, import};
-use photocraft_psd::PsdFile;
+use openphoto_color::{ColorMode, SampleType};
+use openphoto_doc::{Document, MeasurementScale, Note};
+use openphoto_geom::Size;
+use openphoto_io::annotations_map::MEASUREMENT_SCALE;
+use openphoto_io::{ExportOptions, export, import};
+use openphoto_psd::PsdFile;
 
 #[cfg(feature = "corpus")]
 fn corpus(rel: &str) -> Vec<u8> {
@@ -49,7 +49,7 @@ fn corpus_notes_import_and_verbatim_export() {
 #[test]
 fn measurement_scale_roundtrips_through_psd() {
     for depth in [SampleType::U8, SampleType::U16, SampleType::F32] {
-        let mut doc = Document::with_background("m", Size::new(16, 8), ColorMode::Rgb, depth, photocraft_color::Color::rgb(1.0, 1.0, 1.0));
+        let mut doc = Document::with_background("m", Size::new(16, 8), ColorMode::Rgb, depth, openphoto_color::Color::rgb(1.0, 1.0, 1.0));
         let f = PsdFile::from_bytes(&to_psd(&doc)).unwrap();
         assert!(f.resource(MEASUREMENT_SCALE).is_none());
         doc.measurement.scale = MeasurementScale { pixel_length: 120.0, logical_length: 3.0, units: "cm".into() };

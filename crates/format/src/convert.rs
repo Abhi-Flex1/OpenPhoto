@@ -3,13 +3,13 @@
 
 use std::sync::Arc;
 
-use photocraft_color::{PixelFormat, SampleType};
-use photocraft_doc::{
+use openphoto_color::{PixelFormat, SampleType};
+use openphoto_doc::{
     AlphaChannel, CompAppearance, CompLayerState, DocId, Document, Effects, FillCache, Group, Layer, LayerComp, LayerContent, LayerId, LayerMask, Metadata,
     NamedPath, Pattern, ShapeLayer, SmartObject, SmartSource, TextLayer,
 };
-use photocraft_geom::{TILE_SIZE, TileCoord};
-use photocraft_raster::{Surface, Tile, decode_pixel, encode_pixel};
+use openphoto_geom::{TILE_SIZE, TileCoord};
+use openphoto_raster::{Surface, Tile, decode_pixel, encode_pixel};
 
 use crate::manifest::*;
 use crate::{FormatError, Result};
@@ -86,7 +86,7 @@ fn opt_blob(b: &Option<Arc<Vec<u8>>>, sink: &mut dyn Sink) -> Option<Hash> {
     b.as_ref().map(|b| sink.blob(b))
 }
 
-fn video_m(v: &photocraft_doc::VideoData, sink: &mut dyn Sink) -> crate::manifest::VideoDataM {
+fn video_m(v: &openphoto_doc::VideoData, sink: &mut dyn Sink) -> crate::manifest::VideoDataM {
     crate::manifest::VideoDataM {
         frames: v.frames.iter().map(|f| surface_m(f, sink)).collect(),
         source: v.source.clone(),
@@ -276,9 +276,9 @@ pub(crate) struct Loader<'a> {
 }
 
 impl Loader<'_> {
-    fn video(&mut self, m: &crate::manifest::VideoDataM) -> Result<photocraft_doc::VideoData> {
+    fn video(&mut self, m: &crate::manifest::VideoDataM) -> Result<openphoto_doc::VideoData> {
         let frames = m.frames.iter().map(|f| self.surface(f)).collect::<Result<Vec<_>>>()?;
-        Ok(photocraft_doc::VideoData { frames, source: m.source.clone(), fps: m.fps, show_altered: m.show_altered })
+        Ok(openphoto_doc::VideoData { frames, source: m.source.clone(), fps: m.fps, show_altered: m.show_altered })
     }
 
     fn surface(&mut self, m: &SurfaceM) -> Result<Surface> {
@@ -491,8 +491,8 @@ impl Loader<'_> {
         for sl in &mut slices.list {
             if let Some(l) = sl.layer {
                 sl.layer = self.id_map.get(&l.0).copied();
-                if sl.layer.is_none() && sl.origin == photocraft_doc::SliceOrigin::Layer {
-                    sl.origin = photocraft_doc::SliceOrigin::User;
+                if sl.layer.is_none() && sl.origin == openphoto_doc::SliceOrigin::Layer {
+                    sl.origin = openphoto_doc::SliceOrigin::User;
                 }
             }
         }
@@ -551,6 +551,6 @@ pub(crate) fn reserve_ids_through(max: u64) -> bool {
     if max - probe > 10_000_000 {
         return false;
     }
-    photocraft_doc::ensure_ids_above(max);
+    openphoto_doc::ensure_ids_above(max);
     true
 }

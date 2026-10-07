@@ -6,12 +6,12 @@ mod common;
 use std::sync::Arc;
 
 use common::*;
-use photocraft_cms::{Builtin, ColorSpace, Profile};
-use photocraft_color::{ColorMode, SampleType};
-use photocraft_io::*;
+use openphoto_cms::{Builtin, ColorSpace, Profile};
+use openphoto_color::{ColorMode, SampleType};
+use openphoto_io::*;
 
-fn single(mode: ColorMode, depth: SampleType, alpha: bool) -> photocraft_doc::Document {
-    let mut d = photocraft_doc::Document::new("s", photocraft_geom::Size::new(9, 6), mode, depth);
+fn single(mode: ColorMode, depth: SampleType, alpha: bool) -> openphoto_doc::Document {
+    let mut d = openphoto_doc::Document::new("s", openphoto_geom::Size::new(9, 6), mode, depth);
     let fmt = d.pixel_format();
     d.layers.push(raster("Background", fmt, d.bounds(), 3, alpha));
     d

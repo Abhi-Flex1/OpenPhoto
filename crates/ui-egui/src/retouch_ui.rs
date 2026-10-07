@@ -5,13 +5,13 @@
 use egui::{Color32, Stroke, vec2};
 use serde_json::{Value, json};
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 use crate::canvas::ViewXform;
 use crate::state::Tool;
 use crate::theme::Tokens;
 
 /// Finish a stroke with a retouching tool. Returns false if `tool` isn't one.
-pub fn finish_stroke(app: &mut PhotocraftApp, tool: Tool, points: &[[f64; 3]], mods: egui::Modifiers) -> bool {
+pub fn finish_stroke(app: &mut OpenPhotoApp, tool: Tool, points: &[[f64; 3]], mods: egui::Modifiers) -> bool {
     let o = app.ui.tool_options.clone();
     let pts = json!(points);
     let (cmd, mut p): (&str, Value) = match tool {
@@ -70,7 +70,7 @@ pub fn finish_stroke(app: &mut PhotocraftApp, tool: Tool, points: &[[f64; 3]], m
 }
 
 /// Object Selection: the dragged rectangle.
-pub fn finish_object_selection(app: &mut PhotocraftApp, start: [f64; 2], end: [f64; 2], mods: egui::Modifiers) {
+pub fn finish_object_selection(app: &mut OpenPhotoApp, start: [f64; 2], end: [f64; 2], mods: egui::Modifiers) {
     let (x, y) = (start[0].min(end[0]), start[1].min(end[1]));
     let (w, h) = ((end[0] - start[0]).abs(), (end[1] - start[1]).abs());
     if w < 2.0 || h < 2.0 {
@@ -90,7 +90,7 @@ pub fn finish_object_selection(app: &mut PhotocraftApp, start: [f64; 2], end: [f
 }
 
 /// ⌥-click with Clone Stamp / Healing Brush sets the source.
-pub fn set_source(app: &mut PhotocraftApp, x: f64, y: f64) {
+pub fn set_source(app: &mut OpenPhotoApp, x: f64, y: f64) {
     app.ui.clone_source = Some([x.round(), y.round()]);
     app.ui.clone_offset = None;
     let _ = app.run("cloneSource.set", json!({"source": [x.round(), y.round()]}));
@@ -99,7 +99,7 @@ pub fn set_source(app: &mut PhotocraftApp, x: f64, y: f64) {
 }
 
 /// Crosshair where the clone source is sampled from for the current pointer position.
-pub fn draw_source_marker(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXform) {
+pub fn draw_source_marker(app: &OpenPhotoApp, painter: &egui::Painter, xf: &ViewXform) {
     if !matches!(app.ui.tool, Tool::CloneStamp | Tool::Healing) {
         return;
     }
@@ -128,7 +128,7 @@ fn pct(ui: &mut egui::Ui, label: &str, v: &mut f32) {
 }
 
 /// Options bar for the retouching and smart-selection tools. Returns false for other tools.
-pub fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui, tool: Tool) -> bool {
+pub fn options_bar(app: &mut OpenPhotoApp, ui: &mut egui::Ui, tool: Tool) -> bool {
     if !tool.is_brushlike() && !matches!(tool, Tool::QuickSelection | Tool::ObjectSelection) || matches!(tool, Tool::Brush | Tool::Pencil | Tool::Eraser) {
         return false;
     }
@@ -210,14 +210,14 @@ mod tests {
     use super::*;
     use crate::canvas::{ToolEvent, tool_event};
 
-    fn app() -> PhotocraftApp {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+    fn app() -> OpenPhotoApp {
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 100, "height": 60})).unwrap();
         app.run("tools.setBrush", json!({"brush": {"size": 16, "hardness": 1.0}})).unwrap();
         app
     }
 
-    fn drag(app: &mut PhotocraftApp, tool: Tool) {
+    fn drag(app: &mut OpenPhotoApp, tool: Tool) {
         app.ui.tool = tool;
         let m = egui::Modifiers::NONE;
         tool_event(app, ToolEvent::Down { x: 10.0, y: 30.0, pressure: 1.0 }, m);
@@ -226,12 +226,12 @@ mod tests {
         assert!(!app.ui.status_error, "{tool:?}: {}", app.ui.status);
     }
 
-    fn active(app: &PhotocraftApp) -> &photocraft_doc::Layer {
+    fn active(app: &OpenPhotoApp) -> &openphoto_doc::Layer {
         let st = app.session.active().unwrap();
         st.active_layer.and_then(|id| st.doc.layer(id)).unwrap()
     }
 
-    fn stripes(app: &mut PhotocraftApp, step: usize, target: &str) {
+    fn stripes(app: &mut OpenPhotoApp, step: usize, target: &str) {
         for x in (0..100).step_by(step) {
             app.run("paint.pencil", json!({"points": [[x, 0], [x, 60]], "size": 2, "color": "#606060", "target": target})).unwrap();
         }

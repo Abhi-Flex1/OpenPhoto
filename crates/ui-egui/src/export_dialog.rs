@@ -4,16 +4,16 @@
 
 use std::sync::Arc;
 
-use photocraft_doc::Document;
+use openphoto_doc::Document;
 use serde_json::{Map, Value, json};
 
 use crate::state::DialogKind;
 use crate::theme::Tokens;
-use crate::{ExportSettings, PhotocraftApp};
+use crate::{ExportSettings, OpenPhotoApp};
 
 const FORMATS: [(&str, &str); 4] = [("png", "PNG"), ("jpg", "JPG"), ("webp", "WebP (lossless)"), ("tif", "TIFF")];
 
-pub fn open(app: &mut PhotocraftApp) -> Result<u64, String> {
+pub fn open(app: &mut OpenPhotoApp) -> Result<u64, String> {
     let st = app.session.active().ok_or("no document")?;
     let mut f = Map::new();
     f.insert("__export".into(), json!(true));
@@ -28,9 +28,9 @@ pub fn open(app: &mut PhotocraftApp) -> Result<u64, String> {
 }
 
 /// Layer › Export As…: the same dialog for just the active layer (trimmed to its pixels).
-pub fn open_layer(app: &mut PhotocraftApp, layer: photocraft_doc::LayerId) -> Result<u64, String> {
+pub fn open_layer(app: &mut OpenPhotoApp, layer: openphoto_doc::LayerId) -> Result<u64, String> {
     let st = app.session.active().ok_or("no document")?;
-    let ldoc = photocraft_engine::layer_menu_cmds::layer_document(&st.doc, layer).map_err(|e| e.to_string())?;
+    let ldoc = openphoto_engine::layer_menu_cmds::layer_document(&st.doc, layer).map_err(|e| e.to_string())?;
     let id = open(app)?;
     if let Some(d) = app.ui.dialogs.iter_mut().find(|d| d.id == id) {
         d.fields.insert("__layer".into(), json!(layer.0));
@@ -42,7 +42,7 @@ pub fn open_layer(app: &mut PhotocraftApp, layer: photocraft_doc::LayerId) -> Re
 }
 
 /// Layer › Quick Export as PNG.
-pub fn quick_export_layer_png(app: &mut PhotocraftApp, layer: photocraft_doc::LayerId) -> Result<Value, String> {
+pub fn quick_export_layer_png(app: &mut OpenPhotoApp, layer: openphoto_doc::LayerId) -> Result<Value, String> {
     let mut f = Map::new();
     f.insert("format".into(), json!("png"));
     f.insert("transparency".into(), json!(true));
@@ -52,10 +52,10 @@ pub fn quick_export_layer_png(app: &mut PhotocraftApp, layer: photocraft_doc::La
 }
 
 /// The document a dialog exports: the whole image, or one layer (`__layer`).
-fn source_document(app: &PhotocraftApp, f: &Map<String, Value>) -> Result<Arc<Document>, String> {
+fn source_document(app: &OpenPhotoApp, f: &Map<String, Value>) -> Result<Arc<Document>, String> {
     let st = app.session.active().ok_or("no document")?;
     match f.get("__layer").and_then(Value::as_u64) {
-        Some(id) => photocraft_engine::layer_menu_cmds::layer_document(&st.doc, photocraft_doc::LayerId(id)).map(Arc::new).map_err(|e| e.to_string()),
+        Some(id) => openphoto_engine::layer_menu_cmds::layer_document(&st.doc, openphoto_doc::LayerId(id)).map(Arc::new).map_err(|e| e.to_string()),
         None => Ok(st.doc.clone()),
     }
 }
@@ -70,7 +70,7 @@ fn n(f: &Map<String, Value>, k: &str, d: f64) -> f64 {
 /// The document as exported: scaled (engine Image Size, bicubic) and flattened over white when
 /// transparency is off or the format has no alpha.
 fn export_document(doc: &Document, f: &Map<String, Value>, max_side: Option<u32>) -> Result<Document, String> {
-    let mut s = photocraft_engine::Session::new();
+    let mut s = openphoto_engine::Session::new();
     s.add_document(doc.clone(), None);
     let scale = n(f, "scale", 100.0) / 100.0;
     let mut w = (doc.size.width as f64 * scale).round().max(1.0);
@@ -100,7 +100,7 @@ fn settings(f: &Map<String, Value>) -> ExportSettings {
 }
 
 /// Estimated size (bytes) from a ≤512 px proxy encode, scaled by pixel count.
-fn estimate(app: &PhotocraftApp, doc: &Document, f: &Map<String, Value>) -> Option<u64> {
+fn estimate(app: &OpenPhotoApp, doc: &Document, f: &Map<String, Value>) -> Option<u64> {
     let export = app.services.export.as_ref()?;
     let proxy = export_document(doc, f, Some(512)).ok()?;
     let (bytes, _) = export(&proxy, &format!("estimate.{}", s_fmt(f)), &settings(f)).ok()?;
@@ -110,7 +110,7 @@ fn estimate(app: &PhotocraftApp, doc: &Document, f: &Map<String, Value>) -> Opti
     Some((bytes.len() as f64 * full / small) as u64)
 }
 
-pub fn body(app: &mut PhotocraftApp, ui: &mut egui::Ui, f: &mut Map<String, Value>) {
+pub fn body(app: &mut OpenPhotoApp, ui: &mut egui::Ui, f: &mut Map<String, Value>) {
     let t = Tokens::get(ui.ctx());
     let Some(doc) = app.session.active().map(|s| s.doc.clone()) else { return };
     ui.horizontal_top(|ui| {
@@ -161,7 +161,7 @@ pub fn body(app: &mut PhotocraftApp, ui: &mut egui::Ui, f: &mut Map<String, Valu
                 None => {
                     let src = source_document(app, f).unwrap_or_else(|_| doc.clone());
                     let size = estimate(app, &src, f);
-                    let img = photocraft_compose::thumbnail(&export_document(&src, f, Some(360)).unwrap_or_else(|_| (*src).clone()), 360);
+                    let img = openphoto_compose::thumbnail(&export_document(&src, f, Some(360)).unwrap_or_else(|_| (*src).clone()), 360);
                     let color = egui::ColorImage::from_rgba_unmultiplied([img.width as usize, img.height as usize], &img.pixels);
                     let tex = Arc::new(ui.ctx().load_texture("export-preview", color, egui::TextureOptions::LINEAR));
                     ui.data_mut(|d| d.insert_temp(key, (sig, size, tex.clone())));
@@ -183,7 +183,7 @@ pub fn body(app: &mut PhotocraftApp, ui: &mut egui::Ui, f: &mut Map<String, Valu
 }
 
 /// Export with the dialog's settings: choose a path, render, encode, write.
-pub fn confirm(app: &mut PhotocraftApp, f: &Map<String, Value>) -> Result<Value, String> {
+pub fn confirm(app: &mut OpenPhotoApp, f: &Map<String, Value>) -> Result<Value, String> {
     let doc = source_document(app, f)?;
     let stem = doc.name.rsplit_once('.').map_or(doc.name.as_str(), |(a, _)| a).to_string();
     let ext = s_fmt(f);
@@ -203,7 +203,7 @@ pub fn confirm(app: &mut PhotocraftApp, f: &Map<String, Value>) -> Result<Value,
 /// File › Export › Quick Export as PNG: the format, quality, metadata, colour space and location
 /// from File › Export › Export Preferences (engine `file.export.quickExport`). On the web (no
 /// file system) it falls back to a PNG download through the export service.
-pub fn quick_export_png(app: &mut PhotocraftApp) -> Result<Value, String> {
+pub fn quick_export_png(app: &mut OpenPhotoApp) -> Result<Value, String> {
     if !cfg!(target_arch = "wasm32") {
         let prefs = app.session.prefs().export.clone();
         let fmt = serde_json::to_value(prefs.quick_export_format).ok().and_then(|v| v.as_str().map(str::to_string)).unwrap_or_else(|| "png".into());
@@ -236,10 +236,10 @@ mod tests {
     fn export_document_scales_and_flattens() {
         let doc = Document::with_background(
             "x",
-            photocraft_doc::Size::new(200, 100),
-            photocraft_doc::ColorMode::Rgb,
-            photocraft_doc::SampleType::U8,
-            photocraft_doc::Color::WHITE,
+            openphoto_doc::Size::new(200, 100),
+            openphoto_doc::ColorMode::Rgb,
+            openphoto_doc::SampleType::U8,
+            openphoto_doc::Color::WHITE,
         );
         let mut f = Map::new();
         f.insert("format".into(), json!("jpg"));

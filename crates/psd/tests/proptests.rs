@@ -1,8 +1,8 @@
 //! Property-based round-trip tests.
 
-use photocraft_psd::compression::{PlaneLayout, decode_planes, encode_planes, packbits};
-use photocraft_psd::testgen;
-use photocraft_psd::*;
+use openphoto_psd::compression::{PlaneLayout, decode_planes, encode_planes, packbits};
+use openphoto_psd::testgen;
+use openphoto_psd::*;
 use proptest::prelude::*;
 
 fn version() -> impl Strategy<Value = Version> {

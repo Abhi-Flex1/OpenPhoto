@@ -2,9 +2,9 @@
 //! (stored landscape, Orientation = 6) opens as an upright portrait document,
 //! and every export writes Orientation = 1 so it is never rotated twice.
 
-use photocraft_codecs::{ChannelLayout, EncodeOptions, Format, Image, SampleType, decode, exif_orientation};
-use photocraft_io::{ExportOptions, export, import};
-use photocraft_raw::testgen::{TiffBuilder, Val};
+use openphoto_codecs::{ChannelLayout, EncodeOptions, Format, Image, SampleType, decode, exif_orientation};
+use openphoto_io::{ExportOptions, export, import};
+use openphoto_raw::testgen::{TiffBuilder, Val};
 
 /// EXIF block with only an Orientation tag.
 fn exif(o: u16) -> Vec<u8> {
@@ -49,7 +49,7 @@ fn stored_orientation_6() -> Image {
 }
 
 fn iphone_jpeg() -> Vec<u8> {
-    let jpeg = photocraft_codecs::encode(
+    let jpeg = openphoto_codecs::encode(
         &stored_orientation_6(),
         Format::Jpeg,
         &EncodeOptions { jpeg_quality: 100, jpeg_chroma_subsampling: false, ..Default::default() },
@@ -103,14 +103,14 @@ fn stale_orientation_in_document_metadata_is_never_exported() {
     assert_upright(&back, "jpg");
 
     let psd = export(&d, "psd", &ExportOptions::default()).unwrap().bytes;
-    let file = photocraft_psd::PsdFile::from_bytes(&psd).unwrap();
+    let file = openphoto_psd::PsdFile::from_bytes(&psd).unwrap();
     let e = file.resources.iter().find(|r| r.id == 1058).expect("EXIF resource");
     assert_eq!(exif_orientation(&e.data), 1);
     let x = file.resources.iter().find(|r| r.id == 1060).expect("XMP resource");
     assert!(String::from_utf8_lossy(&x.data).contains(r#"tiff:Orientation="1""#));
 }
 
-/// A NEF-like raw that `photocraft-raw` can't develop yet, with IFD0 Orientation and a
+/// A NEF-like raw that `openphoto-raw` can't develop yet, with IFD0 Orientation and a
 /// baseline JPEG preview stored as the sensor reads out.
 fn nef(ifd0_orientation: u16, preview: Vec<u8>) -> Vec<u8> {
     let mut t = TiffBuilder::default();
@@ -141,7 +141,7 @@ fn nef(ifd0_orientation: u16, preview: Vec<u8>) -> Vec<u8> {
 
 #[test]
 fn raw_preview_is_turned_upright_exactly_once() {
-    let plain = photocraft_codecs::encode(
+    let plain = openphoto_codecs::encode(
         &stored_orientation_6(),
         Format::Jpeg,
         &EncodeOptions { jpeg_quality: 100, jpeg_chroma_subsampling: false, ..Default::default() },
@@ -162,7 +162,7 @@ fn raw_preview_is_turned_upright_exactly_once() {
 
 #[test]
 fn malformed_exif_opens_without_panicking() {
-    let jpeg = photocraft_codecs::encode(&stored_orientation_6(), Format::Jpeg, &EncodeOptions::default()).unwrap();
+    let jpeg = openphoto_codecs::encode(&stored_orientation_6(), Format::Jpeg, &EncodeOptions::default()).unwrap();
     let mut huge = exif(6);
     huge[8..10].copy_from_slice(&u16::MAX.to_le_bytes());
     huge.truncate(14);

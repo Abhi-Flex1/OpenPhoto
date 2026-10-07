@@ -10,8 +10,8 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use photocraft_color::{ColorMode, PixelFormat, SampleType, read_sample, write_sample};
-use photocraft_geom::{Rect, TILE_SIZE, TileCoord};
+use openphoto_color::{ColorMode, PixelFormat, SampleType, read_sample, write_sample};
+use openphoto_geom::{Rect, TILE_SIZE, TileCoord};
 
 /// Pixel storage for one tile: `TILE_SIZE² × bytes_per_pixel`, row-major, interleaved channels.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -559,8 +559,8 @@ pub fn to_rgba(format: &PixelFormat, px: &[f32]) -> [f32; 4] {
     let a = if format.alpha { px[n] } else { 1.0 };
     let rgb = match format.mode {
         ColorMode::Grayscale | ColorMode::Bitmap | ColorMode::Duotone => [px[0]; 3],
-        ColorMode::Cmyk => photocraft_color::convert::cmyk_to_rgb([px[0], px[1], px[2], px[3]]),
-        ColorMode::Lab => photocraft_color::convert::lab_to_srgb([px[0] * 100.0, px[1] * 255.0 - 128.0, px[2] * 255.0 - 128.0]),
+        ColorMode::Cmyk => openphoto_color::convert::cmyk_to_rgb([px[0], px[1], px[2], px[3]]),
+        ColorMode::Lab => openphoto_color::convert::lab_to_srgb([px[0] * 100.0, px[1] * 255.0 - 128.0, px[2] * 255.0 - 128.0]),
         _ => [px[0], px[1], px[2]],
     };
     [rgb[0], rgb[1], rgb[2], a]
@@ -569,10 +569,10 @@ pub fn to_rgba(format: &PixelFormat, px: &[f32]) -> [f32; 4] {
 pub fn from_rgba(format: &PixelFormat, rgba: [f32; 4]) -> Vec<f32> {
     let rgb = [rgba[0], rgba[1], rgba[2]];
     let mut out: Vec<f32> = match format.mode {
-        ColorMode::Grayscale | ColorMode::Bitmap | ColorMode::Duotone => vec![photocraft_color::convert::rgb_to_gray(rgb)],
-        ColorMode::Cmyk => photocraft_color::convert::rgb_to_cmyk(rgb).to_vec(),
+        ColorMode::Grayscale | ColorMode::Bitmap | ColorMode::Duotone => vec![openphoto_color::convert::rgb_to_gray(rgb)],
+        ColorMode::Cmyk => openphoto_color::convert::rgb_to_cmyk(rgb).to_vec(),
         ColorMode::Lab => {
-            let l = photocraft_color::convert::srgb_to_lab(rgb);
+            let l = openphoto_color::convert::srgb_to_lab(rgb);
             vec![l[0] / 100.0, (l[1] + 128.0) / 255.0, (l[2] + 128.0) / 255.0]
         }
         _ => rgb.to_vec(),
@@ -590,15 +590,15 @@ pub fn from_rgba_into(format: &PixelFormat, rgba: [f32; 4], out: &mut [f32]) -> 
     let rgb = [rgba[0], rgba[1], rgba[2]];
     let n = match format.mode {
         ColorMode::Grayscale | ColorMode::Bitmap | ColorMode::Duotone => {
-            out[0] = photocraft_color::convert::rgb_to_gray(rgb);
+            out[0] = openphoto_color::convert::rgb_to_gray(rgb);
             1
         }
         ColorMode::Cmyk => {
-            out[..4].copy_from_slice(&photocraft_color::convert::rgb_to_cmyk(rgb));
+            out[..4].copy_from_slice(&openphoto_color::convert::rgb_to_cmyk(rgb));
             4
         }
         ColorMode::Lab => {
-            let l = photocraft_color::convert::srgb_to_lab(rgb);
+            let l = openphoto_color::convert::srgb_to_lab(rgb);
             out[..3].copy_from_slice(&[l[0] / 100.0, (l[1] + 128.0) / 255.0, (l[2] + 128.0) / 255.0]);
             3
         }
@@ -637,7 +637,7 @@ pub fn is_hdr(sample: SampleType) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use photocraft_color::PixelFormat;
+    use openphoto_color::PixelFormat;
     use proptest::prelude::*;
 
     #[test]

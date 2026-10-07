@@ -8,14 +8,14 @@
 #[cfg(feature = "corpus")]
 use std::path::Path;
 
-use photocraft_doc::text::{CharStyle, Kerning, TextRun};
-use photocraft_doc::{Document, Layer, LayerContent, TextLayer};
-use photocraft_text::engine_data::Value as E;
+use openphoto_doc::text::{CharStyle, Kerning, TextRun};
+use openphoto_doc::{Document, Layer, LayerContent, TextLayer};
+use openphoto_text::engine_data::Value as E;
 
 /// `(AutoKerning, Kerning)` of every UTF-16 unit of the engine text of a `TySh` block.
 fn kerning_fields(tysh: &[u8]) -> Vec<(bool, i64)> {
-    let t = photocraft_text::psd::parse_tysh(tysh).unwrap();
-    let e = photocraft_text::psd::engine_data(&t.text).unwrap();
+    let t = openphoto_text::psd::parse_tysh(tysh).unwrap();
+    let e = openphoto_text::psd::engine_data(&t.text).unwrap();
     let runs = e.path(&["EngineDict", "StyleRun", "RunArray"]).and_then(E::as_array).unwrap();
     let lens = e.path(&["EngineDict", "StyleRun", "RunLengthArray"]).and_then(E::as_array).unwrap();
     let mut out = Vec::new();
@@ -58,16 +58,16 @@ fn manual_and_off_kerning_round_trip_through_psd() {
     use Kerning::{Metrics as M, Off as O};
     // "AVATAR Wave": +100 after A, -50 after T, characters 6..8 without automatic kerning.
     let t = layer("AVATAR Wave", &[(1, O, 100.0), (2, M, 0.0), (1, O, -50.0), (2, M, 0.0), (3, O, 0.0), (2, M, 0.0)]);
-    let mut doc = Document::new("k", photocraft_geom::Size::new(64, 32), photocraft_color::ColorMode::Rgb, photocraft_color::SampleType::U8);
+    let mut doc = Document::new("k", openphoto_geom::Size::new(64, 32), openphoto_color::ColorMode::Rgb, openphoto_color::SampleType::U8);
     let mut t2 = t.clone();
-    photocraft_text::TextEngine::new().render_layer(&mut t2, doc.resolution_dpi, doc.pixel_format());
+    openphoto_text::TextEngine::new().render_layer(&mut t2, doc.resolution_dpi, doc.pixel_format());
     doc.layers.push(Layer::new("kerned", LayerContent::Text(t2)));
-    let bytes = photocraft_io::export(&doc, "k.psd", &Default::default()).unwrap().bytes;
-    let back = photocraft_io::import("k.psd", &bytes).unwrap().document;
+    let bytes = openphoto_io::export(&doc, "k.psd", &Default::default()).unwrap().bytes;
+    let back = openphoto_io::import("k.psd", &bytes).unwrap().document;
     let LayerContent::Text(b) = &back.layers[0].content else { panic!("not text") };
     assert_eq!(chars(b), chars(&t));
 
-    let tysh = photocraft_text::psd::build_tysh(&t, 72.0, None);
+    let tysh = openphoto_text::psd::build_tysh(&t, 72.0, None);
     let f = kerning_fields(&tysh);
     // 11 characters + the trailing paragraph break.
     assert_eq!(f.len(), 12);
@@ -83,13 +83,13 @@ fn manual_and_off_kerning_round_trip_through_psd() {
 #[test]
 fn hostile_kerning_values() {
     let t = layer("AV", &[(1, Kerning::Off, f32::NAN), (1, Kerning::Metrics, f32::INFINITY)]);
-    let tysh = photocraft_text::psd::build_tysh(&t, 72.0, None);
+    let tysh = openphoto_text::psd::build_tysh(&t, 72.0, None);
     assert!(kerning_fields(&tysh).iter().all(|f| f.1 == 0));
-    let back = photocraft_text::psd::text_layer_from_tysh(&tysh, 72.0).unwrap();
+    let back = openphoto_text::psd::text_layer_from_tysh(&tysh, 72.0).unwrap();
     assert!(chars(&back).iter().all(|c| c.1 == 0.0));
     // Huge values clamp.
     let t = layer("AV", &[(1, Kerning::Off, 1e30), (1, Kerning::Metrics, 0.0)]);
-    let f = kerning_fields(&photocraft_text::psd::build_tysh(&t, 72.0, None));
+    let f = kerning_fields(&openphoto_text::psd::build_tysh(&t, 72.0, None));
     assert_eq!(f[1].1, 10_000);
 }
 
@@ -123,7 +123,7 @@ fn photoshop_kerning_oracles() {
     use Kerning::{Metrics as M, Off as O, Optical as P};
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../corpus/photoshop/text");
     assert!(dir.is_dir(), "{} is missing: run `cargo xtask corpus --all`", dir.display());
-    let mut engine = photocraft_text::TextEngine::with_system_fonts();
+    let mut engine = openphoto_text::TextEngine::with_system_fonts();
     let arial = engine.fonts.has_family("Arial");
     // "AVATAR Wavy To. LT" (18 characters).
     let all = |m: Kerning| vec![(m, 0.0f32); 18];
@@ -141,9 +141,9 @@ fn photoshop_kerning_oracles() {
     ];
     for (name, want, same_fields, worst_max, mean_max) in cases {
         let bytes = std::fs::read(dir.join(name)).unwrap_or_else(|e| panic!("{name}: {e}"));
-        let file = photocraft_psd::PsdFile::from_bytes(&bytes).unwrap();
-        let txt2 = file.global_blocks.iter().find(|b| &b.key == b"Txt2").and_then(|b| photocraft_text::psd::parse_txt2(&b.data)).unwrap();
-        let doc = photocraft_io::import(name, &bytes).unwrap().document;
+        let file = openphoto_psd::PsdFile::from_bytes(&bytes).unwrap();
+        let txt2 = file.global_blocks.iter().find(|b| &b.key == b"Txt2").and_then(|b| openphoto_text::psd::parse_txt2(&b.data)).unwrap();
+        let doc = openphoto_io::import(name, &bytes).unwrap().document;
         let t = doc
             .layers
             .iter()
@@ -155,14 +155,14 @@ fn photoshop_kerning_oracles() {
         assert_eq!(chars(t), want, "{name}");
 
         let original = t.psd_raw.as_ref().map(|r| r.to_vec()).unwrap();
-        let tysh = photocraft_text::psd::parse_tysh(&original).unwrap();
-        let rebuilt = photocraft_text::psd::build_tysh(t, doc.resolution_dpi, None);
+        let tysh = openphoto_text::psd::parse_tysh(&original).unwrap();
+        let rebuilt = openphoto_text::psd::build_tysh(t, doc.resolution_dpi, None);
         if same_fields {
             assert_eq!(kerning_fields(&rebuilt), kerning_fields(&original), "{name}");
         }
         // Re-import (with the document's Txt2, as an exported file keeps it): same model.
-        let mut back = photocraft_text::psd::text_layer_from_tysh(&rebuilt, doc.resolution_dpi).unwrap();
-        photocraft_text::psd::apply_txt2(&mut back, &rebuilt, &txt2);
+        let mut back = openphoto_text::psd::text_layer_from_tysh(&rebuilt, doc.resolution_dpi).unwrap();
+        openphoto_text::psd::apply_txt2(&mut back, &rebuilt, &txt2);
         assert_eq!(chars(&back), want, "{name} after export");
 
         // Layout against Photoshop's glyph positions (needs Arial, as Photoshop used).
@@ -171,7 +171,7 @@ fn photoshop_kerning_oracles() {
             continue;
         }
         let index = match &tysh.text.get("TextIndex") {
-            Some(photocraft_psd::descriptor::Value::Integer(i)) => *i as usize,
+            Some(openphoto_psd::descriptor::Value::Integer(i)) => *i as usize,
             _ => panic!("{name}: no TextIndex"),
         };
         let ps = photoshop_positions(&txt2, index).unwrap();

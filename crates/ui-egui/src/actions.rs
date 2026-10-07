@@ -8,7 +8,7 @@ use egui::{Align2, Color32, Rect, Sense, Stroke, pos2, vec2};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 use crate::theme::Tokens;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -34,7 +34,7 @@ fn replayable(id: &str) -> bool {
     !matches!(id, "document.pixel" | "document.inspect" | "session.inspect" | "command.list" | "type.info" | "type.fonts" | "edit.undo" | "edit.redo")
 }
 
-pub fn start_recording(app: &mut PhotocraftApp) {
+pub fn start_recording(app: &mut OpenPhotoApp) {
     let n = app.ui.actions.list.len();
     app.ui.actions.list.push(Action { name: format!("Action {}", n + 1), steps: Vec::new(), expanded: true });
     app.ui.actions.selected = Some(n);
@@ -42,7 +42,7 @@ pub fn start_recording(app: &mut PhotocraftApp) {
 }
 
 /// Stop recording: move the new journal entries into the action.
-pub fn stop_recording(app: &mut PhotocraftApp) {
+pub fn stop_recording(app: &mut OpenPhotoApp) {
     let Some((from, idx)) = app.ui.actions.recording.take() else { return };
     let steps: Vec<(String, Value)> = app.session.journal.iter().skip(from).filter(|(id, _)| replayable(id)).cloned().collect();
     if let Some(a) = app.ui.actions.list.get_mut(idx) {
@@ -51,7 +51,7 @@ pub fn stop_recording(app: &mut PhotocraftApp) {
 }
 
 /// Replay an action; stops at the first failing step and reports it.
-pub fn play(app: &mut PhotocraftApp, idx: usize) -> Result<usize, String> {
+pub fn play(app: &mut OpenPhotoApp, idx: usize) -> Result<usize, String> {
     let steps = app.ui.actions.list.get(idx).map(|a| a.steps.clone()).ok_or("no such action")?;
     for (i, (id, p)) in steps.iter().enumerate() {
         app.run(id, p.clone()).map_err(|e| format!("Step {} ({id}) failed: {e}", i + 1))?;
@@ -60,10 +60,10 @@ pub fn play(app: &mut PhotocraftApp, idx: usize) -> Result<usize, String> {
 }
 
 fn label_of(id: &str) -> String {
-    photocraft_engine::commands::find(id).map(|c| c.label.trim_end_matches('…').to_string()).unwrap_or_else(|| id.to_string())
+    openphoto_engine::commands::find(id).map(|c| c.label.trim_end_matches('…').to_string()).unwrap_or_else(|| id.to_string())
 }
 
-pub fn panel(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+pub fn panel(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     let live = app.ui.actions.recording.map(|(from, _)| app.session.journal.len().saturating_sub(from)).unwrap_or(0);
     let max_h = (ui.available_height() - 70.0).clamp(80.0, 320.0);
@@ -169,7 +169,7 @@ mod tests {
 
     #[test]
     fn record_and_replay_on_another_document() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 40, "height": 40})).unwrap();
         app.sync_views();
         start_recording(&mut app);

@@ -10,12 +10,12 @@
 use std::sync::Arc;
 
 use egui::{Color32, CursorIcon, Pos2, Stroke, pos2, vec2};
-use photocraft_algo::transform::Homography;
-use photocraft_doc::{Document, LayerContent, LayerId};
-use photocraft_geom::warp::{BezierMesh, Warp, WarpStyle};
+use openphoto_algo::transform::Homography;
+use openphoto_doc::{Document, LayerContent, LayerId};
+use openphoto_geom::warp::{BezierMesh, Warp, WarpStyle};
 use serde_json::json;
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 use crate::canvas::{ToolEvent, ViewXform};
 use crate::state::TransformSession;
 
@@ -37,11 +37,11 @@ fn corners(r: [f64; 4]) -> [[f64; 2]; 4] {
 
 /// Start Free Transform on the active layer (or its selected pixels), or on the targeted unlinked
 /// layer mask, alpha channel or Quick Mask.
-pub fn begin(app: &mut PhotocraftApp, ctx: &egui::Context) -> Result<(), String> {
+pub fn begin(app: &mut OpenPhotoApp, ctx: &egui::Context) -> Result<(), String> {
     let target = crate::canvas::paint_target(app);
     let st = app.session.active().ok_or("no document")?;
     let doc = st.doc.clone();
-    let lone = photocraft_engine::transform_cmds::lone_target(&doc, st.active_layer, &json!({ "target": target })).map_err(|e| e.to_string())?.cloned();
+    let lone = openphoto_engine::transform_cmds::lone_target(&doc, st.active_layer, &json!({ "target": target })).map_err(|e| e.to_string())?.cloned();
     if let Some(surf) = lone {
         return begin_lone(app, ctx, doc, surf, target);
     }
@@ -50,7 +50,7 @@ pub fn begin(app: &mut PhotocraftApp, ctx: &egui::Context) -> Result<(), String>
     if matches!(layer.content, LayerContent::Adjustment(_)) && layer.mask.is_none() {
         return Err("Adjustment layers have nothing to transform".into());
     }
-    let b = photocraft_engine::transform_cmds::transform_bounds(&doc, layer);
+    let b = openphoto_engine::transform_cmds::transform_bounds(&doc, layer);
     if b.is_empty() {
         return Err("Could not transform: the layer is empty".into());
     }
@@ -62,7 +62,7 @@ pub fn begin(app: &mut PhotocraftApp, ctx: &egui::Context) -> Result<(), String>
     let mut lifted = None;
     if let Some(sel) = doc.selection.clone().filter(|_| !layer.is_group() && layer.surface().is_some()) {
         if let Some(surf) = pd.layer_mut(id).and_then(|l| l.surface_mut()) {
-            let (l, rest) = photocraft_engine::transform_cmds::split_selected(surf, &sel);
+            let (l, rest) = openphoto_engine::transform_cmds::split_selected(surf, &sel);
             *surf = rest;
             lifted = Some(l);
         }
@@ -93,13 +93,13 @@ pub fn begin(app: &mut PhotocraftApp, ctx: &egui::Context) -> Result<(), String>
 /// box frames its content (within the selection) and previews the moving values in grey over the
 /// document with them vacated.
 fn begin_lone(
-    app: &mut PhotocraftApp,
+    app: &mut OpenPhotoApp,
     ctx: &egui::Context,
     doc: Arc<Document>,
-    surf: photocraft_raster::Surface,
+    surf: openphoto_raster::Surface,
     target: serde_json::Value,
 ) -> Result<(), String> {
-    use photocraft_engine::transform_cmds as tc;
+    use openphoto_engine::transform_cmds as tc;
     let b = tc::target_bounds(&doc, &surf);
     if b.is_empty() {
         return Err("Could not transform: nothing is selected".into());
@@ -108,7 +108,7 @@ fn begin_lone(
     let sel = match &doc.selection {
         Some(s) => s,
         None => {
-            let mut s = photocraft_raster::Surface::new(photocraft_color::PixelFormat::GRAY8);
+            let mut s = openphoto_raster::Surface::new(openphoto_color::PixelFormat::GRAY8);
             s.fill_rect(b, &[1.0]);
             whole = s;
             &whole
@@ -144,7 +144,7 @@ fn begin_lone(
 
 /// Start Select › Transform Selection: the same box over the selection's bounds, previewing the
 /// selection mask (the marching ants are hidden meanwhile); commits `select.transformSelection`.
-pub fn begin_selection(app: &mut PhotocraftApp, ctx: &egui::Context) -> Result<(), String> {
+pub fn begin_selection(app: &mut OpenPhotoApp, ctx: &egui::Context) -> Result<(), String> {
     let st = app.session.active().ok_or("no document")?;
     let doc = st.doc.clone();
     let sel = doc.selection.clone().ok_or("no selection")?;
@@ -186,7 +186,7 @@ pub fn begin_selection(app: &mut PhotocraftApp, ctx: &egui::Context) -> Result<(
 }
 
 /// Start (or switch an active Free Transform into) Warp mode.
-pub fn begin_warp(app: &mut PhotocraftApp, ctx: &egui::Context) -> Result<(), String> {
+pub fn begin_warp(app: &mut OpenPhotoApp, ctx: &egui::Context) -> Result<(), String> {
     if app.ui.transform.is_none() {
         begin(app, ctx)?;
     }
@@ -196,9 +196,9 @@ pub fn begin_warp(app: &mut PhotocraftApp, ctx: &egui::Context) -> Result<(), St
 
 /// Switch to Warp mode: a smart object's existing warp (when the box is untouched), else a
 /// custom mesh following the current box (so a transform made first carries over).
-pub fn enter_warp(app: &mut PhotocraftApp) {
+pub fn enter_warp(app: &mut OpenPhotoApp) {
     let existing =
-        app.session.active().and_then(|d| d.doc.layer(LayerId(app.ui.transform.as_ref()?.layer)).and_then(photocraft_engine::warp_cmds::smart_warp_doc_space));
+        app.session.active().and_then(|d| d.doc.layer(LayerId(app.ui.transform.as_ref()?.layer)).and_then(openphoto_engine::warp_cmds::smart_warp_doc_space));
     let Some(t) = app.ui.transform.as_mut() else { return };
     // Warp moves layers only: a lone mask or channel keeps the box.
     if t.warp.is_some() || t.target.is_some() {
@@ -223,7 +223,7 @@ pub fn enter_warp(app: &mut PhotocraftApp) {
 
 /// Leave Warp mode (back to the box; warp edits are dropped, like Photoshop's mode toggle on an
 /// untouched warp).
-pub fn leave_warp(app: &mut PhotocraftApp) {
+pub fn leave_warp(app: &mut OpenPhotoApp) {
     if let Some(t) = app.ui.transform.as_mut() {
         t.warp = None;
     }
@@ -235,8 +235,8 @@ pub fn leave_warp(app: &mut PhotocraftApp) {
 fn preview_image(
     doc: &Document,
     id: LayerId,
-    lifted: Option<&photocraft_raster::Surface>,
-    b: photocraft_geom::Rect,
+    lifted: Option<&openphoto_raster::Surface>,
+    b: openphoto_geom::Rect,
     max_side: usize,
 ) -> (egui::ColorImage, [f32; 2]) {
     let layer = doc.layer(id);
@@ -244,7 +244,7 @@ fn preview_image(
     let mask = layer.and_then(|l| preview_mask(l, b));
     // Groups and type/fill layers preview from a flattened render of just that layer.
     let rendered;
-    let surf: Option<&photocraft_raster::Surface> = match (lifted, layer.and_then(|l| l.surface())) {
+    let surf: Option<&openphoto_raster::Surface> = match (lifted, layer.and_then(|l| l.surface())) {
         (Some(s), _) => Some(s),
         (None, Some(s)) if layer.is_some_and(|l| matches!(l.content, LayerContent::Raster(_))) => Some(s),
         _ => {
@@ -254,8 +254,8 @@ fn preview_image(
                     l.visible = false;
                 }
             }
-            let buf = photocraft_compose::render(&solo, b);
-            let mut s = photocraft_raster::Surface::new(photocraft_color::PixelFormat::RGBA8);
+            let buf = openphoto_compose::render(&solo, b);
+            let mut s = openphoto_raster::Surface::new(openphoto_color::PixelFormat::RGBA8);
             let flat: Vec<f32> = buf.px.iter().flat_map(|p| *p).collect();
             s.write_region(b, &flat);
             rendered = s;
@@ -271,25 +271,25 @@ fn preview_image(
 /// The layer's masks as the moving texels carry them: the enabled masks when all of them are linked
 /// (the vector mask and feathering folded in as the compositor applies them), else the linked
 /// pixel mask alone. `None` when no enabled mask moves with the pixels.
-fn preview_mask(l: &photocraft_doc::Layer, b: photocraft_geom::Rect) -> Option<crate::transform_tex::PreviewMask> {
+fn preview_mask(l: &openphoto_doc::Layer, b: openphoto_geom::Rect) -> Option<crate::transform_tex::PreviewMask> {
     use crate::transform_tex::PreviewMask;
     let pixel = l.mask.as_ref().filter(|m| m.enabled);
     let vector = l.vector_mask.as_ref().filter(|v| v.enabled);
     let linked_pixel = pixel.filter(|m| m.linked);
     if pixel.is_none_or(|m| m.linked)
         && vector.is_some_and(|v| v.linked)
-        && let Some(surface) = photocraft_compose::masks::combined_mask(l, b)
+        && let Some(surface) = openphoto_compose::masks::combined_mask(l, b)
     {
         return Some(PreviewMask { surface, density: 1.0 });
     }
     linked_pixel.map(|m| PreviewMask { surface: m.surface.clone(), density: m.density })
 }
 
-fn contains(l: &photocraft_doc::Layer, id: LayerId) -> bool {
+fn contains(l: &openphoto_doc::Layer, id: LayerId) -> bool {
     l.id == id || matches!(&l.content, LayerContent::Group(g) if g.children.iter().any(|c| contains(c, id)))
 }
 
-pub fn commit(app: &mut PhotocraftApp) {
+pub fn commit(app: &mut OpenPhotoApp) {
     let Some(t) = app.ui.transform.take() else { return };
     app.transform_preview = None;
     if t.selection {
@@ -326,7 +326,7 @@ pub fn commit(app: &mut PhotocraftApp) {
     }
 }
 
-pub fn cancel(app: &mut PhotocraftApp) {
+pub fn cancel(app: &mut OpenPhotoApp) {
     app.ui.transform = None;
     app.transform_preview = None;
 }
@@ -381,7 +381,7 @@ struct Gesture {
 }
 
 /// Pointer input while transforming. Returns false when no transform is active.
-pub fn pointer(app: &mut PhotocraftApp, ev: ToolEvent, mods: egui::Modifiers) -> bool {
+pub fn pointer(app: &mut OpenPhotoApp, ev: ToolEvent, mods: egui::Modifiers) -> bool {
     let Some(t) = app.ui.transform.clone() else { return false };
     let tol = 8.0 / app.current_zoom().max(0.01) as f64;
     if t.warp.is_some() {
@@ -590,7 +590,7 @@ fn warp_hit(w: &Warp, p: [f64; 2], tol: f64) -> Option<usize> {
 
 /// Drags a warp control point. Anchors (patch corners) carry their handles along, as in
 /// Photoshop. Preset warps turn into a custom mesh on the first drag.
-fn warp_pointer(app: &mut PhotocraftApp, ev: ToolEvent, tol: f64) {
+fn warp_pointer(app: &mut OpenPhotoApp, ev: ToolEvent, tol: f64) {
     let (Some(t), Some(pv)) = (app.ui.transform.as_mut(), app.transform_preview.as_mut()) else { return };
     let Some(w) = t.warp.as_mut() else { return };
     match ev {
@@ -628,7 +628,7 @@ fn warp_pointer(app: &mut PhotocraftApp, ev: ToolEvent, tol: f64) {
 }
 
 /// Applies a split-warp command to the mesh being edited (at the box centre unless `at`).
-pub fn split(app: &mut PhotocraftApp, id: &str, at: Option<[f64; 2]>) -> Result<(), String> {
+pub fn split(app: &mut OpenPhotoApp, id: &str, at: Option<[f64; 2]>) -> Result<(), String> {
     let Some(w) = app.ui.transform.as_ref().and_then(|t| t.warp.clone()) else { return Err("not warping".into()) };
     let mut p = json!({"warp": w});
     if let Some(a) = at {
@@ -643,7 +643,7 @@ pub fn split(app: &mut PhotocraftApp, id: &str, at: Option<[f64; 2]>) -> Result<
 }
 
 /// Cursor for hovering a document point while transforming.
-pub fn cursor(app: &PhotocraftApp, p: [f64; 2]) -> Option<CursorIcon> {
+pub fn cursor(app: &OpenPhotoApp, p: [f64; 2]) -> Option<CursorIcon> {
     let t = app.ui.transform.as_ref()?;
     let tol = 8.0 / app.current_zoom().max(0.01) as f64;
     if let Some(w) = &t.warp {
@@ -661,7 +661,7 @@ pub fn cursor(app: &PhotocraftApp, p: [f64; 2]) -> Option<CursorIcon> {
 }
 
 /// Warped preview of the moving pixels plus the box, handles and reference point.
-pub fn draw_overlay(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXform) {
+pub fn draw_overlay(app: &OpenPhotoApp, painter: &egui::Painter, xf: &ViewXform) {
     let (Some(t), Some(pv)) = (&app.ui.transform, &app.transform_preview) else { return };
     let scr = |q: [f64; 2]| xf.to_screen(q[0] as f32, q[1] as f32);
     if let Some(w) = &t.warp {
@@ -810,7 +810,7 @@ fn readout(t: &TransformSession) -> (f64, f64, f64, f64) {
 }
 
 /// Options bar while transforming: reference point X/Y, W/H %, angle, interpolation, ✓ / ⊘.
-pub fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+pub fn options_bar(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let Some(t) = app.ui.transform.clone() else { return };
     let tk = crate::theme::Tokens::get(ui.ctx());
     if let Some(w) = t.warp.clone() {
@@ -890,7 +890,7 @@ pub fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
 }
 
 /// Options bar in Warp mode: style, bend and distortions, split buttons, mode toggle, ✓ / ⊘.
-fn warp_options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui, w: &Warp) {
+fn warp_options_bar(app: &mut OpenPhotoApp, ui: &mut egui::Ui, w: &Warp) {
     let tk = crate::theme::Tokens::get(ui.ctx());
     let lbl = |ui: &mut egui::Ui, s: &str| {
         ui.label(egui::RichText::new(s).color(tk.text_dim).size(12.0));
@@ -963,7 +963,7 @@ fn warp_options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui, w: &Warp) {
 }
 
 /// Scale the box along its own axes about the reference point.
-fn scale_about_pivot(app: &mut PhotocraftApp, kx: f64, ky: f64) {
+fn scale_about_pivot(app: &mut OpenPhotoApp, kx: f64, ky: f64) {
     let Some(s) = app.ui.transform.as_mut() else { return };
     let Some(h) = Homography::rect_to_quad([0.0, 0.0, 1.0, 1.0], s.quad) else { return };
     let Some(inv) = h.inverse() else { return };
@@ -975,7 +975,7 @@ fn scale_about_pivot(app: &mut PhotocraftApp, kx: f64, ky: f64) {
     s.quad = [m(0.0, 0.0), m(1.0, 0.0), m(1.0, 1.0), m(0.0, 1.0)];
 }
 
-fn rotate_about_pivot(app: &mut PhotocraftApp, da: f64) {
+fn rotate_about_pivot(app: &mut OpenPhotoApp, da: f64) {
     let Some(s) = app.ui.transform.as_mut() else { return };
     let (sn, cs) = da.sin_cos();
     let c = s.pivot;
@@ -1057,13 +1057,13 @@ mod tests {
 
     #[test]
     fn begin_and_commit_through_the_engine() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
         app.session.execute("file.new", json!({"width": 64, "height": 64})).unwrap();
         app.sync_views();
         app.session.execute("layer.new.layer", json!({})).unwrap();
         app.session
             .edit("paint", |doc, a| {
-                doc.layer_mut(a.unwrap()).unwrap().surface_mut().unwrap().fill_rect(photocraft_geom::Rect::new(8, 8, 24, 24), &[1.0, 0.0, 0.0, 1.0]);
+                doc.layer_mut(a.unwrap()).unwrap().surface_mut().unwrap().fill_rect(openphoto_geom::Rect::new(8, 8, 24, 24), &[1.0, 0.0, 0.0, 1.0]);
                 Ok(())
             })
             .unwrap();
@@ -1078,8 +1078,8 @@ mod tests {
         assert!(app.ui.transform.is_none() && app.transform_preview.is_none());
     }
 
-    fn app_with_square(size: u32, fill: photocraft_geom::Rect) -> PhotocraftApp {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+    fn app_with_square(size: u32, fill: openphoto_geom::Rect) -> OpenPhotoApp {
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
         app.session.execute("file.new", json!({"width": size, "height": size})).unwrap();
         app.sync_views();
         app.session.execute("layer.new.layer", json!({})).unwrap();
@@ -1104,7 +1104,7 @@ mod tests {
     #[test]
     fn preview_texture_is_full_resolution() {
         // #91: the preview used to be sampled down to 2048 px, so big layers looked blurry at 100%.
-        let mut app = app_with_square(3000, photocraft_geom::Rect::new(10, 20, 2810, 2420));
+        let mut app = app_with_square(3000, openphoto_geom::Rect::new(10, 20, 2810, 2420));
         let ctx = gpu_ctx();
         begin(&mut app, &ctx).unwrap();
         let pv = app.transform_preview.as_ref().unwrap();
@@ -1128,7 +1128,7 @@ mod tests {
 
     #[test]
     fn alt_click_moves_the_reference_point_and_edges_skew() {
-        let mut app = app_with_square(64, photocraft_geom::Rect::new(8, 8, 24, 24));
+        let mut app = app_with_square(64, openphoto_geom::Rect::new(8, 8, 24, 24));
         let ctx = egui::Context::default();
         begin(&mut app, &ctx).unwrap();
         assert!(pointer(&mut app, ToolEvent::Down { x: 40.0, y: 40.0, pressure: 1.0 }, egui::Modifiers::ALT));
@@ -1150,12 +1150,12 @@ mod tests {
         assert_eq!((s.quad[1], s.quad[2]), ([100.0, -10.0], [100.0, 60.0]));
     }
 
-    /// `cargo test --release -p photocraft-ui-egui transform_preview_bench -- --ignored --nocapture`
+    /// `cargo test --release -p openphoto-ui-egui transform_preview_bench -- --ignored --nocapture`
     #[test]
     #[ignore]
     fn transform_preview_bench() {
         let (w, h) = (6000, 4000);
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
         app.session.execute("file.new", json!({"width": w, "height": h})).unwrap();
         app.sync_views();
         app.session.execute("layer.new.layer", json!({})).unwrap();
@@ -1193,11 +1193,11 @@ mod tests {
 
     #[test]
     fn transform_selection_moves_only_the_outline() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
         app.session.execute("file.new", json!({"width": 64, "height": 64})).unwrap();
         app.sync_views();
         app.session.execute("select.rect", json!({"x": 8, "y": 8, "width": 16, "height": 16})).unwrap();
-        let px0 = app.session.active().unwrap().doc.layers[0].surface().unwrap().read_region(photocraft_geom::Rect::new(0, 0, 64, 64));
+        let px0 = app.session.active().unwrap().doc.layers[0].surface().unwrap().read_region(openphoto_geom::Rect::new(0, 0, 64, 64));
         let ctx = egui::Context::default();
         crate::menus::invoke(&mut app, &ctx, "select.transformSelection", json!({})).unwrap();
         let t = app.ui.transform.as_ref().unwrap();
@@ -1208,18 +1208,18 @@ mod tests {
         let st = app.session.active().unwrap();
         let b = st.doc.selection.as_ref().unwrap().content_bounds();
         assert!(b.width().abs_diff(32) <= 2 && b.x0.abs_diff(0) <= 1, "{b:?}");
-        assert_eq!(st.doc.layers[0].surface().unwrap().read_region(photocraft_geom::Rect::new(0, 0, 64, 64)), px0);
+        assert_eq!(st.doc.layers[0].surface().unwrap().read_region(openphoto_geom::Rect::new(0, 0, 64, 64)), px0);
     }
 
     #[test]
     fn warp_mode_drags_anchor_with_handles_splits_and_commits() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
         app.session.execute("file.new", json!({"width": 64, "height": 64})).unwrap();
         app.sync_views();
         app.session.execute("layer.new.layer", json!({})).unwrap();
         app.session
             .edit("paint", |doc, a| {
-                doc.layer_mut(a.unwrap()).unwrap().surface_mut().unwrap().fill_rect(photocraft_geom::Rect::new(8, 8, 32, 32), &[1.0, 0.0, 0.0, 1.0]);
+                doc.layer_mut(a.unwrap()).unwrap().surface_mut().unwrap().fill_rect(openphoto_geom::Rect::new(8, 8, 32, 32), &[1.0, 0.0, 0.0, 1.0]);
                 Ok(())
             })
             .unwrap();
@@ -1251,13 +1251,13 @@ mod tests {
     // ---- Layer masks (#205) ----
 
     /// `app_with_square` (red over 8..24) plus a reveal-all mask hiding x < 16.
-    fn masked_app(linked: bool) -> PhotocraftApp {
-        let mut app = app_with_square(64, photocraft_geom::Rect::new(8, 8, 24, 24));
+    fn masked_app(linked: bool) -> OpenPhotoApp {
+        let mut app = app_with_square(64, openphoto_geom::Rect::new(8, 8, 24, 24));
         app.session.execute("layer.layerMask.revealAll", json!({})).unwrap();
         app.session
             .edit("mask", |doc, a| {
                 let m = doc.layer_mut(a.unwrap()).unwrap().mask.as_mut().unwrap();
-                m.surface.fill_rect(photocraft_geom::Rect::new(0, 0, 16, 64), &[0.0]);
+                m.surface.fill_rect(openphoto_geom::Rect::new(0, 0, 16, 64), &[0.0]);
                 m.linked = linked;
                 Ok(())
             })
@@ -1275,7 +1275,7 @@ mod tests {
             let app = masked_app(linked);
             let st = app.session.active().unwrap();
             let id = st.active_layer.unwrap();
-            let b = photocraft_geom::Rect::new(8, 8, 24, 24);
+            let b = openphoto_geom::Rect::new(8, 8, 24, 24);
             let (img, _) = preview_image(&st.doc, id, None, b, 4096);
             // Texel x = doc x − 8: x 10 is hidden by the mask, x 20 shows.
             assert_eq!(texel_alpha(&img, 12, 4), 255);
@@ -1289,8 +1289,8 @@ mod tests {
         let st = app.session.active().unwrap();
         let sel = st.doc.selection.clone().unwrap();
         let id = st.active_layer.unwrap();
-        let (lifted, _) = photocraft_engine::transform_cmds::split_selected(st.doc.layer(id).unwrap().surface().unwrap(), &sel);
-        let b = photocraft_geom::Rect::new(8, 8, 20, 24);
+        let (lifted, _) = openphoto_engine::transform_cmds::split_selected(st.doc.layer(id).unwrap().surface().unwrap(), &sel);
+        let b = openphoto_geom::Rect::new(8, 8, 20, 24);
         let (img, _) = preview_image(&st.doc, id, Some(&lifted), b, 4096);
         assert_eq!(texel_alpha(&img, 2, 4), 0, "masked");
         assert_eq!(texel_alpha(&img, 10, 4), 255, "revealed");
@@ -1317,7 +1317,7 @@ mod tests {
         let l = st.doc.layer(st.active_layer.unwrap()).unwrap();
         let m = &l.mask.as_ref().unwrap().surface;
         assert!(m.sample_channel(4, 30, 0) > 0.99 && m.sample_channel(30, 30, 0) < 0.01, "mask moved 20 px right");
-        assert_eq!(l.surface().unwrap().content_bounds(), photocraft_geom::Rect::new(8, 8, 24, 24), "pixels untouched");
+        assert_eq!(l.surface().unwrap().content_bounds(), openphoto_geom::Rect::new(8, 8, 24, 24), "pixels untouched");
         // Warp mode doesn't apply to a lone mask.
         app.ui.mask_target = true;
         begin(&mut app, &ctx).unwrap();

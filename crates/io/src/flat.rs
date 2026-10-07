@@ -1,12 +1,12 @@
-//! Flat raster formats via `photocraft-codecs`.
+//! Flat raster formats via `openphoto-codecs`.
 
 use std::sync::Arc;
 
-use photocraft_codecs::{self as codecs, ChannelLayout, Format, Image, SampleType as CSample};
-use photocraft_color::{BlendMode, ColorMode, PixelFormat, SampleType};
-use photocraft_doc::{Document, Layer, LayerContent};
-use photocraft_geom::{Rect, Size, TILE_SIZE};
-use photocraft_raster::Surface;
+use openphoto_codecs::{self as codecs, ChannelLayout, Format, Image, SampleType as CSample};
+use openphoto_color::{BlendMode, ColorMode, PixelFormat, SampleType};
+use openphoto_doc::{Document, Layer, LayerContent};
+use openphoto_geom::{Rect, Size, TILE_SIZE};
+use openphoto_raster::Surface;
 
 use crate::{ExportOptions, ExportResult, ImportResult, IoError};
 
@@ -21,7 +21,7 @@ pub fn import_flat(name: &str, bytes: &[u8]) -> Result<ImportResult, IoError> {
     // stated otherwise): tag them linear sRGB so they display and convert correctly.
     let d = &mut r.document;
     if d.icc_profile.is_none() && d.mode == ColorMode::Rgb && matches!(codecs::detect(bytes), Some(Format::OpenExr | Format::Hdr)) {
-        d.icc_profile = Some(photocraft_cms::Builtin::LinearSrgb.profile().to_bytes());
+        d.icc_profile = Some(openphoto_cms::Builtin::LinearSrgb.profile().to_bytes());
     }
     Ok(r)
 }
@@ -92,8 +92,8 @@ fn single_layer(doc: &Document) -> Option<&Surface> {
         && l.effects.items.is_empty()
         && l.effects.psd_raw.is_none()
         && matches!(l.blend, BlendMode::Normal | BlendMode::PassThrough)
-        && photocraft_compose::channel_weights(l, doc.mode).is_none()
-        && !photocraft_compose::blend_if_active(l, doc.mode);
+        && openphoto_compose::channel_weights(l, doc.mode).is_none()
+        && !openphoto_compose::blend_if_active(l, doc.mode);
     match (&l.content, ok) {
         (LayerContent::Raster(s), true) if s.format() == doc.pixel_format() => Some(s),
         _ => None,
@@ -161,7 +161,7 @@ pub fn document_to_image(doc: &Document, warnings: &mut Vec<String>) -> Result<I
             // The compositor renders CMYK/Lab documents in sRGB (CMYK through the built-in
             // profile), so the file is tagged sRGB.
             warnings.push(format!("{:?} composite written as sRGB RGB (colour-managed conversion)", fmt.mode));
-            icc = Some(photocraft_cms::Builtin::Srgb.profile().to_bytes().to_vec());
+            icc = Some(openphoto_cms::Builtin::Srgb.profile().to_bytes().to_vec());
         }
         let cs = csample(fmt.sample);
         let colors = if gray { 1 } else { 3 };
@@ -169,7 +169,7 @@ pub fn document_to_image(doc: &Document, warnings: &mut Vec<String>) -> Result<I
         // is dropped afterwards, in place, when every pixel turned out opaque.
         let mut data = try_buffer(n, (colors + 1) * cs.bytes())?;
         let mut opaque = true;
-        let _ = photocraft_compose::render_bands(doc, canvas, 0, |band| -> Result<(), ()> {
+        let _ = openphoto_compose::render_bands(doc, canvas, 0, |band| -> Result<(), ()> {
             opaque &= band.px.iter().all(|p| p[3] >= 1.0);
             let parts = crate::pixels::par_map(crate::pixels::bands(band.px.len()), |range| {
                 let mut out = Vec::with_capacity(range.len() * (colors + 1) * cs.bytes());
@@ -183,7 +183,7 @@ pub fn document_to_image(doc: &Document, warnings: &mut Vec<String>) -> Result<I
                 };
                 for p in &band.px[range] {
                     if gray {
-                        put(photocraft_color::convert::rgb_to_gray([p[0], p[1], p[2]]));
+                        put(openphoto_color::convert::rgb_to_gray([p[0], p[1], p[2]]));
                     } else {
                         put(p[0]);
                         put(p[1]);
@@ -238,9 +238,9 @@ fn opaque_surface(s: &Surface, r: Rect) -> bool {
     let fmt = s.format();
     let (ch, bps) = (fmt.channels(), fmt.sample.bytes());
     let a = ch - 1;
-    let alpha_ok = |px: &[u8]| photocraft_color::read_sample(px, fmt.sample, a) >= 1.0;
+    let alpha_ok = |px: &[u8]| openphoto_color::read_sample(px, fmt.sample, a) >= 1.0;
     let mut default = vec![0u8; ch * bps];
-    photocraft_raster::encode_pixel(&fmt, &s.default_pixel(), &mut default);
+    openphoto_raster::encode_pixel(&fmt, &s.default_pixel(), &mut default);
     r.tiles().all(|tc| {
         let tr = tc.rect().intersect(&r);
         match s.tile(tc) {
@@ -280,7 +280,7 @@ pub fn export_flat(doc: &Document, format: Format, opts: &ExportOptions) -> Resu
 /// Colour-managed CMYK → sRGB for formats that cannot store CMYK (the document's embedded
 /// CMYK profile when it parses, else the built-in coated CMYK; relative colorimetric + BPC).
 fn cmyk_image_to_srgb(img: &Image) -> Result<Image, IoError> {
-    use photocraft_cms::{Builtin, ColorSpace, Intent, Profile, Transform};
+    use openphoto_cms::{Builtin, ColorSpace, Intent, Profile, Transform};
     let src = img
         .icc
         .as_ref()
@@ -306,7 +306,7 @@ fn cmyk_image_to_srgb(img: &Image) -> Result<Image, IoError> {
 /// OpenEXR and Radiance HDR store linear light (read back as linear sRGB, see [`import_flat`]):
 /// RGB pixels in another profile (sRGB when untagged) are converted to linear sRGB, unclamped.
 fn rgb_image_to_linear(img: Image) -> Result<Image, IoError> {
-    use photocraft_cms::{Builtin, ColorSpace, Intent, Profile, Transform};
+    use openphoto_cms::{Builtin, ColorSpace, Intent, Profile, Transform};
     if !matches!(img.layout(), ChannelLayout::Rgb | ChannelLayout::Rgba) {
         return Ok(img);
     }
@@ -330,7 +330,7 @@ fn export_mode_specific(doc: &Document, format: Format, opts: &ExportOptions) ->
         ColorMode::Indexed if format == Format::Png => {
             let Some(table) = doc.color_table.as_ref().filter(|t| !t.colors.is_empty() && t.colors.len() <= 256) else { return Ok(None) };
             let mut idx = try_buffer(doc.size.area() as usize, 1)?;
-            let _ = photocraft_compose::render_bands(doc, doc.bounds(), 0, |band| -> Result<(), ()> {
+            let _ = openphoto_compose::render_bands(doc, doc.bounds(), 0, |band| -> Result<(), ()> {
                 idx.extend(band.px.iter().map(|p| match table.transparent {
                     Some(t) if p[3] < 0.5 => t,
                     _ => table.nearest([p[0], p[1], p[2]]) as u8,
@@ -343,7 +343,7 @@ fn export_mode_specific(doc: &Document, format: Format, opts: &ExportOptions) ->
         ColorMode::Duotone => {
             let Some(d) = doc.duotone.as_ref() else { return Ok(None) };
             let mut shown = doc.clone();
-            shown.layers.push(photocraft_doc::Layer::new("Duotone", photocraft_doc::LayerContent::Adjustment(d.display_adjustment())));
+            shown.layers.push(openphoto_doc::Layer::new("Duotone", openphoto_doc::LayerContent::Adjustment(d.display_adjustment())));
             shown.mode = ColorMode::Rgb;
             shown.icc_profile = None;
             shown.duotone = None;

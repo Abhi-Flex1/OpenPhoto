@@ -1,13 +1,13 @@
 //! Chrome around the canvas: title bar, options bar, toolbar, status bar, dock cards, Properties.
 
 use egui::{Align2, Color32, CornerRadius, Rect, RichText, Sense, Stroke, StrokeKind, Vec2, pos2, vec2};
-use photocraft_color::BlendMode;
-use photocraft_doc::{Layer, LayerContent, LayerId};
+use openphoto_color::BlendMode;
+use openphoto_doc::{Layer, LayerContent, LayerId};
 use serde_json::{Value, json};
 
 use crate::state::Tool;
 use crate::theme::{self, Tokens};
-use crate::{PhotocraftApp, icons, widgets};
+use crate::{OpenPhotoApp, icons, widgets};
 
 // ----------------------------------------------------------------------------- toolbar
 
@@ -51,7 +51,7 @@ fn slot_tool(ui: &egui::Ui, current: Tool, slot: &[Tool], key: egui::Id) -> Tool
     ui.data(|d| d.get_temp::<Tool>(key)).filter(|t| slot.contains(t)).unwrap_or(slot[0])
 }
 
-pub fn toolbar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+pub fn toolbar(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     let (w1, bx, m) = if t.pro { (40.0, 30.0, 5i8) } else { (50.0, 36.0, 7i8) };
     // Photoshop switches to a double-column toolbar only when one column doesn't fit.
@@ -249,7 +249,7 @@ fn c32(c: [f32; 4]) -> Color32 {
     Color32::from_rgba_unmultiplied((c[0] * 255.0) as u8, (c[1] * 255.0) as u8, (c[2] * 255.0) as u8, (c[3] * 255.0) as u8)
 }
 
-fn color_chips(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+fn color_chips(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     let (rect, _) = ui.allocate_exact_size(vec2(36.0, 38.0), Sense::hover());
     let bg = Rect::from_min_size(rect.min + vec2(13.0, 13.0), vec2(21.0, 21.0));
@@ -281,7 +281,7 @@ fn color_chips(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
 
 // ----------------------------------------------------------------------------- title bar
 
-pub fn title_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+pub fn title_bar(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     let left = if cfg!(target_os = "macos") && app.integrated_titlebar { 78 } else { 10 };
     egui::Panel::top("title_bar")
@@ -297,7 +297,7 @@ pub fn title_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
                 let max = ui.ctx().input(|i| i.viewport().maximized.unwrap_or(false));
                 ui.ctx().send_viewport_cmd(egui::ViewportCommand::Maximized(!max));
             }
-            let title = app.session.active().map(|d| format!("{}{}", d.doc.name, if d.is_dirty() { "  •" } else { "" })).unwrap_or_else(|| "PhotoCraft".into());
+            let title = app.session.active().map(|d| format!("{}{}", d.doc.name, if d.is_dirty() { "  •" } else { "" })).unwrap_or_else(|| "OpenPhoto".into());
             // The menus and the right-hand controls are laid out first; the title is centred in
             // whatever room is left between them, shortened or dropped rather than drawn over them.
             let (mut menus_right, mut controls_left) = (full.left(), full.right());
@@ -394,7 +394,7 @@ mod title_tests {
 
 // ----------------------------------------------------------------------------- options bar
 
-pub fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+pub fn options_bar(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     egui::Panel::top("options_bar")
         .exact_size(if t.pro { 36.0 } else { 42.0 })
@@ -738,7 +738,7 @@ pub fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
                             ui.set_min_width(200.0);
                             let mut section = |ui: &mut egui::Ui, title: &str, prefix: &str| {
                                 ui.label(egui::RichText::new(tl!(&title)).small().color(t.text_dim));
-                                for c in photocraft_engine::command_specs().iter().filter(|c| c.id.starts_with(prefix)) {
+                                for c in openphoto_engine::command_specs().iter().filter(|c| c.id.starts_with(prefix)) {
                                     if ui.add_enabled(app.session.is_enabled(c.id), egui::Button::new(c.label)).clicked() {
                                         let _ = app.run(c.id, json!({}));
                                         ui.close();
@@ -836,7 +836,7 @@ fn hint(ui: &mut egui::Ui, s: &str) {
 
 // ----------------------------------------------------------------------------- status bar
 
-pub fn status_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+pub fn status_bar(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     egui::Panel::bottom("status_bar")
         .exact_size(if t.pro { 24.0 } else { 30.0 })
@@ -886,7 +886,7 @@ pub fn status_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
 
 // ----------------------------------------------------------------------------- dock
 
-pub fn right_dock(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+pub fn right_dock(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     let p = app.ui.panels.clone();
     if t.pro {
@@ -937,7 +937,7 @@ pub fn request_dock_width(ctx: &egui::Context, w: f32) {
     ctx.data_mut(|d| d.insert_temp(dock_width_id(), w));
 }
 
-fn dock_panels(app: &mut PhotocraftApp, ui: &mut egui::Ui, p: &crate::state::Panels, t: &Tokens) {
+fn dock_panels(app: &mut OpenPhotoApp, ui: &mut egui::Ui, p: &crate::state::Panels, t: &Tokens) {
     use crate::dock::Group;
     // Floating in Studio, Properties docks only in Pro (Photoshop).
     let shown: Vec<Group> = [
@@ -966,7 +966,7 @@ fn dock_panels(app: &mut PhotocraftApp, ui: &mut egui::Ui, p: &crate::state::Pan
 }
 
 /// One dock group's tab content; `dock` bounds it and scrolls it when it's taller.
-fn dock_body(app: &mut PhotocraftApp, ui: &mut egui::Ui, group: crate::dock::Group, tab: usize) {
+fn dock_body(app: &mut OpenPhotoApp, ui: &mut egui::Ui, group: crate::dock::Group, tab: usize) {
     use crate::dock::Group;
     let pro = Tokens::get(ui.ctx()).pro;
     match (group, tab) {
@@ -992,7 +992,7 @@ fn dock_body(app: &mut PhotocraftApp, ui: &mut egui::Ui, group: crate::dock::Gro
 }
 
 /// Photoshop's Info panel: colour under the pointer (RGB and CMYK), position, selection size.
-fn info_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+fn info_panel(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     let Some(st) = app.session.active() else {
         empty(ui, tl!("No document"));
@@ -1005,7 +1005,7 @@ fn info_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
     let fx = move |px: f64| units.format(px, dpi, size.width as f64);
     let units_y = app.session.prefs().units_and_rulers.clone();
     let fy = move |px: f64| units_y.format(px, dpi, size.height as f64);
-    let sel = st.doc.selection.as_ref().map(photocraft_compose::bounds::content_bounds);
+    let sel = st.doc.selection.as_ref().map(openphoto_compose::bounds::content_bounds);
     let pos = app
         .hover_doc
         .map(|p| (p[0].floor() as i32, p[1].floor() as i32))
@@ -1060,7 +1060,7 @@ fn info_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
     );
 }
 
-fn navigator(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+fn navigator(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     let Some(idx) = app.session.active_index() else {
         empty(ui, tl!("No document"));
@@ -1166,7 +1166,7 @@ const SWATCHES: [[u8; 3]; 40] = [
     [110, 20, 90],
 ];
 
-fn swatches(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+fn swatches(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     let cols = 10;
     let gap = 4.0;
@@ -1194,7 +1194,7 @@ fn swatches(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
     ui.label(RichText::new(tl!("Click sets foreground · right-click sets background")).small().color(t.text_faint));
 }
 
-fn color_picker(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+fn color_picker(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let fg = app.session.tools.foreground;
     let hsva0 = srgb_hsva(fg);
     let mut h = hsva0.h * 360.0;
@@ -1242,7 +1242,7 @@ fn blend_options(groups: bool) -> Vec<(BlendMode, &'static str)> {
     std::iter::once(BlendMode::PassThrough).filter(|_| groups).chain(BlendMode::LAYER_MODES).map(|m| (m, m.label())).collect()
 }
 
-fn layers(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+fn layers(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     // A new active layer opens its parent groups and is scrolled into view (#152).
     let reveal = crate::layer_reveal::track(app, ui.ctx());
     let Some(st) = app.session.active() else {
@@ -1359,7 +1359,7 @@ fn layers(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
             crate::layer_row_ui::begin(ui.ctx());
             for &(depth, l) in &rows {
                 // Select › Isolate Layers.
-                if !photocraft_engine::select_extra_cmds::isolation_shows(&doc, &isolated, l.id) {
+                if !openphoto_engine::select_extra_cmds::isolation_shows(&doc, &isolated, l.id) {
                     continue;
                 }
                 if !filter.is_empty() {
@@ -1409,7 +1409,7 @@ fn layers(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
             let adj = icons::button(ui, "contrast", 26.0, false, tl!("Create new fill or adjustment layer"));
             egui::Popup::menu(&adj).show(|ui| {
                 ui.set_min_width(190.0);
-                for c in photocraft_engine::command_specs().iter().filter(|c| c.id.starts_with("layer.newAdjustmentLayer.")) {
+                for c in openphoto_engine::command_specs().iter().filter(|c| c.id.starts_with("layer.newAdjustmentLayer.")) {
                     if ui.button(c.label.trim_end_matches('…')).clicked() {
                         actions.push((c.id.into(), json!({})));
                         ui.close();
@@ -1520,10 +1520,10 @@ fn select_mode(m: egui::Modifiers) -> &'static str {
 
 #[allow(clippy::too_many_arguments)]
 fn layer_row(
-    app: &mut PhotocraftApp,
+    app: &mut OpenPhotoApp,
     ctx: &egui::Context,
     ui: &mut egui::Ui,
-    doc: &photocraft_doc::Document,
+    doc: &openphoto_doc::Document,
     l: &Layer,
     depth: usize,
     row: RowSel,
@@ -1657,9 +1657,9 @@ fn layer_row(
         let on_thumb = pos.is_some_and(|p| thumb.expand(2.0).contains(p));
         let on_vector = pos.and_then(|p| masks.hit(p)) == Some(crate::mask_thumbs_ui::MaskKind::Vector);
         // Clicking the layer thumbnail leaves mask view (#196).
-        let viewing = app.session.active().and_then(photocraft_engine::mask_view_cmds::current).is_some_and(|v| v.layer == l.id);
+        let viewing = app.session.active().and_then(openphoto_engine::mask_view_cmds::current).is_some_and(|v| v.layer == l.id);
         if on_thumb && viewing {
-            actions.push((photocraft_engine::mask_view_cmds::ID.into(), json!({"layer": l.id.0, "mode": "off"})));
+            actions.push((openphoto_engine::mask_view_cmds::ID.into(), json!({"layer": l.id.0, "mode": "off"})));
         }
         let content_less = matches!(l.content, LayerContent::Adjustment(_) | LayerContent::Fill(_));
         if on_vector {
@@ -1709,7 +1709,7 @@ fn layer_row(
     });
 }
 
-fn draw_layer_thumb(app: &mut PhotocraftApp, ctx: &egui::Context, ui: &egui::Ui, doc: &photocraft_doc::Document, l: &Layer, rect: Rect, selected: bool) {
+fn draw_layer_thumb(app: &mut OpenPhotoApp, ctx: &egui::Context, ui: &egui::Ui, doc: &openphoto_doc::Document, l: &Layer, rect: Rect, selected: bool) {
     let t = Tokens::get(ctx);
     let p = ui.painter();
     match &l.content {
@@ -1727,7 +1727,7 @@ fn draw_layer_thumb(app: &mut PhotocraftApp, ctx: &egui::Context, ui: &egui::Ui,
         LayerContent::Fill(f) if crate::gradient_ui::paint_thumbnail(ui, l.id, f, rect) => {}
         LayerContent::Fill(f) => {
             let c = match f {
-                photocraft_doc::Fill::Solid(c) => c.to_rgba8(),
+                openphoto_doc::Fill::Solid(c) => c.to_rgba8(),
                 _ => [128, 128, 128, 255],
             };
             p.rect_filled(rect, 6.0, Color32::from_rgba_unmultiplied(c[0], c[1], c[2], c[3]));
@@ -1752,11 +1752,11 @@ fn draw_layer_thumb(app: &mut PhotocraftApp, ctx: &egui::Context, ui: &egui::Ui,
     crate::smart_ui::thumb_badge(ui, l, rect);
 }
 
-fn channels(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+fn channels(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     crate::channels_panel::show(app, ui);
 }
 
-fn history(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+fn history(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     let Some(st) = app.session.active() else {
         empty(ui, tl!("No document"));
@@ -1851,7 +1851,7 @@ fn history(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
 // ----------------------------------------------------------------------------- properties
 
 /// Floating Properties card anchored to the canvas' top-right corner.
-pub fn properties_window(app: &mut PhotocraftApp, ctx: &egui::Context) {
+pub fn properties_window(app: &mut OpenPhotoApp, ctx: &egui::Context) {
     // Pro (Photoshop) docks Properties; Studio floats it over the canvas.
     if !app.ui.panels.properties || Tokens::get(ctx).pro {
         return;
@@ -1935,7 +1935,7 @@ pub fn properties_window(app: &mut PhotocraftApp, ctx: &egui::Context) {
     }
 }
 
-fn adjustment_controls(app: &mut PhotocraftApp, ui: &mut egui::Ui, id: LayerId, adj: &photocraft_doc::Adjustment) {
+fn adjustment_controls(app: &mut OpenPhotoApp, ui: &mut egui::Ui, id: LayerId, adj: &openphoto_doc::Adjustment) {
     crate::adjust_editors::layer_editor(app, ui, id, adj);
     ui.add_space(6.0);
     let layer = app.session.active().and_then(|s| s.doc.layer(id).cloned());
@@ -1958,7 +1958,7 @@ fn adjustment_controls(app: &mut PhotocraftApp, ui: &mut egui::Ui, id: LayerId, 
     }
 }
 
-fn layer_controls(app: &mut PhotocraftApp, ui: &mut egui::Ui, layer: &Layer) {
+fn layer_controls(app: &mut OpenPhotoApp, ui: &mut egui::Ui, layer: &Layer) {
     let t = Tokens::get(ui.ctx());
     if let Some(s) = layer.surface() {
         let b = app.cached_bounds(layer.id.0, s);
@@ -1984,7 +1984,7 @@ fn layer_controls(app: &mut PhotocraftApp, ui: &mut egui::Ui, layer: &Layer) {
 }
 
 /// Docked Properties body (Pro theme).
-fn properties_body(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+fn properties_body(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     let Some(st) = app.session.active() else {
         empty(ui, tl!("No properties"));
@@ -2015,7 +2015,7 @@ fn properties_body(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
         // Transform, Align, the kind's sections and Quick Actions.
         crate::layer_props_ui::properties(app, ui, layer);
     } else {
-        if matches!(layer.content, LayerContent::Fill(photocraft_doc::Fill::Gradient { .. })) {
+        if matches!(layer.content, LayerContent::Fill(openphoto_doc::Fill::Gradient { .. })) {
             crate::gradient_ui::properties(app, ui, layer);
             ui.add_space(6.0);
         }
@@ -2030,7 +2030,7 @@ fn properties_body(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
 }
 
 /// Photoshop's Adjustments panel: a grid of one-click adjustment layers.
-fn adjustments_grid(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+fn adjustments_grid(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     ui.label(RichText::new(tl!("Add an adjustment")).color(t.text_dim));
     ui.add_space(4.0);
@@ -2068,7 +2068,7 @@ fn adjustments_grid(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
 }
 
 /// Photoshop Color panel: saturation/brightness field + hue strip, drawn as shaded meshes.
-fn color_field(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+fn color_field(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     let fg = app.session.tools.foreground;
     let key = egui::Id::new("color-field-hue");
@@ -2187,7 +2187,7 @@ fn brush_tip(p: &egui::Painter, c: egui::Pos2, rad: f32, hardness: f32, color: C
 }
 
 /// Options-bar Smoothing % (the brush's stroke smoothing; the live stroke and the commit use it).
-fn smoothing_field(ui: &mut egui::Ui, b: &mut photocraft_engine::BrushSettings, width: f32) {
+fn smoothing_field(ui: &mut egui::Ui, b: &mut openphoto_engine::BrushSettings, width: f32) {
     let mut sm = (b.smoothing.amount * 100.0).round();
     if widgets::value_field(ui, &mut sm, 0.0..=100.0, "%", width).changed() {
         b.smoothing.amount = (sm / 100.0).clamp(0.0, 1.0);
@@ -2198,8 +2198,8 @@ fn smoothing_field(ui: &mut egui::Ui, b: &mut photocraft_engine::BrushSettings, 
 /// library). Returns what the picker asked for beyond the size and hardness edits in `b`.
 fn brush_preset_chip(
     ui: &mut egui::Ui,
-    b: &mut photocraft_engine::BrushSettings,
-    presets: &[photocraft_engine::paint::BrushPreset],
+    b: &mut openphoto_engine::BrushSettings,
+    presets: &[openphoto_engine::paint::BrushPreset],
 ) -> Option<crate::brush_picker::Pick> {
     let t = Tokens::get(ui.ctx());
     let (r, resp) = ui.allocate_exact_size(vec2(44.0, 30.0), Sense::click());
@@ -2272,7 +2272,7 @@ fn layer_drag_and_drop(ctx: &egui::Context, ui: &egui::Ui, l: &Layer, rect: Rect
 }
 
 /// Photoshop shows a layer's effects as indented sub-rows ("Effects", then each effect).
-fn effect_rows(app: &mut PhotocraftApp, ui: &mut egui::Ui, l: &Layer, depth: usize) {
+fn effect_rows(app: &mut OpenPhotoApp, ui: &mut egui::Ui, l: &Layer, depth: usize) {
     let t = Tokens::get(ui.ctx());
     let indent = 30.0 + depth as f32 * 14.0 + 34.0;
     let mut rows: Vec<(String, bool, Option<&'static str>)> = vec![("Effects".into(), l.effects.enabled, None)];
@@ -2314,7 +2314,7 @@ fn effect_rows(app: &mut PhotocraftApp, ui: &mut egui::Ui, l: &Layer, depth: usi
 }
 
 /// New / add / subtract / intersect selection buttons (shared by selection tools).
-fn selection_mode_buttons(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+fn selection_mode_buttons(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     ui.spacing_mut().item_spacing.x = 2.0;
     for (i, (icon, tip)) in [
         ("square", tl!("New selection").to_string()),
@@ -2369,14 +2369,14 @@ mod lock_tests {
     use crate::canvas::{ToolEvent, tool_event};
     use egui::Modifiers;
 
-    fn click_lock(app: &mut PhotocraftApp) {
+    fn click_lock(app: &mut OpenPhotoApp) {
         let st = app.session.active().unwrap();
         let l = st.active_layer.and_then(|id| st.doc.layer(id)).unwrap();
         let (cmd, p) = simple_lock_toggle(crate::doc_props_ui::is_background(&st.doc, l), l);
         app.run(&cmd, p).unwrap();
     }
 
-    fn erase_line(app: &mut PhotocraftApp) {
+    fn erase_line(app: &mut OpenPhotoApp) {
         app.ui.tool = Tool::Eraser;
         let m = Modifiers::NONE;
         tool_event(app, ToolEvent::Down { x: 10.0, y: 40.0, pressure: 1.0 }, m);
@@ -2388,7 +2388,7 @@ mod lock_tests {
     fn simple_lock_button_never_locks_the_eraser_out_of_the_background() {
         // #76: the simple themes' lock button used to toggle "lock all" on the Background, which
         // kept showing as locked and then refused every paint tool.
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 120, "height": 80})).unwrap();
         app.run("tools.setColors", json!({"background": "#ff0000"})).unwrap();
         app.run("tools.setBrush", json!({"brush": {"size": 12, "hardness": 1.0}})).unwrap();

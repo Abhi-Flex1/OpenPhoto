@@ -1,4 +1,4 @@
-# Photocraft Architecture
+# OpenPhoto Architecture
 
 Status: draft v1 (2026-09-30). This plan does not assume a final UI toolkit. The candidates are discussed in [`rust-framework-options.md`](rust-framework-options.md).
 
@@ -74,48 +74,48 @@ The test is simple: **adding 64-bit float, a new colour model, or a new file for
 ## 2. Workspace layout
 
 ```text
-photocraft/
+openphoto/
 ├─ Cargo.toml                  # [workspace], shared deps, lints, profiles
 ├─ crates/
 │  │  ── foundation (no_std-friendly where practical, wasm-safe) ──
-│  ├─ geom/                    photocraft-geom      points, rects, affine/perspective, tile coords, bezier (kurbo)
-│  ├─ cms/                     photocraft-cms       pure-Rust ICC colour management: profiles, transforms, intents, BPC, soft proof, 3D LUTs
-│  ├─ color/                   photocraft-color     pixel formats, color spaces, blend-mode math (scalar reference); conversions via cms
-│  ├─ raster/                  photocraft-raster    tiled COW surfaces, masks, mip pyramids, damage regions, pixel iterators
+│  ├─ geom/                    openphoto-geom      points, rects, affine/perspective, tile coords, bezier (kurbo)
+│  ├─ cms/                     openphoto-cms       pure-Rust ICC colour management: profiles, transforms, intents, BPC, soft proof, 3D LUTs
+│  ├─ color/                   openphoto-color     pixel formats, color spaces, blend-mode math (scalar reference); conversions via cms
+│  ├─ raster/                  openphoto-raster    tiled COW surfaces, masks, mip pyramids, damage regions, pixel iterators
 │  │  ── document ──
-│  ├─ doc/                     photocraft-doc       document model: layer tree, masks, effects, channels, paths, guides, metadata (pure data + serde)
-│  ├─ ops/                     photocraft-ops       reversible operations on a doc + transactions + history/undo
+│  ├─ doc/                     openphoto-doc       document model: layer tree, masks, effects, channels, paths, guides, metadata (pure data + serde)
+│  ├─ ops/                     openphoto-ops       reversible operations on a doc + transactions + history/undo
 │  │  ── algorithms (CPU reference impls, rayon, wasm-safe) ──
-│  ├─ algo/                    photocraft-algo      adjustments, filters, selection, inpaint/heal, warp/transform, resampling
-│  ├─ paint/                   photocraft-paint     brush engine: dabs, dynamics, stroke smoothing, brush presets (.abr import later)
-│  ├─ text/                    photocraft-text      font DB trait, shaping + layout (parley/skrifa/harfrust), text-layer rasterization
-│  ├─ vector/                  photocraft-vector    shapes, paths, strokes → coverage (vello_cpu / kurbo)
+│  ├─ algo/                    openphoto-algo      adjustments, filters, selection, inpaint/heal, warp/transform, resampling
+│  ├─ paint/                   openphoto-paint     brush engine: dabs, dynamics, stroke smoothing, brush presets (.abr import later)
+│  ├─ text/                    openphoto-text      font DB trait, shaping + layout (parley/skrifa/harfrust), text-layer rasterization
+│  ├─ vector/                  openphoto-vector    shapes, paths, strokes → coverage (vello_cpu / kurbo)
 │  │  ── rendering ──
-│  ├─ compose/                 photocraft-compose   layer tree → DrawOp plan; CPU compositor (reference + export + wasm fallback)
-│  ├─ gpu/                     photocraft-gpu       wgpu backend for the DrawOp plan + GPU kernels (WGSL), residency cache, memory budget
-│  ├─ viewport/                photocraft-viewport  camera (zoom/pan/rotate), visible tiles/mips, renders a doc into a wgpu texture; toolkit-agnostic
+│  ├─ compose/                 openphoto-compose   layer tree → DrawOp plan; CPU compositor (reference + export + wasm fallback)
+│  ├─ gpu/                     openphoto-gpu       wgpu backend for the DrawOp plan + GPU kernels (WGSL), residency cache, memory budget
+│  ├─ viewport/                openphoto-viewport  camera (zoom/pan/rotate), visible tiles/mips, renders a doc into a wgpu texture; toolkit-agnostic
 │  │  ── I/O ──
-│  ├─ psd/                     photocraft-psd       PSD/PSB read + write; its OWN format-level model; depends on nothing in this workspace
-│  ├─ adobe-assets/            photocraft-adobe-assets  .abr .asl .aco/.ase .grd .pat .csh .atn .cube/.3dl, ACR .xmp presets (standalone, like psd)
-│  ├─ codecs/                  photocraft-codecs    png/jpeg/tiff/webp/gif/bmp/avif/jxl (+heif via feature) decode/encode
-│  ├─ raw/                     photocraft-raw       clean-room camera RAW decode (DNG, CR2, TIFF/EP) + develop pipeline (standalone, like psd)
-│  ├─ format/                  photocraft-format    native document format (.pcraft bundle): manifest + content-addressed tiles
-│  ├─ io/                      photocraft-io        import/export orchestration; doc ⇄ PSD mapping; PDF/SVG import (features)
+│  ├─ psd/                     openphoto-psd       PSD/PSB read + write; its OWN format-level model; depends on nothing in this workspace
+│  ├─ adobe-assets/            openphoto-adobe-assets  .abr .asl .aco/.ase .grd .pat .csh .atn .cube/.3dl, ACR .xmp presets (standalone, like psd)
+│  ├─ codecs/                  openphoto-codecs    png/jpeg/tiff/webp/gif/bmp/avif/jxl (+heif via feature) decode/encode
+│  ├─ raw/                     openphoto-raw       clean-room camera RAW decode (DNG, CR2, TIFF/EP) + develop pipeline (standalone, like psd)
+│  ├─ format/                  openphoto-format    native document format (.pcraft bundle): manifest + content-addressed tiles
+│  ├─ io/                      openphoto-io        import/export orchestration; doc ⇄ PSD mapping; PDF/SVG import (features)
 │  │  ── intelligence ──
-│  ├─ ml/                      photocraft-ml        model registry + InferenceBackend trait (ort native / burn|candle web); SAM2, matting, depth, sky
-│  ├─ plugins/                 photocraft-plugins   sandboxed WebAssembly filter plug-ins (wasmi host, limits, ABI v1, registry)
+│  ├─ ml/                      openphoto-ml        model registry + InferenceBackend trait (ort native / burn|candle web); SAM2, matting, depth, sky
+│  ├─ plugins/                 openphoto-plugins   sandboxed WebAssembly filter plug-ins (wasmi host, limits, ABI v1, registry)
 │  │  ── the façade every frontend talks to ──
-│  ├─ tools/                   photocraft-tools     tool state machines (move, marquee, lasso, brush, clone, gradient, crop, transform, pen, text…)
-│  ├─ engine/                  photocraft-engine    Session: open docs, command registry + dispatch, jobs, events, view-models, preferences
+│  ├─ tools/                   openphoto-tools     tool state machines (move, marquee, lasso, brush, clone, gradient, crop, transform, pen, text…)
+│  ├─ engine/                  openphoto-engine    Session: open docs, command registry + dispatch, jobs, events, view-models, preferences
 │  │  ── platform + frontends ──
-│  ├─ platform/                photocraft-platform  traits: file dialogs, clipboard, fonts, tablet input, menus, storage; native + web impls
-│  ├─ ui-egui/                 photocraft-ui-egui   the (first) GUI shell: panels, dialogs, canvas widget, theme
-│  ├─ automation/              photocraft-automation  MCP server (rmcp) + JSON-RPC over the command registry
-│  └─ testkit/                 photocraft-testkit   golden images, perceptual diff, fixtures, PSD corpus helpers
+│  ├─ platform/                openphoto-platform  traits: file dialogs, clipboard, fonts, tablet input, menus, storage; native + web impls
+│  ├─ ui-egui/                 openphoto-ui-egui   the (first) GUI shell: panels, dialogs, canvas widget, theme
+│  ├─ automation/              openphoto-automation  MCP server (rmcp) + JSON-RPC over the command registry
+│  └─ testkit/                 openphoto-testkit   golden images, perceptual diff, fixtures, PSD corpus helpers
 ├─ apps/
-│  ├─ photocraft/              desktop binary (winit + wgpu + ui-egui + platform-native)
-│  ├─ photocraft-cli/          headless batch CLI (open → commands → export), also hosts `mcp` subcommand
-│  └─ photocraft-web/          wasm32 binary (ui-egui + platform-web), demo
+│  ├─ openphoto/              desktop binary (winit + wgpu + ui-egui + platform-native)
+│  ├─ openphoto-cli/          headless batch CLI (open → commands → export), also hosts `mcp` subcommand
+│  └─ openphoto-web/          wasm32 binary (ui-egui + platform-web), demo
 ├─ shaders/                    (or inside gpu/) WGSL, with generated struct headers
 ├─ assets/                     icons, bundled fonts, default brushes/swatches/presets
 ├─ fuzz/                       cargo-fuzz targets (psd, codecs, format)
@@ -127,7 +127,7 @@ photocraft/
 
 **Crate granularity:** start with the crates above. Split `algo` into `-adjust`, `-filters`, `-select`, `-inpaint` and `-warp` once any module passes about 10k lines, or once compile times hurt. Its internal module boundaries should already follow those lines.
 
-**Naming:** directories are short and packages are prefixed `photocraft-`. `photocraft-psd` gets a neutral, publishable name (such as `psd-rw`) if we release it to crates.io.
+**Naming:** directories are short and packages are prefixed `openphoto-`. `openphoto-psd` gets a neutral, publishable name (such as `psd-rw`) if we release it to crates.io.
 
 ---
 
@@ -148,8 +148,8 @@ photocraft/
 
 1. A crate may depend only on crates in **lower** layers. No cycles and no sideways dependencies, except where listed.
 2. **Nothing below L6 may depend on any UI toolkit, winit, or a `platform` implementation.** Platform services reach the engine through traits defined in `engine` (or in `platform`'s trait-only core), and are injected at startup.
-3. **`photocraft-psd` depends on no workspace crate.** The doc ⇄ PSD mapping lives in `io`. This keeps the PSD crate publishable and reusable by other projects.
-4. **wasm gate:** every crate in L0–L5 (except feature-gated native backends) must build for `wasm32-unknown-unknown`. CI runs `cargo build -p photocraft-engine --target wasm32-unknown-unknown --no-default-features --features web`.
+3. **`openphoto-psd` depends on no workspace crate.** The doc ⇄ PSD mapping lives in `io`. This keeps the PSD crate publishable and reusable by other projects.
+4. **wasm gate:** every crate in L0–L5 (except feature-gated native backends) must build for `wasm32-unknown-unknown`. CI runs `cargo build -p openphoto-engine --target wasm32-unknown-unknown --no-default-features --features web`.
 5. `gpu` is optional for `engine`. Engine features are `gpu` (default on) and `cpu-only`, and `cpu-only` builds are what the headless CLI and CI tests use.
 6. **C dependencies** (libheif, optional LibRaw, pdfium) only behind features, only in `codecs`, `raw` or `io`, and never on by default for the web target.
 
@@ -162,7 +162,7 @@ A frontend needs exactly five things from the core. Keeping these small and data
 ### 4.1 `Session`: commands in, events out
 
 ```rust
-// photocraft-engine
+// openphoto-engine
 pub struct Session { /* docs, registry, job pool, prefs, services */ }
 
 impl Session {
@@ -189,13 +189,13 @@ Each command registers the following:
 **Consumers:**
 - The GUI builds the menu bar, the ⌘K palette and the shortcut editor from it.
 - `automation` exposes the registry as MCP tools.
-- `photocraft-cli` exposes `photocraft run --cmd filter.blur.gaussian --param radius=4 in.psd out.png`.
+- `openphoto-cli` exposes `openphoto run --cmd filter.blur.gaussian --param radius=4 in.psd out.png`.
 - Action recording is simply `Vec<CommandInvocation>`.
 
 ### 4.3 Tools: pointer events in, ops and overlays out
 
 ```rust
-// photocraft-tools
+// openphoto-tools
 pub struct PointerEvent { pub pos_doc: Point, pub pressure: f32, pub tilt: Vector, pub twist: f32,
                           pub time_us: u64, pub buttons: Buttons, pub mods: Modifiers, pub kind: PointerKind /* mouse|pen|eraser|touch */ }
 
@@ -218,7 +218,7 @@ Coalesced high-rate pen samples come from `platform` and are handed to tools as 
 ### 4.4 Viewport: document to pixels
 
 ```rust
-// photocraft-viewport
+// openphoto-viewport
 pub struct Viewport { pub camera: Camera /* zoom, pan, rotation, dpr */, /* tile/mip cache */ }
 impl Viewport {
     pub fn render_gpu(&mut self, snap: &DocSnapshot, gpu: &GpuContext, target: &wgpu::TextureView, damage: &Region);
@@ -235,11 +235,11 @@ impl Viewport {
 - Panels (Layers, History, Channels, Paths, Properties, Navigator, Histogram, Swatches) read plain structs produced from a snapshot, such as `LayersModel { rows: Vec<LayerRow{ id, name, kind, depth, visible, locked, thumb: ThumbHandle, blend, opacity, has_mask, effects: Vec<..> }> }`. Thumbnails are `ThumbHandle`s that the UI resolves to textures through an engine thumbnail cache.
 - Dialogs are generated from command `params` schemas. A toolkit may register *custom* dialog widgets for a few complex commands: Curves, Levels, Camera Raw, Liquify, Layer Style.
 
-**Litmus test for the seam:** `apps/photocraft-cli` and the automation server must be able to do *everything* the GUI does, except pointer painting, which they do by replaying `PointerEvent` streams through tools.
+**Litmus test for the seam:** `apps/openphoto-cli` and the automation server must be able to do *everything* the GUI does, except pointer painting, which they do by replaying `PointerEvent` streams through tools.
 
 ---
 
-## 5. Document model (`photocraft-doc`)
+## 5. Document model (`openphoto-doc`)
 
 ```rust
 pub struct Document {
@@ -276,7 +276,7 @@ pub enum LayerContent {
 
 ---
 
-## 6. Operations and history (`photocraft-ops`)
+## 6. Operations and history (`openphoto-ops`)
 
 - **Every mutation is an `Op`**, such as `SetLayerProps`, `PaintTiles{layer, tiles_before, tiles_after}`, `AddLayer`, `MoveLayer` or `ApplyFilter`.
 - **A command produces a `Transaction` of ops** with a label ("Gaussian Blur").
@@ -316,7 +316,7 @@ Both backends consume the same plan. This is the only place that encodes Photosh
 ### 7.3 Color
 
 - Blending happens in document space by default, which is Photoshop-compatible. A per-document "linear light blending" option is also available.
-- **Display transform** (`engine/src/display_color.rs`): the canvas is always colour-managed, document profile → monitor profile (relative colorimetric + BPC), cached per (document profile, mode, monitor). On the GPU canvas the transform, plus Proof Colors / Gamut Warning / 32-bit preview, is baked into a 33³ 3D LUT the canvas shader's final pass applies; the CPU canvas runs an 8-bit `photocraft-cms` transform on the composite. When the document profile matches the monitor (sRGB on sRGB) there is no LUT and no transform. Linear composites (EXR/HDR, tagged linear sRGB on import) are stored sRGB-encoded in the 8-bit canvas texture. CMYK documents are read through their embedded CMYK profile (`photocraft_color::convert::with_cmyk_space`, entered by the compositors and composite exports).
+- **Display transform** (`engine/src/display_color.rs`): the canvas is always colour-managed, document profile → monitor profile (relative colorimetric + BPC), cached per (document profile, mode, monitor). On the GPU canvas the transform, plus Proof Colors / Gamut Warning / 32-bit preview, is baked into a 33³ 3D LUT the canvas shader's final pass applies; the CPU canvas runs an 8-bit `openphoto-cms` transform on the composite. When the document profile matches the monitor (sRGB on sRGB) there is no LUT and no transform. Linear composites (EXR/HDR, tagged linear sRGB on import) are stored sRGB-encoded in the 8-bit canvas texture. CMYK documents are read through their embedded CMYK profile (`openphoto_color::convert::with_cmyk_space`, entered by the compositors and composite exports).
 - **Monitor profile:** Edit › Color Settings › Monitor Profile: `auto` (macOS: the main display's profile, read at launch through `osascript`/AppKit `NSScreen.colorSpace.ICCProfileData`, no FFI; elsewhere sRGB), a built-in RGB profile or an `.icc` path. The profile is not re-read when the window moves to another display.
 - **HDR/EDR output** (an `rgba16float` surface with an extended-range colorspace) is a later-phase feature. The interfaces already carry `f32` pixels.
 
@@ -326,7 +326,7 @@ Both backends consume the same plan. This is the only place that encodes Photosh
 
 ---
 
-## 8. `photocraft-psd`: standalone PSD/PSB crate
+## 8. `openphoto-psd`: standalone PSD/PSB crate
 
 **Scope:** faithful, format-level read and write of PSD (v1) and PSB (v2, 64-bit lengths). It has no dependency on our document model.
 
@@ -357,7 +357,7 @@ psd/src/
   5. Text layers: shaped with `text`; the original descriptors are kept for round-trip.
   6. Smart objects: embedded and linked, live both ways (`io::smart_map`). Import reads the
      placed-layer data (`SoLd`: file id, transform quad, warp), the smart filter stack
-     (`filterFX`: modelled filters become their PhotoCraft command and params; any other filter
+     (`filterFX`: modelled filters become their OpenPhoto command and params; any other filter
      stays verbatim and is listed as not editable) and the filter mask (global `FEid`). Export
      writes `PlLd` + `SoLd`, embeds the source in `lnk2` (a `.pcraft` source becomes a PSB of the
      nested document, written by our own PSD writer) and a filter cache with the unfiltered
@@ -374,7 +374,7 @@ psd/src/
 
 ---
 
-## 9. Native file format (`photocraft-format`)
+## 9. Native file format (`openphoto-format`)
 
 - **Format:** a `.pcraft` file is a zip (store mode) or directory bundle.
   - `manifest.json`: a versioned document tree with serde, including `format_version` and migrations.
@@ -441,7 +441,7 @@ psd/src/
     access fail closed at the automation boundary.
 - **Actions:** recorded `Vec<CommandInvocation>`, replayable in batch (File → Automate → Batch).
 - **Scripting (later):** embed a scripting language over the same registry. Options are Rhai, or Lua via mlua (C). JS via QuickJS is possible if we want Photoshop-script familiarity.
-- **Plugins:** sandboxed WebAssembly filter plug-ins (`photocraft-plugins`, L4) run by `wasmi`, a pure-Rust interpreter, with fuel, memory, stack and wall-time limits and no host imports. They are driven by the `plugin.*` commands and listed under Filter › Plug-ins; the ABI is in [`plugins.md`](plugins.md). Native Photoshop `.8BF`/CEP/UXP hosting is out of scope (it needs unsafe FFI and can't run on the web). Panel plug-ins are later.
+- **Plugins:** sandboxed WebAssembly filter plug-ins (`openphoto-plugins`, L4) run by `wasmi`, a pure-Rust interpreter, with fuel, memory, stack and wall-time limits and no host imports. They are driven by the `plugin.*` commands and listed under Filter › Plug-ins; the ABI is in [`plugins.md`](plugins.md). Native Photoshop `.8BF`/CEP/UXP hosting is out of scope (it needs unsafe FFI and can't run on the web). Panel plug-ins are later.
 
 ---
 
@@ -493,7 +493,7 @@ schemars = "1"
 blake3 = "1"
 zstd = "*"           # native; ruzstd for wasm decode
 # color / codecs
-# ICC: our own photocraft-cms (pure Rust)
+# ICC: our own openphoto-cms (pure Rust)
 image = { version = "*", default-features = false }
 jxl-oxide = "*"
 # gpu
@@ -535,7 +535,7 @@ Each phase ends with a demoable build and green CI on all targets. Phases 8–10
 | **4. Adjust and filter** | adjustment layers (first 10), first 20 filters with schema-generated dialogs + live preview; **PSD write**; actions recording | PSD open → edit → save opens correctly in Photoshop/Photopea |
 | **5. Text, vector, styles** | text layers, shapes/pen/paths, layer effects (drop shadow, stroke, glows, overlays, bevel) | PSD text/shape/effects round-trip at fidelity 4–5 |
 | **6. Smart features** | ML backend + SAM2 select subject/object, background removal, content-aware fill, healing, RAW develop | select subject + remove background on a portrait in <3 s |
-| **7. Automation and web** | MCP server + CLI parity, batch; `photocraft-web` demo | an agent edits a PSD through MCP; the web demo opens a PSD, paints and filters |
+| **7. Automation and web** | MCP server + CLI parity, batch; `openphoto-web` demo | an agent edits a PSD through MCP; the web demo opens a PSD, paints and filters |
 
 ---
 
@@ -543,7 +543,7 @@ Each phase ends with a demoable build and green CI on all targets. Phases 8–10
 
 1. **UI toolkit.** The leading option is egui on winit + wgpu. Bevy, Slint and Qt are the alternatives (see `rust-framework-options.md`). This plan works with any of them.
 2. **License.** MIT/Apache-2.0 is maximally reusable. GPL-3.0 is the Krita/GIMP model and protects against proprietary forks. Note that some candidate deps are LGPL (rawler) or GPL-or-commercial (Slint), and MIT/Apache would constrain which of them we can use.
-3. **Project name.** `photocraft` (the repo name) is assumed.
+3. **Project name.** `openphoto` (the repo name) is assumed.
 4. **PSD crate.** Build our own, or adopt or fork `ag-psd`/`psd`. Decide after the week-1 spike.
 5. **Default working depth and blending.** 8-bit + gamma-space blending matches Photoshop. 16-bit/float + linear is the modern default. The proposal is to follow Photoshop by default and make the other a per-document option.
 6. **Scope of Photoshop plugin compatibility.** Decided: no native `.8BF` hosting; a sandboxed WebAssembly plug-in API instead (see [`plugins.md`](plugins.md)).

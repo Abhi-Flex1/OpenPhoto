@@ -296,7 +296,7 @@ version = "0.38.0+1.3.281"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0bb44936d800fea8f016d7f2311c6a4f97aebd5dc86f09906139ec848cf3a46f"
 dependencies = [
- "libloading",
+ "libloading 0.8.9",
 ]
 
 [[package]]
@@ -630,6 +630,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "borsh"
+version = "1.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "553c5d846a6ba5150c65e3b1b8ec073bcf1abc20f9b7220de384a4443ea4e20a"
+dependencies = [
+ "bytes",
+ "cfg_aliases",
+]
+
+[[package]]
 name = "built"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -928,6 +938,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
+name = "convert_case"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec182b0ca2f35d8fc196cf3404988fd8b8c739a4d270ff118a398feb0cbec1ca"
+dependencies = [
+ "unicode-segmentation",
+]
+
+[[package]]
+name = "convert_case"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "affbf0190ed2caf063e3def54ff444b449371d55c58e513a95ab98eca50adb49"
+dependencies = [
+ "unicode-segmentation",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1051,6 +1079,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5"
 
 [[package]]
+name = "ctor"
+version = "1.0.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "914a755b7c2d4af2bdcff7ce1739e2db9a1b81a9b07123d8015786ae03c0980d"
+
+[[package]]
 name = "cursor-icon"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1144,7 +1178,7 @@ version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab8ecd87370524b461f8557c119c405552c396ed91fc0a8eec68679eab26f94a"
 dependencies = [
- "libloading",
+ "libloading 0.8.9",
 ]
 
 [[package]]
@@ -1660,6 +1694,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa9a19cbb55df58761df49b23516a86d432839add4af60fc256da840f66ed35b"
 
 [[package]]
+name = "form_urlencoded"
+version = "1.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb4cb245038516f5f85277875cdaa4f7d2c9a0fa0468de06ed190163b1581fcf"
+dependencies = [
+ "percent-encoding",
+]
+
+[[package]]
 name = "fs-set-times"
 version = "0.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1875,7 +1918,7 @@ dependencies = [
  "glutin_egl_sys",
  "glutin_glx_sys",
  "glutin_wgl_sys",
- "libloading",
+ "libloading 0.8.9",
  "objc2 0.6.4",
  "objc2-app-kit 0.3.2",
  "objc2-core-foundation",
@@ -2175,6 +2218,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 
 [[package]]
+name = "idna"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b0875f23caa03898994f6ddc501886a45c7d3d62d04d2d90788d47be1b1e4de"
+dependencies = [
+ "idna_adapter",
+ "smallvec",
+ "utf8_iter",
+]
+
+[[package]]
+name = "idna_adapter"
+version = "1.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb68373c0d6620ef8105e855e7745e18b0d00d3bdb07fb532e434244cdb9a714"
+dependencies = [
+ "icu_normalizer",
+ "icu_properties",
+]
+
+[[package]]
 name = "image"
 version = "0.25.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2417,13 +2481,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "keyboard-types"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0fbe853b403ae61a04233030ae8a79d94975281ed9770a1f9e246732b534b28d"
+dependencies = [
+ "bitflags 2.13.2",
+ "serde",
+]
+
+[[package]]
 name = "khronos-egl"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6aae1df220ece3c0ada96b8153459b67eebe9ae9212258bb0134ae60416fdf76"
 dependencies = [
  "libc",
- "libloading",
+ "libloading 0.8.9",
  "pkg-config",
 ]
 
@@ -2505,6 +2579,16 @@ name = "libloading"
 version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d7c4b02199fee7c5d21a5ae7d8cfa79a6ef5bb2fc834d6e9058e89c825efdc55"
+dependencies = [
+ "cfg-if",
+ "windows-link",
+]
+
+[[package]]
+name = "libloading"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "754ca22de805bb5744484a5b151a9e1a8e837d5dc232c2d7d8c2e3492edc8b60"
 dependencies = [
  "cfg-if",
  "windows-link",
@@ -2708,6 +2792,63 @@ dependencies = [
  "indexmap",
  "rustc-hash 1.1.0",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "napi-build-ohos"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "617bcd176a3dc3d96c0acad112a482f592242d6fba6773a9eb8d90e042a35260"
+
+[[package]]
+name = "napi-derive-backend-ohos"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5b06bf282ab442eed04c89f8a833bd06d4cf22f18654f50d848449db9e94438a"
+dependencies = [
+ "convert_case 0.11.0",
+ "proc-macro2",
+ "quote",
+ "semver",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "napi-derive-ohos"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "419b1721d9f21d76c1a5cb38e2628211cb786b5efb9e1dd2fc049ba1cb938e47"
+dependencies = [
+ "convert_case 0.11.0",
+ "ctor",
+ "napi-derive-backend-ohos",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "napi-ohos"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe1a014105134b7889e85f5ab6f8ec5240db43ed37e6c4a38bd7b4a164b345e0"
+dependencies = [
+ "bitflags 2.13.2",
+ "ctor",
+ "futures",
+ "napi-build-ohos",
+ "napi-sys-ohos",
+ "nohash-hasher",
+ "rustc-hash 2.1.3",
+]
+
+[[package]]
+name = "napi-sys-ohos"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "266964b97e57f3ca023ed13e7c78d4c8f3900aa00466bbeb8cb7746653cabc5f"
+dependencies = [
+ "libloading 0.9.0",
 ]
 
 [[package]]
@@ -3171,6 +3312,218 @@ dependencies = [
 ]
 
 [[package]]
+name = "ohos-accessibility-sys"
+version = "0.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e49b0e83fb2b9ea8d1d079e5c73920f2e30743922091b095ed2cfdf2953fc602"
+dependencies = [
+ "ohos-arkui-input-sys",
+]
+
+[[package]]
+name = "ohos-arkui-binding"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "63bbbdfac92061bf43732301b251529015137818c411fab3e438918d934937d5"
+dependencies = [
+ "bitflags 2.13.2",
+ "napi-ohos",
+ "napi-sys-ohos",
+ "ohos-arkui-input-binding",
+ "ohos-arkui-sys",
+ "ohos-enum-derive",
+ "ohos-xcomponent-binding",
+ "ohos-xcomponent-sys",
+]
+
+[[package]]
+name = "ohos-arkui-input-binding"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1208c748856f83ad3a3e716b40b64789171bc405cc3e9cb6b1522f98cc838259"
+dependencies = [
+ "ohos-arkui-input-sys",
+ "ohos-enum-derive",
+]
+
+[[package]]
+name = "ohos-arkui-input-sys"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8363f015a1ad653f01c620f43b166577ede75cb5eb8b8cd7bc7622480287ffe2"
+
+[[package]]
+name = "ohos-arkui-sys"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c981acbf0ced5aae4712e04bd5f320aaec27f498a2a763b5a9b6a6e023b20c6f"
+dependencies = [
+ "napi-sys-ohos",
+ "ohos-arkui-input-sys",
+ "ohos-image-native-sys",
+ "ohos-native-drawing-sys",
+ "ohos-udmf-sys",
+]
+
+[[package]]
+name = "ohos-display-binding"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9deac94b3c79d95bb000544a7a254df77d519a139fb1f1b255cb6177ab8234d4"
+dependencies = [
+ "ohos-display-sys",
+ "ohos-enum-derive",
+]
+
+[[package]]
+name = "ohos-display-sys"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "65ddb93bf0499a9bd15a445100e82e9a82a54dc493e07f2228b09b6b63fb920e"
+
+[[package]]
+name = "ohos-enum-derive"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dfaa27b9a5519879fcccdb845993e2d2c28df2f84e60f1016bad4557458a4889"
+dependencies = [
+ "convert_case 0.6.0",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "ohos-fileuri-binding"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "67834f268536ac691dc65db5007559d4e2d057c85862bffde889181309495e55"
+dependencies = [
+ "libc",
+ "ohos-fileuri-sys",
+]
+
+[[package]]
+name = "ohos-fileuri-sys"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1864e72b33a49846fb5ffa436e7247828bcd71796d3805ade241d8c5081e0578"
+
+[[package]]
+name = "ohos-hilog-binding"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46dcea2d0b79ab8bde89addd3bec3efed9be3e1f3837d3d715a10cc800b36f60"
+dependencies = [
+ "ohos-enum-derive",
+ "ohos-hilogs-sys",
+]
+
+[[package]]
+name = "ohos-hilogs-sys"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fec24149e03adc316b7aaca40aca577ce05a0db31793bd3ed585bea5fba8382a"
+
+[[package]]
+name = "ohos-image-native-sys"
+version = "0.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7871ff5d1c1c406bd9cfdbeff71f7f78a80fb37a0792d126506d879531968a9"
+dependencies = [
+ "napi-sys-ohos",
+ "ohos-native-buffer-sys",
+ "ohos-resource-manager-sys",
+]
+
+[[package]]
+name = "ohos-image-sys"
+version = "0.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7fb4d2615c0eebe3d76c4aab402ea8b7733ab2a00dbab88e06d9d9e20d2d79d7"
+dependencies = [
+ "napi-sys-ohos",
+ "ohos-resource-manager-sys",
+]
+
+[[package]]
+name = "ohos-ime-binding"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a9f89f50a5eae10e13de666bbc6b48d69039089058a5af56c2d4b5052c89fb7a"
+dependencies = [
+ "ohos-enum-derive",
+ "ohos-input-method-sys",
+ "rustc-hash 2.1.3",
+]
+
+[[package]]
+name = "ohos-input-method-sys"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97c6c1bbab01c0d6ba34d865568342808f12f187f2aa9c906ccb1dc72aeba69f"
+
+[[package]]
+name = "ohos-native-buffer-sys"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97e8d70293b1c92109a4016fba5ce7b18ad5d9b80550897f9218a40fa3431f71"
+
+[[package]]
+name = "ohos-native-drawing-sys"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "147856c7a508af8c775b7679eb0effd500521204943e7f26846f18f10c20bf99"
+dependencies = [
+ "ohos-image-native-sys",
+ "ohos-image-sys",
+]
+
+[[package]]
+name = "ohos-resource-manager-sys"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a255c1b63db82ccf61a256f6ef03210d3ffdceb7e5c64d563613b266dc255d4f"
+dependencies = [
+ "napi-sys-ohos",
+]
+
+[[package]]
+name = "ohos-udmf-sys"
+version = "0.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc817f2833bd8ff7f6598fc22794e045a58b643f08d33b0a8549daa517912fae"
+dependencies = [
+ "ohos-image-native-sys",
+]
+
+[[package]]
+name = "ohos-xcomponent-binding"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "edde557deb44b499ef7ee8653aa6f28bda5e6dddc58eb619c05d3a126374ddb1"
+dependencies = [
+ "napi-derive-ohos",
+ "napi-ohos",
+ "napi-sys-ohos",
+ "ohos-arkui-input-binding",
+ "ohos-enum-derive",
+ "ohos-xcomponent-sys",
+ "raw-window-handle",
+]
+
+[[package]]
+name = "ohos-xcomponent-sys"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2957141513d5ac9d61c3d46259c1aff42dbb484a760bce488ab35c80f87e93d1"
+dependencies = [
+ "ohos-accessibility-sys",
+ "ohos-arkui-input-sys",
+ "ohos-arkui-sys",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3190,6 +3543,463 @@ checksum = "aa576c76302b7b808eecc68061e67336c47833ef9d22caa74dda10fa9675eebc"
 dependencies = [
  "is-wsl",
  "libc",
+]
+
+[[package]]
+name = "openharmony-ability"
+version = "1.0.0-beta.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6fa54305105683c0fb7986ab22f935f007066bf7c69b46b55913cac055e2e522"
+dependencies = [
+ "futures-channel",
+ "napi-derive-ohos",
+ "napi-ohos",
+ "ohos-arkui-binding",
+ "ohos-display-binding",
+ "ohos-ime-binding",
+ "ohos-xcomponent-binding",
+]
+
+[[package]]
+name = "openharmony-ability-derive"
+version = "1.0.0-beta.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d8f0df4923abba6fcbb4d20695a0df646182059ee1f4330858a9f6e1187b81ad"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "openharmony-ability-plugin-files"
+version = "1.0.0-beta.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d0c1da8cc5534c0cfa40dd2c9ca5070b5edde51ea1bab0d96477705a3aabd2d9"
+dependencies = [
+ "napi-derive-ohos",
+ "napi-ohos",
+ "openharmony-ability",
+]
+
+[[package]]
+name = "openphoto"
+version = "0.2.0"
+dependencies = [
+ "arboard",
+ "eframe",
+ "egui",
+ "fmv-macos-events",
+ "log",
+ "open",
+ "openphoto-automation",
+ "openphoto-codecs",
+ "openphoto-color",
+ "openphoto-compose",
+ "openphoto-doc",
+ "openphoto-engine",
+ "openphoto-format",
+ "openphoto-geom",
+ "openphoto-io",
+ "openphoto-raster",
+ "openphoto-tablet",
+ "openphoto-ui-egui",
+ "rfd",
+ "serde_json",
+ "winresource",
+]
+
+[[package]]
+name = "openphoto-algo"
+version = "0.2.0"
+dependencies = [
+ "openphoto-color",
+ "openphoto-geom",
+ "openphoto-raster",
+ "rayon",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "openphoto-automation"
+version = "0.2.0"
+dependencies = [
+ "base64",
+ "cap-std",
+ "getrandom 0.3.4",
+ "openphoto-codecs",
+ "openphoto-compose",
+ "openphoto-doc",
+ "openphoto-engine",
+ "openphoto-format",
+ "openphoto-geom",
+ "openphoto-io",
+ "rmcp",
+ "schemars",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
+name = "openphoto-cli"
+version = "0.2.0"
+dependencies = [
+ "openphoto-automation",
+ "openphoto-codecs",
+ "openphoto-engine",
+ "openphoto-format",
+ "openphoto-io",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "openphoto-cms"
+version = "0.2.0"
+dependencies = [
+ "moxcms",
+ "rayon",
+]
+
+[[package]]
+name = "openphoto-codecs"
+version = "0.2.0"
+dependencies = [
+ "exr",
+ "flate2",
+ "half",
+ "image",
+ "image-webp",
+ "jpeg-encoder",
+ "png 0.18.1",
+ "proptest",
+ "rayon",
+ "thiserror 2.0.21",
+ "tiff",
+ "zune-core",
+ "zune-jpeg",
+]
+
+[[package]]
+name = "openphoto-color"
+version = "0.2.0"
+dependencies = [
+ "openphoto-cms",
+ "serde",
+]
+
+[[package]]
+name = "openphoto-compose"
+version = "0.2.0"
+dependencies = [
+ "criterion",
+ "openphoto-color",
+ "openphoto-doc",
+ "openphoto-geom",
+ "openphoto-paint",
+ "openphoto-raster",
+ "openphoto-vector",
+ "proptest",
+ "rayon",
+]
+
+[[package]]
+name = "openphoto-doc"
+version = "0.2.0"
+dependencies = [
+ "openphoto-color",
+ "openphoto-geom",
+ "openphoto-raster",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "openphoto-engine"
+version = "0.2.0"
+dependencies = [
+ "blake3",
+ "flate2",
+ "openphoto-algo",
+ "openphoto-cms",
+ "openphoto-codecs",
+ "openphoto-color",
+ "openphoto-compose",
+ "openphoto-doc",
+ "openphoto-format",
+ "openphoto-geom",
+ "openphoto-io",
+ "openphoto-ops",
+ "openphoto-paint",
+ "openphoto-plugins",
+ "openphoto-psd",
+ "openphoto-raster",
+ "openphoto-raw",
+ "openphoto-text",
+ "openphoto-vector",
+ "rayon",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "wat",
+]
+
+[[package]]
+name = "openphoto-format"
+version = "0.2.0"
+dependencies = [
+ "blake3",
+ "flate2",
+ "openphoto-codecs",
+ "openphoto-color",
+ "openphoto-doc",
+ "openphoto-geom",
+ "openphoto-raster",
+ "proptest",
+ "ruzstd",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "openphoto-geom"
+version = "0.2.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "openphoto-gpu"
+version = "0.2.0"
+dependencies = [
+ "half",
+ "log",
+ "openphoto-color",
+ "openphoto-compose",
+ "openphoto-doc",
+ "openphoto-geom",
+ "openphoto-raster",
+ "openphoto-vector",
+ "pollster 1.0.1",
+ "rayon",
+ "wgpu",
+]
+
+[[package]]
+name = "openphoto-io"
+version = "0.2.0"
+dependencies = [
+ "blake3",
+ "openphoto-algo",
+ "openphoto-cms",
+ "openphoto-codecs",
+ "openphoto-color",
+ "openphoto-compose",
+ "openphoto-doc",
+ "openphoto-format",
+ "openphoto-geom",
+ "openphoto-paint",
+ "openphoto-psd",
+ "openphoto-raster",
+ "openphoto-raw",
+ "openphoto-text",
+ "openphoto-vector",
+ "proptest",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "openphoto-ohos"
+version = "0.2.0"
+dependencies = [
+ "dpi",
+ "egui",
+ "egui-wgpu",
+ "log",
+ "napi-build-ohos",
+ "napi-derive-ohos",
+ "napi-ohos",
+ "ohos-fileuri-binding",
+ "ohos-hilog-binding",
+ "openharmony-ability",
+ "openharmony-ability-derive",
+ "openharmony-ability-plugin-files",
+ "openphoto-codecs",
+ "openphoto-doc",
+ "openphoto-engine",
+ "openphoto-format",
+ "openphoto-io",
+ "openphoto-ui-egui",
+ "wgpu",
+ "winit-core",
+ "winit-ohos",
+]
+
+[[package]]
+name = "openphoto-ops"
+version = "0.2.0"
+dependencies = [
+ "openphoto-doc",
+]
+
+[[package]]
+name = "openphoto-paint"
+version = "0.2.0"
+dependencies = [
+ "openphoto-color",
+ "openphoto-geom",
+ "openphoto-raster",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "openphoto-plugins"
+version = "0.2.0"
+dependencies = [
+ "openphoto-color",
+ "openphoto-geom",
+ "openphoto-raster",
+ "rayon",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "wasmi",
+ "wat",
+]
+
+[[package]]
+name = "openphoto-psd"
+version = "0.2.0"
+dependencies = [
+ "flate2",
+ "openphoto-psd",
+ "proptest",
+ "serde",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "openphoto-raster"
+version = "0.2.0"
+dependencies = [
+ "openphoto-color",
+ "openphoto-geom",
+ "proptest",
+ "serde",
+]
+
+[[package]]
+name = "openphoto-raw"
+version = "0.2.0"
+dependencies = [
+ "openphoto-raw",
+ "png 0.18.1",
+ "rayon",
+]
+
+[[package]]
+name = "openphoto-tablet"
+version = "0.2.0"
+dependencies = [
+ "block2 0.6.2",
+ "objc2 0.6.4",
+ "objc2-app-kit 0.3.2",
+ "objc2-core-graphics",
+ "objc2-foundation 0.3.2",
+ "x11rb",
+]
+
+[[package]]
+name = "openphoto-testkit"
+version = "0.2.0"
+dependencies = [
+ "memory-stats",
+ "openphoto-color",
+ "openphoto-geom",
+ "openphoto-raster",
+ "serde_json",
+]
+
+[[package]]
+name = "openphoto-text"
+version = "0.2.0"
+dependencies = [
+ "flate2",
+ "openphoto-color",
+ "openphoto-doc",
+ "openphoto-geom",
+ "openphoto-psd",
+ "openphoto-raster",
+ "parley",
+ "skrifa",
+]
+
+[[package]]
+name = "openphoto-ui-egui"
+version = "0.2.0"
+dependencies = [
+ "base64",
+ "eframe",
+ "egui",
+ "egui-wgpu",
+ "egui_extras",
+ "egui_kittest",
+ "log",
+ "openphoto-algo",
+ "openphoto-codecs",
+ "openphoto-color",
+ "openphoto-compose",
+ "openphoto-doc",
+ "openphoto-engine",
+ "openphoto-format",
+ "openphoto-geom",
+ "openphoto-gpu",
+ "openphoto-io",
+ "openphoto-plugins",
+ "openphoto-raster",
+ "openphoto-testkit",
+ "openphoto-text",
+ "openphoto-vector",
+ "rayon",
+ "serde",
+ "serde_json",
+ "wgpu",
+]
+
+[[package]]
+name = "openphoto-vector"
+version = "0.2.0"
+dependencies = [
+ "openphoto-color",
+ "openphoto-doc",
+ "openphoto-geom",
+ "openphoto-raster",
+ "rayon",
+]
+
+[[package]]
+name = "openphoto-web"
+version = "0.2.0"
+dependencies = [
+ "eframe",
+ "egui",
+ "js-sys",
+ "log",
+ "openphoto-codecs",
+ "openphoto-doc",
+ "openphoto-engine",
+ "openphoto-io",
+ "openphoto-ui-egui",
+ "rfd",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]
@@ -3228,7 +4038,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d8fae84b431384b68627d0f9b3b1245fcf9f46f6c0e3dc902e9dce64edd1967"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3382,397 +4192,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e57fef6bc5981e38c2ce2d63bfa546861309f875b8a75f092d1d54ae2d64f266"
 dependencies = [
  "siphasher",
-]
-
-[[package]]
-name = "photocraft"
-version = "0.2.0"
-dependencies = [
- "arboard",
- "eframe",
- "egui",
- "fmv-macos-events",
- "log",
- "open",
- "photocraft-automation",
- "photocraft-codecs",
- "photocraft-color",
- "photocraft-compose",
- "photocraft-doc",
- "photocraft-engine",
- "photocraft-format",
- "photocraft-geom",
- "photocraft-io",
- "photocraft-raster",
- "photocraft-tablet",
- "photocraft-ui-egui",
- "rfd",
- "serde_json",
- "winresource",
-]
-
-[[package]]
-name = "photocraft-algo"
-version = "0.2.0"
-dependencies = [
- "photocraft-color",
- "photocraft-geom",
- "photocraft-raster",
- "rayon",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "photocraft-automation"
-version = "0.2.0"
-dependencies = [
- "base64",
- "cap-std",
- "getrandom 0.3.4",
- "photocraft-codecs",
- "photocraft-compose",
- "photocraft-doc",
- "photocraft-engine",
- "photocraft-format",
- "photocraft-geom",
- "photocraft-io",
- "rmcp",
- "schemars",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "tokio",
-]
-
-[[package]]
-name = "photocraft-cli"
-version = "0.2.0"
-dependencies = [
- "photocraft-automation",
- "photocraft-codecs",
- "photocraft-engine",
- "photocraft-format",
- "photocraft-io",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "photocraft-cms"
-version = "0.2.0"
-dependencies = [
- "moxcms",
- "rayon",
-]
-
-[[package]]
-name = "photocraft-codecs"
-version = "0.2.0"
-dependencies = [
- "exr",
- "flate2",
- "half",
- "image",
- "image-webp",
- "jpeg-encoder",
- "png 0.18.1",
- "proptest",
- "rayon",
- "thiserror 2.0.21",
- "tiff",
- "zune-core",
- "zune-jpeg",
-]
-
-[[package]]
-name = "photocraft-color"
-version = "0.2.0"
-dependencies = [
- "photocraft-cms",
- "serde",
-]
-
-[[package]]
-name = "photocraft-compose"
-version = "0.2.0"
-dependencies = [
- "criterion",
- "photocraft-color",
- "photocraft-doc",
- "photocraft-geom",
- "photocraft-paint",
- "photocraft-raster",
- "photocraft-vector",
- "proptest",
- "rayon",
-]
-
-[[package]]
-name = "photocraft-doc"
-version = "0.2.0"
-dependencies = [
- "photocraft-color",
- "photocraft-geom",
- "photocraft-raster",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "photocraft-engine"
-version = "0.2.0"
-dependencies = [
- "blake3",
- "flate2",
- "photocraft-algo",
- "photocraft-cms",
- "photocraft-codecs",
- "photocraft-color",
- "photocraft-compose",
- "photocraft-doc",
- "photocraft-format",
- "photocraft-geom",
- "photocraft-io",
- "photocraft-ops",
- "photocraft-paint",
- "photocraft-plugins",
- "photocraft-psd",
- "photocraft-raster",
- "photocraft-raw",
- "photocraft-text",
- "photocraft-vector",
- "rayon",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "wat",
-]
-
-[[package]]
-name = "photocraft-format"
-version = "0.2.0"
-dependencies = [
- "blake3",
- "flate2",
- "photocraft-codecs",
- "photocraft-color",
- "photocraft-doc",
- "photocraft-geom",
- "photocraft-raster",
- "proptest",
- "ruzstd",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "photocraft-geom"
-version = "0.2.0"
-dependencies = [
- "serde",
-]
-
-[[package]]
-name = "photocraft-gpu"
-version = "0.2.0"
-dependencies = [
- "half",
- "log",
- "photocraft-color",
- "photocraft-compose",
- "photocraft-doc",
- "photocraft-geom",
- "photocraft-raster",
- "photocraft-vector",
- "pollster 1.0.1",
- "rayon",
- "wgpu",
-]
-
-[[package]]
-name = "photocraft-io"
-version = "0.2.0"
-dependencies = [
- "blake3",
- "photocraft-algo",
- "photocraft-cms",
- "photocraft-codecs",
- "photocraft-color",
- "photocraft-compose",
- "photocraft-doc",
- "photocraft-format",
- "photocraft-geom",
- "photocraft-paint",
- "photocraft-psd",
- "photocraft-raster",
- "photocraft-raw",
- "photocraft-text",
- "photocraft-vector",
- "proptest",
- "serde_json",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "photocraft-ops"
-version = "0.2.0"
-dependencies = [
- "photocraft-doc",
-]
-
-[[package]]
-name = "photocraft-paint"
-version = "0.2.0"
-dependencies = [
- "photocraft-color",
- "photocraft-geom",
- "photocraft-raster",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "photocraft-plugins"
-version = "0.2.0"
-dependencies = [
- "photocraft-color",
- "photocraft-geom",
- "photocraft-raster",
- "rayon",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "wasmi",
- "wat",
-]
-
-[[package]]
-name = "photocraft-psd"
-version = "0.2.0"
-dependencies = [
- "flate2",
- "photocraft-psd",
- "proptest",
- "serde",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "photocraft-raster"
-version = "0.2.0"
-dependencies = [
- "photocraft-color",
- "photocraft-geom",
- "proptest",
- "serde",
-]
-
-[[package]]
-name = "photocraft-raw"
-version = "0.2.0"
-dependencies = [
- "photocraft-raw",
- "png 0.18.1",
- "rayon",
-]
-
-[[package]]
-name = "photocraft-tablet"
-version = "0.2.0"
-dependencies = [
- "block2 0.6.2",
- "objc2 0.6.4",
- "objc2-app-kit 0.3.2",
- "objc2-core-graphics",
- "objc2-foundation 0.3.2",
- "x11rb",
-]
-
-[[package]]
-name = "photocraft-testkit"
-version = "0.2.0"
-dependencies = [
- "memory-stats",
- "photocraft-color",
- "photocraft-geom",
- "photocraft-raster",
- "serde_json",
-]
-
-[[package]]
-name = "photocraft-text"
-version = "0.2.0"
-dependencies = [
- "flate2",
- "parley",
- "photocraft-color",
- "photocraft-doc",
- "photocraft-geom",
- "photocraft-psd",
- "photocraft-raster",
- "skrifa",
-]
-
-[[package]]
-name = "photocraft-ui-egui"
-version = "0.2.0"
-dependencies = [
- "base64",
- "eframe",
- "egui",
- "egui_extras",
- "egui_kittest",
- "log",
- "photocraft-algo",
- "photocraft-codecs",
- "photocraft-color",
- "photocraft-compose",
- "photocraft-doc",
- "photocraft-engine",
- "photocraft-format",
- "photocraft-geom",
- "photocraft-gpu",
- "photocraft-io",
- "photocraft-plugins",
- "photocraft-raster",
- "photocraft-testkit",
- "photocraft-text",
- "photocraft-vector",
- "rayon",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "photocraft-vector"
-version = "0.2.0"
-dependencies = [
- "photocraft-color",
- "photocraft-doc",
- "photocraft-geom",
- "photocraft-raster",
- "rayon",
-]
-
-[[package]]
-name = "photocraft-web"
-version = "0.2.0"
-dependencies = [
- "eframe",
- "egui",
- "js-sys",
- "log",
- "photocraft-codecs",
- "photocraft-doc",
- "photocraft-engine",
- "photocraft-io",
- "photocraft-ui-egui",
- "rfd",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
 ]
 
 [[package]]
@@ -4782,6 +5201,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "smol_str"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4aaa7368fcf4852a4c2dd92df0cace6a71f2091ca0a23391ce7f3a31833f1523"
+dependencies = [
+ "borsh",
+ "serde_core",
+]
+
+[[package]]
 name = "socket2"
 version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5209,6 +5638,18 @@ name = "unicode-width"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4ac048d71ede7ee76d585517add45da530660ef4390e49b098733c6e897f254"
+
+[[package]]
+name = "url"
+version = "2.5.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ff67a8a4397373c3ef660812acab3268222035010ab8680ec4215f38ba3d0eed"
+dependencies = [
+ "form_urlencoded",
+ "idna",
+ "percent-encoding",
+ "serde",
+]
 
 [[package]]
 name = "usvg"
@@ -5761,7 +6202,7 @@ dependencies = [
  "js-sys",
  "khronos-egl",
  "libc",
- "libloading",
+ "libloading 0.8.9",
  "log",
  "naga",
  "naga-types",
@@ -6139,7 +6580,7 @@ dependencies = [
  "redox_syscall 0.4.1",
  "rustix 0.38.44",
  "smithay-client-toolkit 0.19.2",
- "smol_str",
+ "smol_str 0.2.2",
  "tracing",
  "unicode-segmentation",
  "wasm-bindgen",
@@ -6154,6 +6595,36 @@ dependencies = [
  "x11-dl",
  "x11rb",
  "xkbcommon-dl",
+]
+
+[[package]]
+name = "winit-core"
+version = "0.31.0-beta.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b8af6307236c51847199950c15cf80e0481a250bb96ce9132f5026df4ad3d0f9"
+dependencies = [
+ "bitflags 2.13.2",
+ "cursor-icon",
+ "dpi",
+ "keyboard-types",
+ "raw-window-handle",
+ "smol_str 0.3.6",
+ "url",
+ "web-time",
+]
+
+[[package]]
+name = "winit-ohos"
+version = "0.31.0-beta.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85ea5422e8a0d04bea3155bf0a4181ce70c37501cd6cf1e58eea7879e6025bdf"
+dependencies = [
+ "dpi",
+ "openharmony-ability",
+ "openharmony-ability-derive",
+ "raw-window-handle",
+ "tracing",
+ "winit-core",
 ]
 
 [[package]]
@@ -6235,7 +6706,7 @@ dependencies = [
  "as-raw-xcb-connection",
  "gethostname",
  "libc",
- "libloading",
+ "libloading 0.8.9",
  "once_cell",
  "rustix 1.1.5",
  "x11rb-protocol",

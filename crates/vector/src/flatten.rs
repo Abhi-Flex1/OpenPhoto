@@ -1,7 +1,7 @@
 //! Bézier flattening with a distance tolerance.
 
-use photocraft_doc::{Path, Subpath};
-use photocraft_geom::Point;
+use openphoto_doc::{Path, Subpath};
+use openphoto_geom::Point;
 
 /// A flattened subpath.
 #[derive(Clone, Debug, Default, PartialEq)]

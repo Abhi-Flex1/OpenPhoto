@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use cap_std::ambient_authority;
 use cap_std::fs::{Dir, OpenOptions};
-use photocraft_format::atomic::RenameRetry;
+use openphoto_format::atomic::RenameRetry;
 use serde_json::Value;
 
 use crate::AutomationError;
@@ -53,7 +53,7 @@ impl AuthorizedWorkspace {
 
     /// Create or replace one file below the configured write root, crash-safely: the bytes go to
     /// a temporary file beside the target, which is synced and renamed over it (the same steps
-    /// as [`photocraft_format::atomic_write`], through the directory capability). On failure
+    /// as [`openphoto_format::atomic_write`], through the directory capability). On failure
     /// the previous file is untouched and the temporary file is removed.
     ///
     /// The parent directory must already exist. `cap-std` performs path
@@ -64,14 +64,14 @@ impl AuthorizedWorkspace {
         let root = self.write.as_ref().ok_or_else(|| AutomationError::BadRequest(format!("{DENIED}: write authority is absent")))?;
         let leaf = relative.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
         let parent = relative.parent().map(Path::to_path_buf).unwrap_or_default();
-        let tmp = parent.join(photocraft_format::atomic::temp_name(&leaf));
+        let tmp = parent.join(openphoto_format::atomic::temp_name(&leaf));
         let mut options = OpenOptions::new();
         options.write(true).create_new(true);
         let written = root.dir.open_with(&tmp, &options).and_then(|mut file| {
             file.write_all(bytes)?;
             file.sync_all()
         });
-        let renamed = written.and_then(|()| photocraft_format::atomic::retry_rename(RenameRetry::platform(), || root.dir.rename(&tmp, &root.dir, &relative)));
+        let renamed = written.and_then(|()| openphoto_format::atomic::retry_rename(RenameRetry::platform(), || root.dir.rename(&tmp, &root.dir, &relative)));
         if let Err(e) = renamed {
             let _ = root.dir.remove_file(&tmp);
             return Err(file_error("write", path, e));
@@ -259,7 +259,7 @@ mod tests {
     use super::*;
 
     fn roots(name: &str) -> (PathBuf, PathBuf, AuthorizedWorkspace) {
-        let base = std::env::temp_dir().join(format!("photocraft-workspace-{}-{name}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("openphoto-workspace-{}-{name}", std::process::id()));
         let inside = base.join("inside");
         let outside = base.join("outside");
         let _ = std::fs::remove_dir_all(&base);

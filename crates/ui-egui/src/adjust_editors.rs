@@ -1,7 +1,7 @@
 //! One editor per adjustment kind, shared by the adjustment-layer Properties panel and the modal
 //! Image › Adjustments dialogs (`adjust_dialog`).
 //!
-//! Every editor edits the kind's complete parameter set (`photocraft_engine::adjust_params`) as a
+//! Every editor edits the kind's complete parameter set (`openphoto_engine::adjust_params`) as a
 //! JSON object and reports an [`Edit`]: `changed` while values move (the host previews them live)
 //! and `commit` when a gesture ends (the Properties host then runs one `layer.setAdjustment`; a
 //! dialog commits on OK). Selective Color and Color Lookup keep their editors in `adjust_ui`.
@@ -9,12 +9,12 @@
 use std::sync::Arc;
 
 use egui::{Color32, Key, Modifiers, Pos2, Rect, RichText, Sense, Stroke, StrokeKind, pos2, vec2};
-use photocraft_doc::adjust::ToneSpace;
-use photocraft_doc::{Adjustment, LayerId};
-use photocraft_engine::adjust_params::{self, HUE_RANGES, PHOTO_FILTERS};
+use openphoto_doc::adjust::ToneSpace;
+use openphoto_doc::{Adjustment, LayerId};
+use openphoto_engine::adjust_params::{self, HUE_RANGES, PHOTO_FILTERS};
 use serde_json::{Value, json};
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 use crate::theme::Tokens;
 use crate::tone::{self, HistSource, Histograms};
 use crate::widgets;
@@ -527,9 +527,9 @@ fn curves(ui: &mut egui::Ui, v: &mut Value, cx: &EditorCx) -> Edit {
     gradient_bar(&p, hbar, Color32::BLACK, bar_color(&chan, &t), false);
     gradient_bar(&p, vbar, Color32::BLACK, bar_color(&chan, &t), true);
     let draw_curve = |pts: &[[f32; 2]], color: Color32, width: f32| {
-        let cp: Vec<photocraft_doc::adjust::CurvePoint> =
-            pts.iter().map(|q| photocraft_doc::adjust::CurvePoint { input: q[0] / 255.0, output: q[1] / 255.0 }).collect();
-        let lut = photocraft_compose::adjust::curve_lut(&cp);
+        let cp: Vec<openphoto_doc::adjust::CurvePoint> =
+            pts.iter().map(|q| openphoto_doc::adjust::CurvePoint { input: q[0] / 255.0, output: q[1] / 255.0 }).collect();
+        let lut = openphoto_compose::adjust::curve_lut(&cp);
         let n = lut.len().max(2);
         let line: Vec<Pos2> =
             (0..n).step_by((n / 256).max(1)).map(|i| to_scr([i as f32 / (n - 1) as f32 * 255.0, lut.get(i).copied().unwrap_or(0.0) * 255.0])).collect();
@@ -838,16 +838,16 @@ fn hue_color(deg: f32) -> Color32 {
 
 /// The spectrum bar after the adjustment (what each hue becomes), sampled at `n` hues.
 fn adjusted_spectrum(v: &Value, n: usize) -> Vec<Color32> {
-    let adj = photocraft_engine::commands::adjustment_from_params("hueSaturation", v);
-    let rect = photocraft_geom::Rect::new(0, 0, n as i32, 1);
+    let adj = openphoto_engine::commands::adjustment_from_params("hueSaturation", v);
+    let rect = openphoto_geom::Rect::new(0, 0, n as i32, 1);
     let px = (0..n)
         .map(|i| {
             let c = egui::ecolor::Hsva::new(i as f32 / (n - 1).max(1) as f32, 1.0, 1.0, 1.0).to_rgb();
             [c[0], c[1], c[2], 1.0]
         })
         .collect();
-    let mut buf = photocraft_compose::Buffer { rect, px };
-    photocraft_compose::adjust::apply(&adj, &mut buf);
+    let mut buf = openphoto_compose::Buffer { rect, px };
+    openphoto_compose::adjust::apply(&adj, &mut buf);
     buf.px.iter().map(|p| color32([p[0], p[1], p[2]])).collect()
 }
 
@@ -937,7 +937,7 @@ fn hue_saturation(ui: &mut egui::Ui, v: &mut Value, cx: &EditorCx) -> Edit {
     spectrum_bar(&p, bottom, &adjusted_spectrum(v, 37));
     if range > 0 {
         let key = HUE_RANGES[range - 1];
-        let neutral = photocraft_doc::adjust::HueRange::neutral(range - 1).bounds;
+        let neutral = openphoto_doc::adjust::HueRange::neutral(range - 1).bounds;
         let mut b = nums(&v[key], "range", neutral);
         let xof = |deg: f32| bars.left() + deg.rem_euclid(360.0) / 360.0 * w;
         let deg_of = |x: f32| ((x - bars.left()) / w * 360.0).clamp(0.0, 360.0);
@@ -1316,20 +1316,20 @@ fn gradient_map(ui: &mut egui::Ui, v: &mut Value, cx: &EditorCx) -> Edit {
 // Hosts
 
 /// Whether a document of this mode edits Levels/Curves through a single Gray channel.
-pub fn is_gray(mode: photocraft_doc::ColorMode) -> bool {
-    matches!(mode, photocraft_doc::ColorMode::Grayscale | photocraft_doc::ColorMode::Duotone | photocraft_doc::ColorMode::Bitmap)
+pub fn is_gray(mode: openphoto_doc::ColorMode) -> bool {
+    matches!(mode, openphoto_doc::ColorMode::Grayscale | openphoto_doc::ColorMode::Duotone | openphoto_doc::ColorMode::Bitmap)
 }
 
-pub fn swatches(app: &PhotocraftApp) -> [[f32; 3]; 2] {
+pub fn swatches(app: &OpenPhotoApp) -> [[f32; 3]; 2] {
     let c = |x: [f32; 4]| [x[0], x[1], x[2]];
     [c(app.session.tools.foreground), c(app.session.tools.background)]
 }
 
 /// The Properties-panel editor of an adjustment layer: previews live (`app.live_adjust`) while a
 /// control moves and commits one `layer.setAdjustment` per gesture.
-pub fn layer_editor(app: &mut PhotocraftApp, ui: &mut egui::Ui, id: LayerId, adj: &Adjustment) {
+pub fn layer_editor(app: &mut OpenPhotoApp, ui: &mut egui::Ui, id: LayerId, adj: &Adjustment) {
     let t = Tokens::get(ui.ctx());
-    let kind = photocraft_engine::commands::adjustment_kind(adj);
+    let kind = openphoto_engine::commands::adjustment_kind(adj);
     match adj {
         Adjustment::SelectiveColor { .. } => return crate::adjust_ui::selective_color_editor(app, ui, id, adj),
         Adjustment::ColorLookup { .. } => return crate::adjust_ui::color_lookup_editor(app, ui, id, adj),

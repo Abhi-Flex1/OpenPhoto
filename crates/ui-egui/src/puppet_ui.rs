@@ -10,13 +10,13 @@
 use std::sync::Arc;
 
 use egui::{Color32, Stroke, TextureHandle, pos2, vec2};
-use photocraft_algo::puppet::{ITERATIONS, PuppetDensity, PuppetMesh, PuppetMode, PuppetPin, PuppetSolver, PuppetWarp, build_mesh};
-use photocraft_doc::{Document, LayerId};
-use photocraft_geom::Rect;
-use photocraft_raster::Surface;
+use openphoto_algo::puppet::{ITERATIONS, PuppetDensity, PuppetMesh, PuppetMode, PuppetPin, PuppetSolver, PuppetWarp, build_mesh};
+use openphoto_doc::{Document, LayerId};
+use openphoto_geom::Rect;
+use openphoto_raster::Surface;
 use serde_json::{Value, json};
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 use crate::canvas::{ToolEvent, ViewXform};
 
 pub struct PuppetSession {
@@ -115,7 +115,7 @@ fn dist(a: [f64; 2], b: [f64; 2]) -> f64 {
 }
 
 /// Starts Puppet Warp on the active layer.
-pub fn begin(app: &mut PhotocraftApp, ctx: &egui::Context, command: &str) -> Result<(), String> {
+pub fn begin(app: &mut OpenPhotoApp, ctx: &egui::Context, command: &str) -> Result<(), String> {
     if app.ui.transform.is_some() {
         return Err("finish Free Transform first".into());
     }
@@ -157,7 +157,7 @@ pub fn begin(app: &mut PhotocraftApp, ctx: &egui::Context, command: &str) -> Res
     Ok(())
 }
 
-pub fn commit(app: &mut PhotocraftApp) {
+pub fn commit(app: &mut OpenPhotoApp) {
     let Some(s) = app.distort.puppet.take() else { return };
     if s.warp.is_identity() {
         return;
@@ -168,7 +168,7 @@ pub fn commit(app: &mut PhotocraftApp) {
 }
 
 /// Control channel: `edit.puppetWarp {"ui": {...}}` while the mode is active.
-pub fn control(app: &mut PhotocraftApp, ui: &Value) -> Result<Value, String> {
+pub fn control(app: &mut OpenPhotoApp, ui: &Value) -> Result<Value, String> {
     if ui.get("commit").and_then(Value::as_bool) == Some(true) {
         commit(app);
         return Ok(json!({"committed": true}));
@@ -201,7 +201,7 @@ pub fn control(app: &mut PhotocraftApp, ui: &Value) -> Result<Value, String> {
     Ok(s.describe())
 }
 
-pub fn pointer(app: &mut PhotocraftApp, ev: ToolEvent, mods: egui::Modifiers) {
+pub fn pointer(app: &mut OpenPhotoApp, ev: ToolEvent, mods: egui::Modifiers) {
     let tol = crate::distort_ui::tolerance(app);
     let Some(s) = app.distort.puppet.as_mut() else { return };
     match ev {
@@ -288,7 +288,7 @@ pub fn draw(s: &PuppetSession, painter: &egui::Painter, xf: &ViewXform) {
     }
 }
 
-pub fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+pub fn options_bar(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let Some(s) = app.distort.puppet.as_mut() else { return };
     let mut remesh = false;
     let mut resolve = false;
@@ -379,7 +379,7 @@ mod tests {
     #[test]
     fn pins_drag_and_commit_through_the_engine() {
         let ctx = egui::Context::default();
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), Default::default());
         app.session.execute("file.new", json!({"width": 100, "height": 80, "depth": 8})).unwrap();
         app.session.execute("layer.new.layer", json!({})).unwrap();
         app.session
@@ -390,7 +390,7 @@ mod tests {
             .unwrap();
         app.sync_views();
         crate::distort_ui::menu(&mut app, &ctx, "edit.puppetWarp", &json!({})).unwrap().unwrap();
-        let ev = |app: &mut PhotocraftApp, e| crate::distort_ui::pointer(app, e, egui::Modifiers::NONE);
+        let ev = |app: &mut OpenPhotoApp, e| crate::distort_ui::pointer(app, e, egui::Modifiers::NONE);
         // Two pins: hold the left end, drag the right end up.
         ev(&mut app, ToolEvent::Down { x: 25.0, y: 40.0, pressure: 1.0 });
         ev(&mut app, ToolEvent::Up { x: 25.0, y: 40.0 });

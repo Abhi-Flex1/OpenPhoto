@@ -1,6 +1,6 @@
-//! Throughput check: `cargo test -p photocraft-cms --release --test bench -- --ignored --nocapture`.
+//! Throughput check: `cargo test -p openphoto-cms --release --test bench -- --ignored --nocapture`.
 
-use photocraft_cms::{Builtin, Intent, Transform};
+use openphoto_cms::{Builtin, Intent, Transform};
 
 #[test]
 #[ignore]

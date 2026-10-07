@@ -1,5 +1,5 @@
 [package]
-name = "photocraft-ui-egui"
+name = "openphoto-ui-egui"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,24 +8,32 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-photocraft-geom = { workspace = true }
-photocraft-color = { workspace = true }
-photocraft-raster = { workspace = true }
-photocraft-doc = { workspace = true }
-photocraft-compose = { workspace = true }
-photocraft-gpu = { workspace = true }
-photocraft-engine = { workspace = true }
-photocraft-plugins = { workspace = true }
-photocraft-algo = { workspace = true }
-photocraft-text = { workspace = true }
-photocraft-vector = { workspace = true }
+openphoto-geom = { workspace = true }
+openphoto-color = { workspace = true }
+openphoto-raster = { workspace = true }
+openphoto-doc = { workspace = true }
+openphoto-compose = { workspace = true }
+openphoto-gpu = { workspace = true }
+openphoto-engine = { workspace = true }
+openphoto-plugins = { workspace = true }
+openphoto-algo = { workspace = true }
+openphoto-text = { workspace = true }
+openphoto-vector = { workspace = true }
 egui = { workspace = true }
 egui_extras = { version = "0.36", default-features = false, features = ["svg"] }
-eframe = { workspace = true, features = ["default_fonts", "wgpu", "accesskit"] }
+# Render types used directly (the GPU canvas and `set_wgpu`): the same crates eframe re-exports,
+# so the desktop `cc.wgpu_render_state` and the HarmonyOS host pass the identical type.
+egui-wgpu = "0.36"
+wgpu = "30"
 serde = { workspace = true }
 serde_json = { workspace = true }
 log = { workspace = true }
 base64 = "0.22"
+
+# eframe is the desktop/wasm shell only: the editor logic and UI in this crate are platform-free
+# and shared with the HarmonyOS host (`apps/openphoto-ohos`), which drives them without eframe.
+[target.'cfg(not(target_env = "ohos"))'.dependencies]
+eframe = { workspace = true, features = ["default_fonts", "wgpu", "accesskit"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 rayon = { workspace = true }
@@ -33,9 +41,9 @@ rayon = { workspace = true }
 [dev-dependencies]
 egui_kittest = { workspace = true, features = ["wgpu", "snapshot", "eframe"] }
 # Only for examples/snapshot.rs (offscreen UI renders of real files).
-photocraft-io = { workspace = true }
+openphoto-io = { workspace = true }
 # Only for examples/interactive_bench.rs (JPEG encode, .pcraft saves).
-photocraft-codecs = { workspace = true }
-photocraft-format = { workspace = true }
+openphoto-codecs = { workspace = true }
+openphoto-format = { workspace = true }
 # Benchmark helpers for the `--json` benches `cargo xtask perf` runs (in-process RSS, percentiles).
-photocraft-testkit = { workspace = true }
+openphoto-testkit = { workspace = true }

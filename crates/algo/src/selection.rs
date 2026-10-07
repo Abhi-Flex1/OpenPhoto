@@ -3,9 +3,9 @@
 //! modify (expand, contract, border, smooth, feather), anti-aliased lasso,
 //! and combining with an existing selection.
 
-use photocraft_color::PixelFormat;
-use photocraft_geom::{Rect, TILE_SIZE, TileCoord};
-use photocraft_raster::Surface;
+use openphoto_color::PixelFormat;
+use openphoto_geom::{Rect, TILE_SIZE, TileCoord};
+use openphoto_raster::Surface;
 use serde::{Deserialize, Serialize};
 
 use crate::photo_util::par_rows;

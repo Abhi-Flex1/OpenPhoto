@@ -2,12 +2,12 @@
 //! State lives in the dialog's `fields` (JSON), so automation can drive it like any other dialog.
 
 use egui::{Color32, RichText, Sense, Stroke, StrokeKind, vec2};
-use photocraft_doc::effects::{FxPaint, StrokePosition};
-use photocraft_doc::{Effect, Layer};
+use openphoto_doc::effects::{FxPaint, StrokePosition};
+use openphoto_doc::{Effect, Layer};
 use serde_json::{Map, Value, json};
 
 use crate::theme::Tokens;
-use crate::{PhotocraftApp, widgets};
+use crate::{OpenPhotoApp, widgets};
 
 #[derive(Clone, Copy)]
 enum P {
@@ -150,7 +150,7 @@ fn defaults(kind: &str) -> Value {
     }
 }
 
-fn hex(c: &photocraft_doc::Color) -> String {
+fn hex(c: &openphoto_doc::Color) -> String {
     let [r, g, b, _] = c.to_rgba8();
     format!("#{r:02x}{g:02x}{b:02x}")
 }
@@ -278,7 +278,7 @@ pub fn initial_fields(layer: &Layer, select: Option<&str>) -> Map<String, Value>
     f
 }
 
-pub fn open(app: &mut PhotocraftApp, select: Option<&str>) -> Option<u64> {
+pub fn open(app: &mut OpenPhotoApp, select: Option<&str>) -> Option<u64> {
     let st = app.session.active()?;
     let layer = st.doc.layer(st.active_layer?)?.clone();
     let mut f = initial_fields(&layer, select);
@@ -287,7 +287,7 @@ pub fn open(app: &mut PhotocraftApp, select: Option<&str>) -> Option<u64> {
 }
 
 /// `[[id, name], …]` of the patterns a style can use (document's, then the library's).
-pub fn pattern_list(app: &PhotocraftApp) -> Value {
+pub fn pattern_list(app: &OpenPhotoApp) -> Value {
     let mut out: Vec<Value> = Vec::new();
     let mut seen = std::collections::HashSet::new();
     let doc_pats = app.session.active().map(|d| d.doc.patterns.clone()).unwrap_or_default();
@@ -300,7 +300,7 @@ pub fn pattern_list(app: &PhotocraftApp) -> Value {
 }
 
 /// Apply the dialog: replace the layer's effects with the enabled ones.
-pub fn confirm(app: &mut PhotocraftApp, f: &Map<String, Value>) -> Result<Value, String> {
+pub fn confirm(app: &mut OpenPhotoApp, f: &Map<String, Value>) -> Result<Value, String> {
     apply(f, |id, p| app.run(id, p))
 }
 
@@ -333,11 +333,11 @@ pub fn preview_hash(f: &Map<String, Value>) -> u64 {
 
 /// `doc` with the dialog's style applied, run on a scratch session (no history) for the live preview.
 pub fn preview_document(
-    doc: &photocraft_doc::Document,
-    patterns: &photocraft_engine::pattern_cmds::PatternLibrary,
+    doc: &openphoto_doc::Document,
+    patterns: &openphoto_engine::pattern_cmds::PatternLibrary,
     f: &Map<String, Value>,
-) -> Option<photocraft_doc::Document> {
-    let mut s = photocraft_engine::Session::new();
+) -> Option<openphoto_doc::Document> {
+    let mut s = openphoto_engine::Session::new();
     s.patterns = patterns.clone();
     s.add_document(doc.clone(), None);
     apply(f, |id, p| s.execute(id, p).map_err(|e| e.to_string())).ok()?;
@@ -429,7 +429,7 @@ pub fn body(ui: &mut egui::Ui, f: &mut Map<String, Value>) {
                             ui.label(RichText::new(tl!(&label)).color(t.text_dim));
                             let mut cur = p.get(key).and_then(Value::as_str).unwrap_or("Normal").to_string();
                             let opts: Vec<(String, &str)> =
-                                photocraft_color::BlendMode::LAYER_MODES.iter().map(|m| (m.label().to_string(), m.label())).collect();
+                                openphoto_color::BlendMode::LAYER_MODES.iter().map(|m| (m.label().to_string(), m.label())).collect();
                             if widgets::dropdown(ui, &format!("fx-blend-{selected}"), &mut cur, &opts, 150.0) {
                                 p[key] = json!(cur);
                             }
@@ -516,7 +516,7 @@ mod tests {
 
     #[test]
     fn initial_fields_select_requested_kind() {
-        let l = Layer::raster("x", photocraft_doc::PixelFormat::RGBA8);
+        let l = Layer::raster("x", openphoto_doc::PixelFormat::RGBA8);
         let f = initial_fields(&l, Some("stroke"));
         assert_eq!(f["selected"], "stroke");
         assert_eq!(f["on:stroke"], true);
@@ -525,7 +525,7 @@ mod tests {
 
     #[test]
     fn preview_applies_the_style_without_touching_the_document() {
-        let mut s = photocraft_engine::Session::new();
+        let mut s = openphoto_engine::Session::new();
         s.execute("file.new", json!({"width": 16, "height": 16})).unwrap();
         s.execute("layer.new.layer", json!({})).unwrap();
         let st = s.active().unwrap();
@@ -536,13 +536,13 @@ mod tests {
         f.insert("on:stroke".into(), json!(true));
         assert_ne!(preview_hash(&f), h);
         let shown = preview_document(&st.doc, &s.patterns, &f).unwrap();
-        let fx = |d: &photocraft_doc::Document| d.layer(st.active_layer.unwrap()).unwrap().effects.items.len();
+        let fx = |d: &openphoto_doc::Document| d.layer(st.active_layer.unwrap()).unwrap().effects.items.len();
         assert_eq!((fx(&shown), fx(&st.doc)), (2, 0));
     }
 
     #[test]
     fn percent_fields_round_trip_through_the_engine() {
-        let mut s = photocraft_engine::Session::new();
+        let mut s = openphoto_engine::Session::new();
         s.execute("file.new", json!({"width": 64, "height": 64})).unwrap();
         s.execute("layer.new.layer", json!({})).unwrap();
         s.execute("layer.layerStyle.outerGlow", json!({"spread": 6, "range": 40})).unwrap();

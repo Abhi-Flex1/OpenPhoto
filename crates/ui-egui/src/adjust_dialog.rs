@@ -10,7 +10,7 @@
 
 use serde_json::{Map, Value, json};
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 use crate::adjust_editors::{self, EditorCx};
 use crate::tone::{self, HistSource};
 
@@ -26,25 +26,25 @@ pub fn owns(fields: &Map<String, Value>) -> bool {
 }
 
 /// Opens the dialog for `command` with the kind's neutral settings.
-pub fn open(app: &mut PhotocraftApp, command: &str) -> Option<u64> {
+pub fn open(app: &mut OpenPhotoApp, command: &str) -> Option<u64> {
     let kind = command.strip_prefix(PREFIX).filter(|k| adjust_editors::has_editor(k))?;
-    let spec = photocraft_engine::commands::find(command)?;
-    let mode = app.session.active().map_or(photocraft_doc::ColorMode::Rgb, |s| s.doc.mode);
-    let defaults = photocraft_engine::adjust_params::default_for(kind, mode).ok()?;
+    let spec = openphoto_engine::commands::find(command)?;
+    let mode = app.session.active().map_or(openphoto_doc::ColorMode::Rgb, |s| s.doc.mode);
+    let defaults = openphoto_engine::adjust_params::default_for(kind, mode).ok()?;
     let mut fields = Map::new();
     fields.insert("__command".into(), json!(command));
     fields.insert("__label".into(), json!(spec.label));
     fields.insert("__adjust".into(), json!(kind));
     fields.insert("__filter".into(), json!(true));
     fields.insert("__preview".into(), json!(true));
-    if let Value::Object(p) = photocraft_engine::adjust_params::to_params(&defaults) {
+    if let Value::Object(p) = openphoto_engine::adjust_params::to_params(&defaults) {
         fields.extend(p);
     }
     Some(app.ui.open_dialog(crate::state::DialogKind::Command, fields))
 }
 
 /// Dialog body: the kind's editor over the fields, then the Preview checkbox.
-pub fn body(app: &mut PhotocraftApp, ui: &mut egui::Ui, fields: &mut Map<String, Value>) {
+pub fn body(app: &mut OpenPhotoApp, ui: &mut egui::Ui, fields: &mut Map<String, Value>) {
     let kind = fields.get("__adjust").and_then(Value::as_str).unwrap_or_default().to_string();
     let mut values = crate::filter_dialog::params_of(fields);
     let active = app.session.active().and_then(|s| s.active_layer);
@@ -74,13 +74,13 @@ mod tests {
     use super::*;
     use egui_kittest::Harness;
 
-    fn app_with_image() -> PhotocraftApp {
-        let mut s = photocraft_engine::Session::new();
+    fn app_with_image() -> OpenPhotoApp {
+        let mut s = openphoto_engine::Session::new();
         s.execute("file.new", json!({"width": 64, "height": 48})).unwrap();
         s.execute("select.rect", json!({"x": 0, "y": 0, "width": 32, "height": 48})).unwrap();
         s.execute("edit.fill", json!({"color": "#b04020"})).unwrap();
         s.execute("select.deselect", json!({})).unwrap();
-        PhotocraftApp::new(s, crate::Services::default())
+        OpenPhotoApp::new(s, crate::Services::default())
     }
 
     #[test]
@@ -101,14 +101,14 @@ mod tests {
             let cmd = format!("image.adjustments.{kind}");
             let mut harness =
                 Harness::builder().with_size(egui::vec2(1200.0, 900.0)).build_ui_state(|ui, app| crate::dialogs::show(app, ui.ctx()), app_with_image());
-            PhotocraftApp::setup_context(&harness.ctx, crate::theme::ThemeKind::ALL[0]);
+            OpenPhotoApp::setup_context(&harness.ctx, crate::theme::ThemeKind::ALL[0]);
             let id = open(harness.state_mut(), &cmd).unwrap();
             harness.run_steps(3);
             let before = harness.state().session.active().unwrap().revision;
             let steps = harness.state().session.active().unwrap().history.past_len();
             // Change the settings the way automation does.
-            let sample = photocraft_engine::adjust_params::to_params(
-                &photocraft_engine::adjust_params::from_params(kind, &sample_params(kind), None, photocraft_doc::ColorMode::Rgb).unwrap(),
+            let sample = openphoto_engine::adjust_params::to_params(
+                &openphoto_engine::adjust_params::from_params(kind, &sample_params(kind), None, openphoto_doc::ColorMode::Rgb).unwrap(),
             );
             let d = harness.state_mut().ui.dialog_mut(id).unwrap();
             if let Value::Object(p) = sample {
@@ -156,7 +156,7 @@ mod tests {
     fn cancel_leaves_the_document_untouched() {
         let mut harness =
             Harness::builder().with_size(egui::vec2(1200.0, 900.0)).build_ui_state(|ui, app| crate::dialogs::show(app, ui.ctx()), app_with_image());
-        PhotocraftApp::setup_context(&harness.ctx, crate::theme::ThemeKind::ALL[0]);
+        OpenPhotoApp::setup_context(&harness.ctx, crate::theme::ThemeKind::ALL[0]);
         let id = open(harness.state_mut(), "image.adjustments.curves").unwrap();
         harness.run_steps(2);
         harness.state_mut().ui.dialog_mut(id).unwrap().fields.insert("points".into(), json!([[0, 255], [255, 0]]));

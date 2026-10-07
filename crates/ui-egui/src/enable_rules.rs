@@ -4,7 +4,7 @@
 //! Applied on top of `menus::is_enabled`, so menus, shortcuts and the Layers context menu grey the
 //! same items Photoshop greys.
 
-use photocraft_doc::{Document, Layer, LayerContent};
+use openphoto_doc::{Document, Layer, LayerContent};
 
 /// Commands Photoshop greys while the Background layer is the active layer.
 fn background_blocks(id: &str, has_selection: bool) -> bool {
@@ -66,7 +66,7 @@ pub fn disabled_for(doc: &Document, active: Option<&Layer>, id: &str) -> bool {
     kind_blocks(id, l)
 }
 
-pub fn disabled(app: &crate::PhotocraftApp, id: &str) -> bool {
+pub fn disabled(app: &crate::OpenPhotoApp, id: &str) -> bool {
     let Some(st) = app.session.active() else { return false };
     let active = st.active_layer.and_then(|a| st.doc.layer(a));
     disabled_for(&st.doc, active, id)
@@ -77,13 +77,13 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    fn session() -> photocraft_engine::Session {
-        let mut s = photocraft_engine::Session::new();
+    fn session() -> openphoto_engine::Session {
+        let mut s = openphoto_engine::Session::new();
         s.execute("file.new", json!({"width": 20, "height": 20})).unwrap();
         s
     }
 
-    fn off(s: &photocraft_engine::Session, id: &str) -> bool {
+    fn off(s: &openphoto_engine::Session, id: &str) -> bool {
         let st = s.active().unwrap();
         disabled_for(&st.doc, st.active_layer.and_then(|a| st.doc.layer(a)), id)
     }

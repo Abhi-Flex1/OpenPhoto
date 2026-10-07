@@ -5,10 +5,10 @@
 
 use std::sync::Arc;
 
-use photocraft_doc::{DocId, Document, LayerId};
-use photocraft_geom::Rect;
+use openphoto_doc::{DocId, Document, LayerId};
+use openphoto_geom::Rect;
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 use crate::state::Tool;
 
 /// Preview keys of move drags: `BASE + n`, one per offset shown (see `canvas::display_doc`).
@@ -17,7 +17,7 @@ const BASE: u64 = 1 << 39;
 pub(crate) struct MovePreview {
     doc: DocId,
     revision: u64,
-    /// Layers that move ([`photocraft_engine::layer_multi_cmds::move_targets`]).
+    /// Layers that move ([`openphoto_engine::layer_multi_cmds::move_targets`]).
     ids: Vec<LayerId>,
     /// What moving them can change at offset (0, 0) (`None` = anything).
     bounds: Option<Rect>,
@@ -45,7 +45,7 @@ impl MovePreview {
 }
 
 /// The whole-pixel offset of the current Move drag on document `idx`, if one is under way.
-fn drag_offset(app: &PhotocraftApp) -> Option<(i32, i32)> {
+fn drag_offset(app: &OpenPhotoApp) -> Option<(i32, i32)> {
     let d = app.drag.as_ref().filter(|d| d.tool == Tool::Move)?;
     let end = d.points.last().map_or(d.start, |p| [p[0], p[1]]);
     let dx = (end[0] - d.start[0]).round().clamp(-1e7, 1e7) as i32;
@@ -56,7 +56,7 @@ fn drag_offset(app: &PhotocraftApp) -> Option<(i32, i32)> {
 /// The document to show while a Move drag is under way on document `idx`: the moving layers at
 /// the pointer. `None` without a drag (or when the layers can't move: locked, say; the drag then
 /// shows its arrow and the release reports why).
-pub(crate) fn display_doc(app: &mut PhotocraftApp, idx: usize) -> Option<(Arc<Document>, u64)> {
+pub(crate) fn display_doc(app: &mut OpenPhotoApp, idx: usize) -> Option<(Arc<Document>, u64)> {
     if app.session.active_index() != Some(idx) {
         return None;
     }
@@ -68,11 +68,11 @@ pub(crate) fn display_doc(app: &mut PhotocraftApp, idx: usize) -> Option<(Arc<Do
     let (doc_id, revision, doc) = (st.doc.id, st.revision, st.doc.clone());
     let fresh = app.move_preview.as_ref().is_some_and(|p| p.doc == doc_id && p.revision == revision);
     if !fresh {
-        let ids = photocraft_engine::layer_multi_cmds::move_targets(&doc, &st.selected_layers());
+        let ids = openphoto_engine::layer_multi_cmds::move_targets(&doc, &st.selected_layers());
         if ids.is_empty() {
             return None;
         }
-        let bounds = photocraft_engine::layer_multi_cmds::layers_damage(&doc, &doc, &ids);
+        let bounds = openphoto_engine::layer_multi_cmds::layers_damage(&doc, &doc, &ids);
         app.move_preview = Some(MovePreview { doc: doc_id, revision, ids, bounds, offsets: Vec::new(), shown: None });
     }
     let p = app.move_preview.as_mut()?;
@@ -81,10 +81,10 @@ pub(crate) fn display_doc(app: &mut PhotocraftApp, idx: usize) -> Option<(Arc<Do
     }
     if p.offsets.last() != Some(&offset) {
         let t0 = crate::gpu_canvas::now_ms();
-        match photocraft_engine::layer_multi_cmds::moved(&doc, &p.ids, offset.0, offset.1) {
+        match openphoto_engine::layer_multi_cmds::moved(&doc, &p.ids, offset.0, offset.1) {
             Ok(d) => {
                 // Duotone documents display through their inks.
-                let d = photocraft_engine::mode_cmds::display_document(&d).unwrap_or(d);
+                let d = openphoto_engine::mode_cmds::display_document(&d).unwrap_or(d);
                 p.shown = Some(Arc::new(d));
                 p.offsets.push(offset);
             }
@@ -102,7 +102,7 @@ pub(crate) fn display_doc(app: &mut PhotocraftApp, idx: usize) -> Option<(Arc<Do
 /// What changed between preview (or document) key `seen` and `now` of the current Move drag on
 /// document `doc` at `revision`: where the moving layers were in both. `None` when either key
 /// isn't one of this drag's (the canvas then recomposites everything).
-pub(crate) fn damage(app: &PhotocraftApp, doc: DocId, revision: u64, seen: u64, now: u64) -> Option<Rect> {
+pub(crate) fn damage(app: &OpenPhotoApp, doc: DocId, revision: u64, seen: u64, now: u64) -> Option<Rect> {
     let p = app.move_preview.as_ref().filter(|p| p.doc == doc && p.revision == revision)?;
     if seen == now || (seen < BASE && seen != 0) || (now < BASE && now != 0) {
         return None;
@@ -118,7 +118,7 @@ pub(crate) fn damage(app: &PhotocraftApp, doc: DocId, revision: u64, seen: u64, 
 }
 
 /// Whether the canvas shows a Move drag's layers at the pointer.
-pub(crate) fn showing(app: &PhotocraftApp) -> bool {
+pub(crate) fn showing(app: &OpenPhotoApp) -> bool {
     app.move_preview.as_ref().is_some_and(|p| p.shown.is_some())
 }
 
@@ -129,7 +129,7 @@ pub(crate) fn is_preview_key(key: u64) -> bool {
 
 /// Release: one `layer.translate` by the drag's offset. The canvas already shows the result, so
 /// its caches are told it showed the document: the command's damage rect refreshes that area.
-pub(crate) fn finish(app: &mut PhotocraftApp, dx: f64, dy: f64) {
+pub(crate) fn finish(app: &mut OpenPhotoApp, dx: f64, dy: f64) {
     // Only when the canvas shows this very offset (else it recomposites everything once).
     let at = (dx.clamp(-1e7, 1e7) as i32, dy.clamp(-1e7, 1e7) as i32);
     let shown = app.move_preview.take().filter(|p| p.shown.is_some() && p.offsets.last() == Some(&at));

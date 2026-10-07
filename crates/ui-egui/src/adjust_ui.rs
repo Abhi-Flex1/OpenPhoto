@@ -4,11 +4,11 @@
 //! values). Selective Color previews live while a slider drags, via `app.live_adjust` carrying
 //! the full parameter set; Color Lookup commits on every change (its table isn't in the params).
 
-use photocraft_doc::{Adjustment, LayerId};
-use photocraft_engine::adjust_cmds::RANGES;
+use openphoto_doc::{Adjustment, LayerId};
+use openphoto_engine::adjust_cmds::RANGES;
 use serde_json::{Value, json};
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 use crate::theme::Tokens;
 use crate::widgets;
 
@@ -26,7 +26,7 @@ pub fn selective_values(adj: &Adjustment) -> Value {
     v
 }
 
-pub fn selective_color_editor(app: &mut PhotocraftApp, ui: &mut egui::Ui, id: LayerId, adj: &Adjustment) {
+pub fn selective_color_editor(app: &mut OpenPhotoApp, ui: &mut egui::Ui, id: LayerId, adj: &Adjustment) {
     let t = Tokens::get(ui.ctx());
     let committed = selective_values(adj);
     let mut values = match &app.live_adjust {
@@ -78,12 +78,12 @@ pub fn selective_color_editor(app: &mut PhotocraftApp, ui: &mut egui::Ui, id: La
     }
 }
 
-pub fn color_lookup_editor(app: &mut PhotocraftApp, ui: &mut egui::Ui, id: LayerId, adj: &Adjustment) {
+pub fn color_lookup_editor(app: &mut OpenPhotoApp, ui: &mut egui::Ui, id: LayerId, adj: &Adjustment) {
     let t = Tokens::get(ui.ctx());
     let Adjustment::ColorLookup { name, lut, size, tetrahedral, dither } = adj else {
         return;
     };
-    let builtins = photocraft_engine::adjust_cmds::LOOKS;
+    let builtins = openphoto_engine::adjust_cmds::LOOKS;
     let current =
         if lut.is_none() { "none".to_string() } else { builtins.iter().find(|b| b.1 == name).map_or_else(|| "custom".to_string(), |b| b.0.to_string()) };
     let custom_label = format!("{name} ({size}³)");

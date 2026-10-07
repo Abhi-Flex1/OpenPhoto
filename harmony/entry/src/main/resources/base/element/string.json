@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "OpenPhoto image editor"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "OpenPhoto editor"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "OpenPhoto"
+    }
+  ]
+}

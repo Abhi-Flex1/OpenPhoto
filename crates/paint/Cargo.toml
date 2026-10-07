@@ -1,5 +1,5 @@
 [package]
-name = "photocraft-paint"
+name = "openphoto-paint"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,9 +8,9 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-photocraft-geom = { workspace = true }
-photocraft-color = { workspace = true }
-photocraft-raster = { workspace = true }
+openphoto-geom = { workspace = true }
+openphoto-color = { workspace = true }
+openphoto-raster = { workspace = true }
 serde = { workspace = true }
 
 [dev-dependencies]

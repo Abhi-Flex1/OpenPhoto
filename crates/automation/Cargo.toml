@@ -1,6 +1,6 @@
 [package]
-name = "photocraft-automation"
-description = "MCP server (rmcp) over the Photocraft engine, plus a bridge to a running GUI"
+name = "openphoto-automation"
+description = "MCP server (rmcp) over the OpenPhoto engine, plus a bridge to a running GUI"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,13 +10,13 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-photocraft-geom = { workspace = true }
-photocraft-doc = { workspace = true }
-photocraft-compose = { workspace = true }
-photocraft-codecs = { workspace = true }
-photocraft-io = { workspace = true }
-photocraft-format = { path = "../format" }
-photocraft-engine = { workspace = true }
+openphoto-geom = { workspace = true }
+openphoto-doc = { workspace = true }
+openphoto-compose = { workspace = true }
+openphoto-codecs = { workspace = true }
+openphoto-io = { workspace = true }
+openphoto-format = { path = "../format" }
+openphoto-engine = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

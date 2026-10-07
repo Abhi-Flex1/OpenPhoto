@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  OpenPhoto MSI (WiX Toolset v5: `dotnet tool install -g wix`). Built by package.ps1:
+
+    wix build openphoto.wxs -arch x64 -d Version=1.2.3 -d BinDir=... -d IconPath=... -o out.msi
+
+  Per-machine install into Program Files, a Start Menu shortcut, `.pcraft` owned by OpenPhoto,
+  and OpenPhoto offered under "Open with" for PSD/PSB and the image formats it reads (without
+  taking over the user's default app for them).
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+      Name="OpenPhoto"
+      Manufacturer="Learning Machines LLC"
+      Version="$(var.Version)"
+      UpgradeCode="D9660F32-2D0A-4ABE-B73D-17BE25F1542C"
+      Scope="perMachine"
+      Compressed="yes"
+      Language="1033">
+    <SummaryInformation Description="OpenPhoto image editor" Manufacturer="Learning Machines LLC" />
+    <!-- Same-version upgrades let successive pre-releases of one X.Y.Z replace each other
+         (MSI versions are numeric, so 1.2.3-rc.1 and 1.2.3-rc.2 are both 1.2.3). -->
+    <MajorUpgrade AllowSameVersionUpgrades="yes"
+        DowngradeErrorMessage="A newer version of OpenPhoto is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <!-- MSI caches this icon using its Id as the filename. Advertised shortcuts to an
+         .exe need an .exe icon identifier (ICE50), even when the source is an ICO. -->
+    <Icon Id="OpenPhotoIcon.exe" SourceFile="$(var.IconPath)" />
+    <Property Id="ARPPRODUCTICON" Value="OpenPhotoIcon.exe" />
+    <Property Id="ARPURLINFOABOUT" Value="https://getartcraft.com/apps/photocraft" />
+    <Property Id="ARPURLUPDATEINFO" Value="https://getartcraft.com/apps/photocraft" />
+    <Property Id="ARPHELPLINK" Value="https://discord.gg/artcraft" />
+
+    <StandardDirectory Id="ProgramFiles6432Folder">
+      <Directory Id="INSTALLFOLDER" Name="OpenPhoto" />
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+
+    <Feature Id="Main" Title="OpenPhoto" Level="1">
+      <ComponentGroupRef Id="OpenPhotoFiles" />
+    </Feature>
+  </Package>
+
+  <Fragment>
+    <ComponentGroup Id="OpenPhotoFiles" Directory="INSTALLFOLDER">
+      <Component Id="OpenPhotoApp" Guid="A6DE41B7-A80F-4C59-A17E-BB68065BF67E">
+        <File Id="OpenPhotoExe" Source="$(var.BinDir)\openphoto.exe" KeyPath="yes">
+          <Shortcut Id="StartMenuShortcut" Directory="ProgramMenuFolder" Name="OpenPhoto"
+              Description="OpenPhoto image editor" WorkingDirectory="INSTALLFOLDER" Advertise="yes"
+              Icon="OpenPhotoIcon.exe" IconIndex="0" />
+        </File>
+
+        <!-- .pcraft: OpenPhoto's own format; OpenPhoto is its default app. -->
+        <ProgId Id="OpenPhoto.Document" Description="OpenPhoto Document" Icon="OpenPhotoExe" IconIndex="0">
+          <Extension Id="pcraft" ContentType="application/x-openphoto">
+            <Verb Id="open" Command="Open" TargetFile="OpenPhotoExe" Argument="&quot;%1&quot;" />
+          </Extension>
+        </ProgId>
+        <!-- PSD/PSB and images: offered under "Open with", never forced as the default. -->
+        <ProgId Id="OpenPhoto.PhotoshopDocument" Description="Photoshop Document" Icon="OpenPhotoExe" IconIndex="0" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\OpenPhoto.PhotoshopDocument\shell\open\command" Value="&quot;[#OpenPhotoExe]&quot; &quot;%1&quot;" Type="string" />
+        <ProgId Id="OpenPhoto.Image" Description="Image" Icon="OpenPhotoExe" IconIndex="0" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\OpenPhoto.Image\shell\open\command" Value="&quot;[#OpenPhotoExe]&quot; &quot;%1&quot;" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\.psd\OpenWithProgids" Name="OpenPhoto.PhotoshopDocument" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\.psb\OpenWithProgids" Name="OpenPhoto.PhotoshopDocument" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\.png\OpenWithProgids" Name="OpenPhoto.Image" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\.jpg\OpenWithProgids" Name="OpenPhoto.Image" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\.jpeg\OpenWithProgids" Name="OpenPhoto.Image" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\.tif\OpenWithProgids" Name="OpenPhoto.Image" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\.tiff\OpenWithProgids" Name="OpenPhoto.Image" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\.webp\OpenWithProgids" Name="OpenPhoto.Image" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\.gif\OpenWithProgids" Name="OpenPhoto.Image" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\.bmp\OpenWithProgids" Name="OpenPhoto.Image" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\.tga\OpenWithProgids" Name="OpenPhoto.Image" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\.exr\OpenWithProgids" Name="OpenPhoto.Image" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\.hdr\OpenWithProgids" Name="OpenPhoto.Image" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\.avif\OpenWithProgids" Name="OpenPhoto.Image" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\.qoi\OpenWithProgids" Name="OpenPhoto.Image" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\.ico\OpenWithProgids" Name="OpenPhoto.Image" Value="" Type="string" />
+
+        <!-- "Open with" app list and the Run dialog (Win+R "openphoto"). -->
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\openphoto.exe" Name="FriendlyAppName" Value="OpenPhoto" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\openphoto.exe\shell\open\command" Value="&quot;[#OpenPhotoExe]&quot; &quot;%1&quot;" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\openphoto.exe\SupportedTypes" Name=".pcraft" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\openphoto.exe\SupportedTypes" Name=".psd" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\openphoto.exe\SupportedTypes" Name=".psb" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\openphoto.exe\SupportedTypes" Name=".png" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\openphoto.exe\SupportedTypes" Name=".jpg" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\openphoto.exe\SupportedTypes" Name=".jpeg" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\openphoto.exe\SupportedTypes" Name=".tif" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\openphoto.exe\SupportedTypes" Name=".tiff" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\openphoto.exe\SupportedTypes" Name=".webp" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\openphoto.exe\SupportedTypes" Name=".gif" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\openphoto.exe\SupportedTypes" Name=".bmp" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\openphoto.exe\SupportedTypes" Name=".tga" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\openphoto.exe\SupportedTypes" Name=".exr" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\openphoto.exe\SupportedTypes" Name=".hdr" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\openphoto.exe\SupportedTypes" Name=".avif" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\openphoto.exe\SupportedTypes" Name=".qoi" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\openphoto.exe\SupportedTypes" Name=".ico" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\App Paths\openphoto.exe" Value="[#OpenPhotoExe]" Type="string" />
+      </Component>
+
+      <Component Id="OpenPhotoCli">
+        <File Id="OpenPhotoCliExe" Source="$(var.BinDir)\openphoto-cli.exe" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+</Wix>

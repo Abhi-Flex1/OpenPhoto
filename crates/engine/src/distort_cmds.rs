@@ -3,22 +3,22 @@
 //!
 //! All three take their whole edit as data, so each is one replayable command and one history
 //! step: Liquify the brush strokes (replayed onto a fresh displacement field,
-//! `photocraft_algo::liquify`), Puppet Warp the pins (`photocraft_algo::puppet`, ARAP on a mesh
-//! of the opaque region), Perspective Warp the planes (`photocraft_algo::perspective`). On a
+//! `openphoto_algo::liquify`), Puppet Warp the pins (`openphoto_algo::puppet`, ARAP on a mesh
+//! of the opaque region), Perspective Warp the planes (`openphoto_algo::perspective`). On a
 //! smart object each becomes a smart filter (as in Photoshop): the params are stored with the
 //! smart object and re-applied to a fresh render of the source, so editing never accumulates
 //! resampling. The params are the data in every case (strokes, pins and planes are small
 //! compared with a field or a mesh, and replay is deterministic), so nothing needs a blob.
 
-use photocraft_algo::liquify::{LiquifyField, LiquifyStroke, apply_liquify, auto_cell};
-use photocraft_algo::perspective::{PerspectiveMap, Plane, Straighten, straighten};
-use photocraft_algo::puppet::{PuppetDensity, PuppetMode, PuppetPin, PuppetWarp, puppet_warp};
-use photocraft_algo::transform::Interp;
-use photocraft_algo::warp::{warp_mesh_gray, warp_mesh_surface};
-use photocraft_color::PixelFormat;
-use photocraft_doc::{Document, Layer, LayerContent, LayerId, SmartFilter};
-use photocraft_geom::Rect;
-use photocraft_raster::Surface;
+use openphoto_algo::liquify::{LiquifyField, LiquifyStroke, apply_liquify, auto_cell};
+use openphoto_algo::perspective::{PerspectiveMap, Plane, Straighten, straighten};
+use openphoto_algo::puppet::{PuppetDensity, PuppetMode, PuppetPin, PuppetWarp, puppet_warp};
+use openphoto_algo::transform::Interp;
+use openphoto_algo::warp::{warp_mesh_gray, warp_mesh_surface};
+use openphoto_color::PixelFormat;
+use openphoto_doc::{Document, Layer, LayerContent, LayerId, SmartFilter};
+use openphoto_geom::Rect;
+use openphoto_raster::Surface;
 use serde_json::{Value, json};
 
 use crate::commands::CommandSpec;
@@ -249,7 +249,7 @@ fn run_on_layer(
         let selection = doc.selection.clone();
         let l = doc.layer_mut(id).ok_or(EngineError::NoLayer(id))?;
         if let LayerContent::Smart(_) = l.content {
-            let sf = SmartFilter { command: cmd.to_string(), params: params.clone(), blend: photocraft_color::BlendMode::Normal, opacity: 1.0, visible: true };
+            let sf = SmartFilter { command: cmd.to_string(), params: params.clone(), blend: openphoto_color::BlendMode::Normal, opacity: 1.0, visible: true };
             return crate::smart_cmds::add_smart_filter(doc, id, sf, selection.as_ref());
         }
         if moves {

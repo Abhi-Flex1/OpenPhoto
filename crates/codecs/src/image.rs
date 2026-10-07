@@ -404,7 +404,7 @@ fn rgb_to_cmyk(r: f32, g: f32, b: f32) -> [f32; 4] {
 
 /// Convert normalized interleaved samples between layouts. Naive
 /// (non-colour-managed) formulas; colour-managed conversion belongs in
-/// `photocraft-color`.
+/// `openphoto-color`.
 pub(crate) fn convert_layout(src: &[f32], from: ChannelLayout, to: ChannelLayout) -> Vec<f32> {
     if from == to {
         return src.to_vec();

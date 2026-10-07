@@ -1,15 +1,15 @@
 //! Document canvas: display texture cache, view transform, tool input, extra document windows.
 //!
-//! Rendering is CPU (`photocraft-compose`) for now, uploaded into an egui texture. Brush strokes
+//! Rendering is CPU (`openphoto-compose`) for now, uploaded into an egui texture. Brush strokes
 //! update only their damage rectangle (`set_partial`). The wgpu compositor (M5) will replace this
 //! with direct GPU rendering behind the same `CanvasCache` interface.
 
 use egui::{Color32, Pos2, Rect, Sense, Stroke, TextureOptions, Vec2, pos2, vec2};
-use photocraft_doc::{Document, LayerContent};
-use photocraft_geom::Rect as DRect;
+use openphoto_doc::{Document, LayerContent};
+use openphoto_geom::Rect as DRect;
 use serde_json::json;
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 use crate::state::{Tool, View};
 
 /// Largest texture side we upload; bigger documents display downsampled until the GPU path lands.
@@ -147,8 +147,8 @@ pub(crate) fn draw_readout(ctx: &egui::Context, id: &str, cursor: Pos2, labels: 
 /// A Brush/Eraser stroke shown while it is drawn: the engine renders the real dabs onto a copy of
 /// the document, and the canvas redraws only what each step changed.
 pub(crate) struct LiveStroke {
-    stroke: photocraft_engine::brush_cmds::LiveStroke,
-    doc: photocraft_doc::DocId,
+    stroke: openphoto_engine::brush_cmds::LiveStroke,
+    doc: openphoto_doc::DocId,
     revision: u64,
     /// Preview key of the stroke; step `n` displays as `key + n`.
     key: u64,
@@ -171,14 +171,14 @@ impl LiveStroke {
 }
 
 /// The live stroke on document `idx`, while it is current.
-fn live_stroke(app: &PhotocraftApp, idx: usize) -> Option<&LiveStroke> {
+fn live_stroke(app: &OpenPhotoApp, idx: usize) -> Option<&LiveStroke> {
     let st = app.session.documents().get(idx)?;
     app.live_stroke.as_ref().filter(|l| app.drag.is_some() && l.doc == st.doc.id && l.revision == st.revision)
 }
 
 /// `paint.stroke` params for a Brush/Eraser drag (shared by the live preview and the commit). The
 /// stroke smoothing is the session brush's (the options bar's Smoothing %).
-fn stroke_params(app: &PhotocraftApp, tool: Tool, erase: bool, points: &[Vec<f64>]) -> serde_json::Value {
+fn stroke_params(app: &OpenPhotoApp, tool: Tool, erase: bool, points: &[Vec<f64>]) -> serde_json::Value {
     let mut p = json!({ "points": points, "erase": erase, "zoom": app.current_zoom(), "target": paint_target(app) });
     if tool == Tool::Pencil {
         p["autoErase"] = json!(app.ui.tool_options.pencil_auto_erase);
@@ -200,19 +200,19 @@ pub(crate) fn stroke_command(tool: Tool) -> &'static str {
 /// (`paint::grid_square`), in screen points with its edges on physical pixels (`ppp` = pixels
 /// per point), so it lines up with the pixel grid at any zoom.
 pub(crate) fn pencil_cursor_rect(xf: &ViewXform, doc: [f64; 2], size: f32, ppp: f32) -> Rect {
-    let [x0, y0, x1, y1] = photocraft_engine::paint::grid_square(doc[0], doc[1], size);
+    let [x0, y0, x1, y1] = openphoto_engine::paint::grid_square(doc[0], doc[1], size);
     let r = Rect::from_two_pos(xf.to_screen(x0 as f32, y0 as f32), xf.to_screen(x1 as f32, y1 as f32));
     let ppp = if ppp.is_finite() && ppp > 0.0 { ppp } else { 1.0 };
     let snap = |v: f32| (v * ppp).round() / ppp;
     Rect::from_min_max(pos2(snap(r.min.x), snap(r.min.y)), pos2(snap(r.max.x), snap(r.max.y)))
 }
 
-fn begin_live_stroke(app: &PhotocraftApp) -> Option<LiveStroke> {
+fn begin_live_stroke(app: &OpenPhotoApp) -> Option<LiveStroke> {
     static STROKES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let st = app.session.active()?;
     let d = app.drag.as_ref()?;
     let p = stroke_params(app, d.tool, d.erase, &app.stylus.stroke_points(&d.points));
-    let stroke = photocraft_engine::brush_cmds::LiveStroke::begin_with(&app.session, stroke_command(d.tool), &p).ok()?;
+    let stroke = openphoto_engine::brush_cmds::LiveStroke::begin_with(&app.session, stroke_command(d.tool), &p).ok()?;
     let n = STROKES.fetch_add(1, std::sync::atomic::Ordering::Relaxed) & 0xff_ffff;
     let damage = vec![stroke.bounds()];
     Some(LiveStroke { stroke, doc: st.doc.id, revision: st.revision, key: (1 << 44) | (n << 20), damage, fed: d.points.len() })
@@ -220,14 +220,14 @@ fn begin_live_stroke(app: &PhotocraftApp) -> Option<LiveStroke> {
 
 /// Render the drag points the live stroke hasn't seen yet, with the pen pressure, tilt and
 /// rotation the commit's `paint.stroke` gets for them.
-fn feed_live_stroke(app: &mut PhotocraftApp) {
+fn feed_live_stroke(app: &mut OpenPhotoApp) {
     let (Some(l), Some(d)) = (app.live_stroke.as_mut(), app.drag.as_ref()) else { return };
     let pose = &app.stylus.stroke;
     let pts: Vec<_> = (l.fed..d.points.len())
         .filter_map(|i| {
             let p = d.points.get(i)?;
             let t = pose.get(i).or(pose.last()).copied().unwrap_or_default();
-            let mut sp = photocraft_engine::paint::StrokePoint::new(p[0], p[1], p[2] as f32);
+            let mut sp = openphoto_engine::paint::StrokePoint::new(p[0], p[1], p[2] as f32);
             (sp.tilt_x, sp.tilt_y, sp.rotation) = (t[0], t[1], t[2]);
             Some(sp)
         })
@@ -290,7 +290,7 @@ pub fn zoom_step(z: f32, dir: i32) -> f32 {
     if dir > 0 { STEPS.iter().copied().find(|s| *s > z * 1.001).unwrap_or(32.0) } else { STEPS.iter().rev().copied().find(|s| *s < z * 0.999).unwrap_or(0.01) }
 }
 
-fn checker(app: &mut PhotocraftApp, ctx: &egui::Context) -> egui::TextureId {
+fn checker(app: &mut OpenPhotoApp, ctx: &egui::Context) -> egui::TextureId {
     // Preferences › Transparency & Gamut colours (the texture is rebuilt when they change).
     let [ca, cb] = app.session.prefs().transparency_and_gamut.colors();
     if app.prefs_rt.checker_key != Some([ca, cb]) {
@@ -312,14 +312,14 @@ fn checker(app: &mut PhotocraftApp, ctx: &egui::Context) -> egui::TextureId {
         .id()
 }
 
-fn buffer_to_image(buf: &photocraft_compose::Buffer) -> egui::ColorImage {
+fn buffer_to_image(buf: &openphoto_compose::Buffer) -> egui::ColorImage {
     let img = buf.to_rgba8();
     egui::ColorImage::from_rgba_unmultiplied([img.width as usize, img.height as usize], &img.pixels)
 }
 
 /// A composite as monitor pixels: document profile → monitor profile (nothing to do in the
 /// common sRGB-on-sRGB case).
-fn display_image(display: Option<&photocraft_engine::display_color::CanvasDisplay>, buf: &photocraft_compose::Buffer) -> egui::ColorImage {
+fn display_image(display: Option<&openphoto_engine::display_color::CanvasDisplay>, buf: &openphoto_compose::Buffer) -> egui::ColorImage {
     match display {
         Some(d) if !d.is_identity() => {
             let img = d.to_rgba8(buf);
@@ -331,7 +331,7 @@ fn display_image(display: Option<&photocraft_engine::display_color::CanvasDispla
 
 /// The canvas display of `doc` and a key that changes with it (folded into the canvas caches'
 /// preview keys, so a monitor or profile change re-renders).
-fn canvas_display(app: &PhotocraftApp, doc: &Document) -> (Option<std::sync::Arc<photocraft_engine::display_color::CanvasDisplay>>, u64) {
+fn canvas_display(app: &OpenPhotoApp, doc: &Document) -> (Option<std::sync::Arc<openphoto_engine::display_color::CanvasDisplay>>, u64) {
     match app.session.color.canvas_display(doc) {
         Ok(d) => {
             let k = d.key;
@@ -342,7 +342,7 @@ fn canvas_display(app: &PhotocraftApp, doc: &Document) -> (Option<std::sync::Arc
 }
 
 /// The document to render: the committed one, or a clone with the live adjustment preview applied.
-fn display_doc(app: &mut PhotocraftApp, idx: usize) -> (std::sync::Arc<Document>, u64) {
+fn display_doc(app: &mut OpenPhotoApp, idx: usize) -> (std::sync::Arc<Document>, u64) {
     // Puppet / Perspective Warp previews hide the layer they draw on a mesh.
     if let Some(shown) = crate::distort_ui::display_doc(app, idx) {
         return shown;
@@ -365,7 +365,7 @@ fn display_doc(app: &mut PhotocraftApp, idx: usize) -> (std::sync::Arc<Document>
     }
     if let (Some(t), Some(pv)) = (&app.ui.transform, &app.transform_preview)
         && app.session.active_index() == Some(idx)
-        && st.doc.layer(photocraft_doc::LayerId(t.layer)).is_some()
+        && st.doc.layer(openphoto_doc::LayerId(t.layer)).is_some()
     {
         return (pv.doc.clone(), (1 << 40) + pv.session);
     }
@@ -390,8 +390,8 @@ fn display_doc(app: &mut PhotocraftApp, idx: usize) -> (std::sync::Arc<Document>
         && let Some(l) = st.doc.layer(*layer)
         && let LayerContent::Adjustment(a) = &l.content
     {
-        let kind = photocraft_engine::commands::adjustment_kind(a);
-        let preview = photocraft_engine::adjust_params::from_params(kind, params, Some(a), st.doc.mode).unwrap_or_else(|_| a.clone());
+        let kind = openphoto_engine::commands::adjustment_kind(a);
+        let preview = openphoto_engine::adjust_params::from_params(kind, params, Some(a), st.doc.mode).unwrap_or_else(|_| a.clone());
         let mut doc = (*st.doc).clone();
         if let Some(lm) = doc.layer_mut(*layer) {
             lm.content = LayerContent::Adjustment(preview);
@@ -400,7 +400,7 @@ fn display_doc(app: &mut PhotocraftApp, idx: usize) -> (std::sync::Arc<Document>
         return (std::sync::Arc::new(doc), key);
     }
     // Duotone documents display through their inks.
-    if let Some(shown) = photocraft_engine::mode_cmds::display_document(&st.doc) {
+    if let Some(shown) = openphoto_engine::mode_cmds::display_document(&st.doc) {
         return (std::sync::Arc::new(shown), 1 << 41);
     }
     (st.doc.clone(), 0)
@@ -414,7 +414,7 @@ const NAVIGATOR_SETTLE_MS: f64 = 200.0;
 /// The Navigator panel's image of document `idx`. With the CPU canvas that is the canvas texture
 /// itself; with the GPU canvas a thumbnail cached per revision, so an edit to a huge document
 /// doesn't also pay a full-resolution CPU composite for the navigator.
-pub fn navigator_texture(app: &mut PhotocraftApp, ctx: &egui::Context, idx: usize) -> Option<egui::TextureId> {
+pub fn navigator_texture(app: &mut OpenPhotoApp, ctx: &egui::Context, idx: usize) -> Option<egui::TextureId> {
     if app.gpu.is_none() {
         return ensure_texture(app, ctx, idx).map(|(t, _)| t);
     }
@@ -448,7 +448,7 @@ pub fn navigator_texture(app: &mut PhotocraftApp, ctx: &egui::Context, idx: usiz
         return Some(t.id());
     }
     let t0 = crate::gpu_canvas::now_ms();
-    let image = display_image(display.as_deref(), &photocraft_compose::thumbnail_buffer(&doc, NAVIGATOR_SIDE));
+    let image = display_image(display.as_deref(), &openphoto_compose::thumbnail_buffer(&doc, NAVIGATOR_SIDE));
     let tex = match cached {
         Some((_, _, mut t)) => {
             t.set(image, TextureOptions::LINEAR);
@@ -462,7 +462,7 @@ pub fn navigator_texture(app: &mut PhotocraftApp, ctx: &egui::Context, idx: usiz
 }
 
 /// Make sure the canvas texture for document `idx` is current; returns (texture id, scale).
-pub fn ensure_texture(app: &mut PhotocraftApp, ctx: &egui::Context, idx: usize) -> Option<(egui::TextureId, f32)> {
+pub fn ensure_texture(app: &mut OpenPhotoApp, ctx: &egui::Context, idx: usize) -> Option<(egui::TextureId, f32)> {
     let (revision, last_damage, id) = {
         let st = app.session.documents().get(idx)?;
         (st.revision, st.last_damage.map(|r| if r.is_empty() { r } else { r.inflate(effect_reach(&st.doc.layers)) }), st.doc.id)
@@ -498,7 +498,7 @@ pub fn ensure_texture(app: &mut PhotocraftApp, ctx: &egui::Context, idx: usize) 
         if let (Some(d), Some(t)) = (damage, current) {
             // Only what the edit or stroke touched: the reduced texture's pixels over it, with the
             // values the whole reduction gives them (factor 1 is the plain composite of `d`).
-            let buf = photocraft_compose::render_reduced_damage(&doc, w, h, d);
+            let buf = openphoto_compose::render_reduced_damage(&doc, w, h, d);
             let r = buf.rect;
             if !r.is_empty() {
                 let t1 = crate::gpu_canvas::now_ms();
@@ -508,7 +508,7 @@ pub fn ensure_texture(app: &mut PhotocraftApp, ctx: &egui::Context, idx: usize) 
             }
         } else {
             // Reduced in bands straight from the compositor: no full-size composite in memory.
-            let full = photocraft_compose::render_reduced(&doc, w, h);
+            let full = openphoto_compose::render_reduced(&doc, w, h);
             let t1 = crate::gpu_canvas::now_ms();
             let (img, scale) = (display_image(display.as_deref(), &full), 1.0 / factor as f32);
             match cache.texture.as_mut() {
@@ -527,7 +527,7 @@ pub fn ensure_texture(app: &mut PhotocraftApp, ctx: &egui::Context, idx: usize) 
 /// What changed since a canvas cache showed (`revision`, `preview key`) `seen`, when only a
 /// rectangle did: the last edit's damage, or the live stroke's dabs since then. Cached keys have
 /// the colour display's key folded in (`^ display_key`); `now`'s is still raw.
-fn damage_since(app: &PhotocraftApp, idx: usize, seen: (u64, u64), now: (u64, u64), display_key: u64, last_damage: Option<DRect>) -> Option<DRect> {
+fn damage_since(app: &OpenPhotoApp, idx: usize, seen: (u64, u64), now: (u64, u64), display_key: u64, last_damage: Option<DRect>) -> Option<DRect> {
     if seen.1 == now.1 ^ display_key && seen.0 + 1 == now.0 {
         return last_damage;
     }
@@ -554,7 +554,7 @@ fn damage_since(app: &PhotocraftApp, idx: usize, seen: (u64, u64), now: (u64, u6
 /// Document `doc`'s canvas caches showed a preview that the edit just committed reproduces
 /// (`was_preview` tells its keys): count it as the document itself, so the commit's damage rect
 /// refreshes only that area instead of everything.
-pub(crate) fn shown_as_document(app: &mut PhotocraftApp, doc: photocraft_doc::DocId, was_preview: impl Fn(u64) -> bool) {
+pub(crate) fn shown_as_document(app: &mut OpenPhotoApp, doc: openphoto_doc::DocId, was_preview: impl Fn(u64) -> bool) {
     let display_key = app.session.active().map_or(0, |st| canvas_display(app, &st.doc).1);
     if let Some(c) = app.canvases.get_mut(&doc) {
         if was_preview(c.preview_key ^ display_key) {
@@ -568,12 +568,12 @@ pub(crate) fn shown_as_document(app: &mut PhotocraftApp, doc: photocraft_doc::Do
 
 /// How far beyond an edit's damage rect the composite can change: layer effects (shadows, glows,
 /// strokes, …) on the edited layer and on the groups around it reach that far.
-pub(crate) fn effect_reach(layers: &[photocraft_doc::Layer]) -> i32 {
+pub(crate) fn effect_reach(layers: &[openphoto_doc::Layer]) -> i32 {
     layers
         .iter()
         .filter(|l| l.visible)
         .map(|l| {
-            let own = if photocraft_compose::effects::has_effects(l) { photocraft_compose::effects::margin(l) } else { 0 };
+            let own = if openphoto_compose::effects::has_effects(l) { openphoto_compose::effects::margin(l) } else { 0 };
             let inner = match &l.content {
                 LayerContent::Group(g) => effect_reach(&g.children),
                 _ => 0,
@@ -587,7 +587,7 @@ pub(crate) fn effect_reach(layers: &[photocraft_doc::Layer]) -> i32 {
 /// GPU path: make sure document `idx` is current in the GPU canvas. Brush strokes re-composite
 /// and upload only their damage rect; everything else re-composites the whole document.
 /// Returns false if there is no GPU canvas.
-fn ensure_gpu(app: &mut PhotocraftApp, idx: usize, visible: DRect) -> bool {
+fn ensure_gpu(app: &mut OpenPhotoApp, idx: usize, visible: DRect) -> bool {
     let Some(gpu) = app.gpu.clone() else { return false };
     let Some((revision, last_damage, id)) = app
         .session
@@ -656,7 +656,7 @@ fn ensure_gpu(app: &mut PhotocraftApp, idx: usize, visible: DRect) -> bool {
 /// Point the wgpu compositor at what the view shows, and size its memory budget from Memory
 /// Usage, the document's pixels and History, and physical memory: on full refreshes (pixels
 /// counted once per structural change, not per brush dab) and whenever the preference changes.
-fn gpu_budget(app: &mut PhotocraftApp, gpu: &crate::gpu_canvas::GpuCanvas, idx: usize, partial: bool, visible: DRect) {
+fn gpu_budget(app: &mut OpenPhotoApp, gpu: &crate::gpu_canvas::GpuCanvas, idx: usize, partial: bool, visible: DRect) {
     gpu.set_focus(Some(visible));
     let allowance = u64::from(app.session.prefs().performance.memory_usage_mb).saturating_mul(1 << 20);
     if partial && app.perf.gpu_budget_allowance == allowance && gpu.memory_budget().is_some() {
@@ -671,7 +671,7 @@ fn gpu_budget(app: &mut PhotocraftApp, gpu: &crate::gpu_canvas::GpuCanvas, idx: 
 }
 
 /// Live preview for an open filter dialog: run the filter on the proxy and upload it.
-fn ensure_filter_preview(app: &mut PhotocraftApp, idx: usize) -> Option<(u32, u64)> {
+fn ensure_filter_preview(app: &mut OpenPhotoApp, idx: usize) -> Option<(u32, u64)> {
     if crate::adjust_preview::on_layer(app, idx) {
         return None;
     }
@@ -693,7 +693,7 @@ fn ensure_filter_preview(app: &mut PhotocraftApp, idx: usize) -> Option<(u32, u6
         let t0 = crate::gpu_canvas::now_ms();
         let result = crate::filter_dialog::preview_document(&doc, active, &cmd, &params, k).map(std::sync::Arc::new);
         if let Some(r) = &result {
-            let buf = photocraft_compose::flatten(r);
+            let buf = openphoto_compose::flatten(r);
             let t1 = crate::gpu_canvas::now_ms();
             let (display, _) = canvas_display(app, &doc);
             app.gpu.as_ref()?.upload_buffer_full(key, &texture_buffer(display.as_deref(), &buf), doc.depth);
@@ -714,7 +714,7 @@ fn visible_doc_rect(xf: &ViewXform) -> DRect {
 /// Zoomed-out Image › Adjustments preview on a large document: the wgpu compositor renders the
 /// reduced preview document (`adjust_preview::gpu_proxy`) into its own texture, over the target's
 /// area after the first frame. Returns (factor, gpu key) to draw.
-fn ensure_adjust_proxy(app: &mut PhotocraftApp, idx: usize, zoom: f32) -> Option<(u32, u64)> {
+fn ensure_adjust_proxy(app: &mut OpenPhotoApp, idx: usize, zoom: f32) -> Option<(u32, u64)> {
     let frame = crate::adjust_preview::gpu_proxy(app, idx, zoom)?;
     let key = frame.doc.id.0;
     let size = [frame.doc.size.width, frame.doc.size.height];
@@ -731,7 +731,7 @@ fn ensure_adjust_proxy(app: &mut PhotocraftApp, idx: usize, zoom: f32) -> Option
 
 /// If a live adjustment preview is active on a large document, composite it on the proxy and upload
 /// it under its own GPU key. Returns (factor, gpu key) when the proxy should be drawn.
-fn ensure_proxy_preview(app: &mut PhotocraftApp, idx: usize) -> Option<(u32, u64)> {
+fn ensure_proxy_preview(app: &mut OpenPhotoApp, idx: usize) -> Option<(u32, u64)> {
     let (layer, params) = app.live_adjust.clone()?;
     let (doc_id, revision, doc) = {
         let st = app.session.documents().get(idx)?;
@@ -751,14 +751,14 @@ fn ensure_proxy_preview(app: &mut PhotocraftApp, idx: usize) -> Option<(u32, u64
     if app.proxy_uploaded != Some((doc_id, hash)) {
         let l = proxy.layer(layer)?;
         let LayerContent::Adjustment(a) = &l.content else { return None };
-        let kind = photocraft_engine::commands::adjustment_kind(a);
-        let preview = photocraft_engine::adjust_params::from_params(kind, &params, Some(a), proxy.mode).unwrap_or_else(|_| a.clone());
+        let kind = openphoto_engine::commands::adjustment_kind(a);
+        let preview = openphoto_engine::adjust_params::from_params(kind, &params, Some(a), proxy.mode).unwrap_or_else(|_| a.clone());
         let mut p = (*proxy).clone();
         if let Some(lm) = p.layer_mut(layer) {
             lm.content = LayerContent::Adjustment(preview);
         }
         let t0 = crate::gpu_canvas::now_ms();
-        let buf = photocraft_compose::flatten(&p);
+        let buf = openphoto_compose::flatten(&p);
         let t1 = crate::gpu_canvas::now_ms();
         let (display, _) = canvas_display(app, &doc);
         app.gpu.as_ref()?.upload_buffer_full(key, &texture_buffer(display.as_deref(), &buf), doc.depth);
@@ -770,16 +770,16 @@ fn ensure_proxy_preview(app: &mut PhotocraftApp, idx: usize) -> Option<(u32, u64
 
 /// A CPU composite as the GPU canvas texture stores it (sRGB-encoded for linear documents).
 fn texture_buffer<'a>(
-    display: Option<&photocraft_engine::display_color::CanvasDisplay>,
-    buf: &'a photocraft_compose::Buffer,
-) -> std::borrow::Cow<'a, photocraft_compose::Buffer> {
+    display: Option<&openphoto_engine::display_color::CanvasDisplay>,
+    buf: &'a openphoto_compose::Buffer,
+) -> std::borrow::Cow<'a, openphoto_compose::Buffer> {
     match display {
         Some(d) => d.texture_buffer(buf),
         None => std::borrow::Cow::Borrowed(buf),
     }
 }
 
-pub(crate) fn retain_gpu_documents(app: &mut PhotocraftApp) {
+pub(crate) fn retain_gpu_documents(app: &mut OpenPhotoApp) {
     // Remove a closed adjustment owner's proxy before collecting its live GPU keys.
     crate::adjust_preview::retain_documents(app);
     if let Some(gpu) = &app.gpu {
@@ -802,7 +802,7 @@ pub(crate) fn retain_gpu_documents(app: &mut PhotocraftApp) {
 }
 
 /// Tabs + canvas for the active document, or the start screen.
-pub fn document_area(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+pub fn document_area(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     retain_gpu_documents(app);
     let n = app.session.documents().len();
     if app.ui.chrome.shows_home(n, app.session.prefs().general.auto_show_home_screen) {
@@ -847,7 +847,7 @@ pub fn document_area(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
     canvas_view(app, ui, idx, rect, view, true);
 }
 
-fn tabs(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+fn tabs(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let t = crate::theme::Tokens::get(ui.ctx());
     if t.pro {
         return pro_tabs(app, ui);
@@ -899,7 +899,7 @@ fn tabs(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
 }
 
 /// Photoshop document tabs: "name @ 33.3% (RGB/8)" on a dark strip; active tab matches panels.
-fn pro_tabs(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+fn pro_tabs(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let t = crate::theme::Tokens::get(ui.ctx());
     let active = app.session.active_index();
     let (mut activate, mut close) = (None, None);
@@ -987,18 +987,18 @@ fn paint_dots(ui: &egui::Ui, rect: Rect) {
 
 pub fn mode_label(doc: &Document) -> &'static str {
     match doc.mode {
-        photocraft_doc::ColorMode::Rgb => "RGB",
-        photocraft_doc::ColorMode::Grayscale => "Gray",
-        photocraft_doc::ColorMode::Cmyk => "CMYK",
-        photocraft_doc::ColorMode::Lab => "Lab",
-        photocraft_doc::ColorMode::Indexed => "Indexed",
-        photocraft_doc::ColorMode::Bitmap => "Bitmap",
-        photocraft_doc::ColorMode::Duotone => "Duotone",
-        photocraft_doc::ColorMode::Multichannel => "Multichannel",
+        openphoto_doc::ColorMode::Rgb => "RGB",
+        openphoto_doc::ColorMode::Grayscale => "Gray",
+        openphoto_doc::ColorMode::Cmyk => "CMYK",
+        openphoto_doc::ColorMode::Lab => "Lab",
+        openphoto_doc::ColorMode::Indexed => "Indexed",
+        openphoto_doc::ColorMode::Bitmap => "Bitmap",
+        openphoto_doc::ColorMode::Duotone => "Duotone",
+        openphoto_doc::ColorMode::Multichannel => "Multichannel",
     }
 }
 
-fn start_screen(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+fn start_screen(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let t = crate::theme::Tokens::get(ui.ctx());
     let area = ui.available_rect_before_wrap();
     paint_dots(ui, area);
@@ -1011,7 +1011,7 @@ fn start_screen(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
     ui.scope_builder(egui::UiBuilder::new().max_rect(card), |ui| {
         ui.vertical_centered(|ui| {
             ui.horizontal(|ui| {
-                let title = ui.painter().layout_no_wrap(tl!("PhotoCraft").into(), crate::theme::semibold(38.0), t.text);
+                let title = ui.painter().layout_no_wrap(tl!("OpenPhoto").into(), crate::theme::semibold(38.0), t.text);
                 let by = ui.painter().layout_no_wrap("open source".into(), egui::FontId::proportional(13.0), t.text_faint);
                 let total = title.size().x + by.size().x + 10.0;
                 ui.add_space(((card.width() - total) / 2.0).max(0.0));
@@ -1060,7 +1060,7 @@ const HOME_RECENT: usize = 6;
 const HOME_RECENT_ROW: f32 = 30.0;
 
 /// The Home screen's "Recent" list: file name, its folder on the right, click to open.
-fn home_recent(app: &mut PhotocraftApp, ui: &mut egui::Ui, recent: &[String]) {
+fn home_recent(app: &mut OpenPhotoApp, ui: &mut egui::Ui, recent: &[String]) {
     let t = crate::theme::Tokens::get(ui.ctx());
     let width = 380.0;
     ui.horizontal(|ui| {
@@ -1106,7 +1106,7 @@ const DISPLAY_LUT: usize = 33;
 /// `doc`'s colour management: document → monitor profile and View › Proof Colors / Gamut
 /// Warning (the 32-bit preview is applied by the canvas shader, see [`hdr_preview`]). Returns the canvas `display` mode (0 none — the identity, e.g. sRGB on
 /// an sRGB monitor —, 1 LUT, 2 LUT + gamut warning).
-fn sync_display_lut(app: &mut PhotocraftApp, doc: &photocraft_doc::Document, key: u64) -> u8 {
+fn sync_display_lut(app: &mut OpenPhotoApp, doc: &openphoto_doc::Document, key: u64) -> u8 {
     let Some(gpu) = app.gpu.clone() else { return 0 };
     // Rebuild only when anything feeding the LUT changes.
     let sig = app.session.color.display_signature(doc);
@@ -1136,12 +1136,12 @@ fn sync_display_lut(app: &mut PhotocraftApp, doc: &photocraft_doc::Document, key
 }
 
 /// View › 32-bit Preview Options for the GPU canvas shader: (exposure, gamma) when active.
-fn hdr_preview(app: &PhotocraftApp, doc: &photocraft_doc::Document) -> Option<[f32; 2]> {
+fn hdr_preview(app: &OpenPhotoApp, doc: &openphoto_doc::Document) -> Option<[f32; 2]> {
     app.session.color.hdr_preview(doc).map(|h| [h.exposure, h.gamma])
 }
 
 /// Draw one canvas view and handle its input. `primary` = main window (tools active).
-pub fn canvas_view(app: &mut PhotocraftApp, ui: &mut egui::Ui, idx: usize, rect: Rect, mut view: View, primary: bool) -> View {
+pub fn canvas_view(app: &mut OpenPhotoApp, ui: &mut egui::Ui, idx: usize, rect: Rect, mut view: View, primary: bool) -> View {
     let ctx = ui.ctx().clone();
     let full = rect;
     let rect = if primary { crate::rulers::content_rect(app, rect) } else { rect };
@@ -1170,7 +1170,7 @@ pub fn canvas_view(app: &mut PhotocraftApp, ui: &mut egui::Ui, idx: usize, rect:
         None => paint_dots(ui, rect),
     }
     let border = app.session.prefs().interface.canvas_border;
-    let drop_shadow = border == photocraft_engine::prefs::CanvasBorder::DropShadow;
+    let drop_shadow = border == openphoto_engine::prefs::CanvasBorder::DropShadow;
     // Drop shadow, checkerboard, document image.
     let img_rect = xf.doc_rect(doc.bounds());
     // Live adjustment previews on big documents use a downsampled proxy (see proxy.rs).
@@ -1289,7 +1289,7 @@ pub fn canvas_view(app: &mut PhotocraftApp, ui: &mut egui::Ui, idx: usize, rect:
     // View › Show › Layer Edges: the active layer's content bounds.
     if app.ui.view.shows(app.ui.view.show.layer_edges)
         && let Some(st) = app.session.documents().get(idx)
-        && let Some(b) = st.active_layer.and_then(|id| st.doc.layer(id)).and_then(|l| l.surface()).map(photocraft_compose::bounds::content_bounds)
+        && let Some(b) = st.active_layer.and_then(|id| st.doc.layer(id)).and_then(|l| l.surface()).map(openphoto_compose::bounds::content_bounds)
         && !b.is_empty()
     {
         painter.rect_stroke(xf.doc_rect(b), 0, Stroke::new(1.0, Color32::from_rgb(0x2d, 0x8c, 0xeb)), egui::StrokeKind::Outside);
@@ -1303,7 +1303,7 @@ pub fn canvas_view(app: &mut PhotocraftApp, ui: &mut egui::Ui, idx: usize, rect:
         let tl = xf.to_doc(rect.min);
         let br = xf.to_doc(rect.max);
         let q = 256 * step as i32; // quantise the region so small pans reuse the cache
-        let vis = photocraft_geom::Rect::new(
+        let vis = openphoto_geom::Rect::new(
             (tl[0].floor() as i32).div_euclid(q) * q - q,
             (tl[1].floor() as i32).div_euclid(q) * q - q,
             ((br[0].ceil() as i32).div_euclid(q) + 2) * q,
@@ -1472,7 +1472,7 @@ pub fn canvas_view(app: &mut PhotocraftApp, ui: &mut egui::Ui, idx: usize, rect:
         draw_transform_controls(app, &painter, &xf);
         crate::paint_mouse::show_picker(app, &ctx);
         crate::snap_ui::draw(app, &painter, &xf);
-        if border == photocraft_engine::prefs::CanvasBorder::Line {
+        if border == openphoto_engine::prefs::CanvasBorder::Line {
             painter.rect_stroke(img_rect, 0.0, Stroke::new(1.0, Color32::from_gray(20)), egui::StrokeKind::Outside);
         }
         crate::type_tool::draw_overlay(app, &painter, &xf);
@@ -1502,7 +1502,7 @@ pub fn canvas_view(app: &mut PhotocraftApp, ui: &mut egui::Ui, idx: usize, rect:
                 t if t.is_brushlike() || t == Tool::QuickSelection => {
                     // Preferences › Cursors: brush tip outline (normal = the 50% contour, or
                     // full size), precise crosshair, or the standard pointer.
-                    use photocraft_engine::prefs::PaintingCursor;
+                    use openphoto_engine::prefs::PaintingCursor;
                     let cur = app.session.prefs().cursors.clone();
                     let painting = app.drag.is_some();
                     let brush = &app.session.tools.brush;
@@ -1550,7 +1550,7 @@ pub fn canvas_view(app: &mut PhotocraftApp, ui: &mut egui::Ui, idx: usize, rect:
                     }
                 }
                 // Preferences › Cursors › Other Cursors: Precise shows a crosshair for every tool.
-                Tool::Move | Tool::Type | Tool::Eyedropper if app.session.prefs().cursors.other == photocraft_engine::prefs::OtherCursor::Precise => {
+                Tool::Move | Tool::Type | Tool::Eyedropper if app.session.prefs().cursors.other == openphoto_engine::prefs::OtherCursor::Precise => {
                     egui::CursorIcon::Crosshair
                 }
                 Tool::Move => egui::CursorIcon::Move,
@@ -1695,7 +1695,7 @@ fn crop_overlay(painter: &egui::Painter, r: Rect) {
 }
 
 /// Overlays that persist between gestures: polygonal lasso in progress, pending crop box.
-fn draw_tool_state(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXform, hover: Option<Pos2>) {
+fn draw_tool_state(app: &OpenPhotoApp, painter: &egui::Painter, xf: &ViewXform, hover: Option<Pos2>) {
     if !app.ui.polygon.is_empty() {
         let mut pts: Vec<Pos2> = app.ui.polygon.iter().map(|p| xf.to_screen(p[0] as f32, p[1] as f32)).collect();
         if let Some(h) = hover {
@@ -1714,7 +1714,7 @@ fn draw_tool_state(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXform,
 }
 
 /// Move tool › Show Transform Controls: the active layer's transform bounds.
-fn transform_controls_rect(app: &PhotocraftApp, xf: &ViewXform) -> Option<Rect> {
+fn transform_controls_rect(app: &OpenPhotoApp, xf: &ViewXform) -> Option<Rect> {
     if app.ui.tool != Tool::Move || !app.ui.tool_options.move_show_transform || app.ui.transform.is_some() || app.drag.is_some() {
         return None;
     }
@@ -1723,7 +1723,7 @@ fn transform_controls_rect(app: &PhotocraftApp, xf: &ViewXform) -> Option<Rect> 
     if crate::doc_props_ui::is_background(&st.doc, l) {
         return None;
     }
-    let b = photocraft_engine::transform_cmds::transform_bounds(&st.doc, l);
+    let b = openphoto_engine::transform_cmds::transform_bounds(&st.doc, l);
     if b.is_empty() {
         return None;
     }
@@ -1738,7 +1738,7 @@ fn transform_controls_hit(r: Rect, p: Pos2) -> bool {
 }
 
 /// Enter the existing Free Transform session when a Move-tool transform control is pressed.
-fn begin_transform_controls_at(app: &mut PhotocraftApp, ctx: &egui::Context, xf: &ViewXform, p: Pos2) -> bool {
+fn begin_transform_controls_at(app: &mut OpenPhotoApp, ctx: &egui::Context, xf: &ViewXform, p: Pos2) -> bool {
     let Some(r) = transform_controls_rect(app, xf) else { return false };
     if !transform_controls_hit(r, p) {
         return false;
@@ -1753,7 +1753,7 @@ fn begin_transform_controls_at(app: &mut PhotocraftApp, ctx: &egui::Context, xf:
 }
 
 /// Move tool › Show Transform Controls: the active layer's bounding box with its eight handles.
-fn draw_transform_controls(app: &mut PhotocraftApp, painter: &egui::Painter, xf: &ViewXform) {
+fn draw_transform_controls(app: &mut OpenPhotoApp, painter: &egui::Painter, xf: &ViewXform) {
     let Some(r) = transform_controls_rect(app, xf) else { return };
     let accent = crate::theme::Tokens::get(painter.ctx()).accent;
     painter.rect_stroke(r, 0.0, Stroke::new(1.0, accent), egui::StrokeKind::Middle);
@@ -1764,7 +1764,7 @@ fn draw_transform_controls(app: &mut PhotocraftApp, painter: &egui::Painter, xf:
     }
 }
 
-fn draw_drag_preview(app: &mut PhotocraftApp, painter: &egui::Painter, xf: &ViewXform) {
+fn draw_drag_preview(app: &mut OpenPhotoApp, painter: &egui::Painter, xf: &ViewXform) {
     draw_tool_state(app, painter, xf, painter.ctx().input(|i| i.pointer.hover_pos()));
     let Some(d) = &app.drag else {
         app.trail = None;
@@ -1829,7 +1829,7 @@ fn draw_drag_preview(app: &mut PhotocraftApp, painter: &egui::Painter, xf: &View
     }
 }
 
-fn sample_eyedropper(app: &mut PhotocraftApp, x: f64, y: f64, mods: egui::Modifiers) {
+fn sample_eyedropper(app: &mut OpenPhotoApp, x: f64, y: f64, mods: egui::Modifiers) {
     if let Ok(v) = app.run("document.pixel", json!({"x": x.floor(), "y": y.floor()})) {
         let color: Vec<f32> = serde_json::from_value(v).unwrap_or_default();
         if color.len() == 4 && color[3] > 0.0 {
@@ -1840,7 +1840,7 @@ fn sample_eyedropper(app: &mut PhotocraftApp, x: f64, y: f64, mods: egui::Modifi
 }
 
 /// Tool state machine. Shared by mouse input and automation.
-pub fn tool_event(app: &mut PhotocraftApp, ev: ToolEvent, mods: egui::Modifiers) {
+pub fn tool_event(app: &mut OpenPhotoApp, ev: ToolEvent, mods: egui::Modifiers) {
     // View › Snap / Snap To and smart guides (snap_ui.rs).
     let raw = ev;
     let ev = crate::snap_ui::filter_event(app, ev, mods);
@@ -2036,7 +2036,7 @@ pub fn tool_event(app: &mut PhotocraftApp, ev: ToolEvent, mods: egui::Modifiers)
     }
 }
 
-fn finish_gesture(app: &mut PhotocraftApp, d: Drag) {
+fn finish_gesture(app: &mut OpenPhotoApp, d: Drag) {
     let end = d.points.last().copied().unwrap_or([d.start[0], d.start[1], 1.0]);
     // Where the next ⇧-click line starts.
     if crate::stroke_constraint::connects(d.tool)
@@ -2117,7 +2117,7 @@ fn finish_gesture(app: &mut PhotocraftApp, d: Drag) {
 }
 
 /// Extra OS windows showing documents (multi-window / multi-monitor).
-pub fn extra_windows(app: &mut PhotocraftApp, ctx: &egui::Context) {
+pub fn extra_windows(app: &mut OpenPhotoApp, ctx: &egui::Context) {
     let wins = app.ui.windows.clone();
     for w in wins.into_iter().filter(|w| w.open) {
         let Some(st) = app.session.documents().get(w.document) else { continue };
@@ -2147,12 +2147,12 @@ pub fn extra_windows(app: &mut PhotocraftApp, ctx: &egui::Context) {
 
 /// Selection mode from the options bar, overridden by modifier keys (⇧ add, ⌥ subtract, ⇧⌥ intersect).
 /// The cursor badge announces the same mode (`tool_feedback`).
-fn selection_mode(app: &PhotocraftApp, m: egui::Modifiers) -> &'static str {
+fn selection_mode(app: &OpenPhotoApp, m: egui::Modifiers) -> &'static str {
     crate::tool_feedback::selection_mode(Tool::Lasso, app.ui.selection_mode, m)
 }
 
 /// Close the polygonal lasso and make the selection.
-pub fn commit_polygon(app: &mut PhotocraftApp, mods: egui::Modifiers) {
+pub fn commit_polygon(app: &mut OpenPhotoApp, mods: egui::Modifiers) {
     let pts = std::mem::take(&mut app.ui.polygon);
     if pts.len() >= 3 {
         let mode = selection_mode(app, mods);
@@ -2161,7 +2161,7 @@ pub fn commit_polygon(app: &mut PhotocraftApp, mods: egui::Modifiers) {
 }
 
 /// Apply the crop tool's rectangle.
-pub fn commit_crop(app: &mut PhotocraftApp) {
+pub fn commit_crop(app: &mut OpenPhotoApp) {
     let Some(r) = app.ui.crop_rect.take() else { return };
     let (x, y) = (r[0].round(), r[1].round());
     let (w, h) = ((r[2] - r[0]).round().max(1.0), (r[3] - r[1]).round().max(1.0));
@@ -2174,8 +2174,8 @@ pub fn commit_crop(app: &mut PhotocraftApp) {
 }
 
 /// "mask" when the Layers panel targets (or the canvas shows) the active layer's mask, else "pixels".
-pub fn paint_target(app: &PhotocraftApp) -> serde_json::Value {
-    use photocraft_engine::channel_cmds::ChannelTarget;
+pub fn paint_target(app: &OpenPhotoApp) -> serde_json::Value {
+    use openphoto_engine::channel_cmds::ChannelTarget;
     let Some(st) = app.session.active() else { return json!("pixels") };
     // A targeted alpha channel (Channels panel) or Quick Mask mode wins over the layer.
     match st.channel_view.target {
@@ -2185,7 +2185,7 @@ pub fn paint_target(app: &PhotocraftApp) -> serde_json::Value {
     }
     let has_mask = st.active_layer.and_then(|id| st.doc.layer(id)).is_some_and(|l| l.mask.is_some());
     // Viewing the mask (⌥-click its thumbnail, #196) paints the mask.
-    let viewing = photocraft_engine::mask_view_cmds::current(st).is_some();
+    let viewing = openphoto_engine::mask_view_cmds::current(st).is_some();
     json!(if (app.ui.mask_target || viewing) && has_mask { "mask" } else { "pixels" })
 }
 
@@ -2216,7 +2216,7 @@ mod tests {
 
     #[test]
     fn eyedropper_drag_updates_the_sampled_colour() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 40, "height": 20, "background": "transparent"})).unwrap();
         app.run("shape.create", json!({"kind": "rect", "rect": [0, 0, 20, 20], "fill": "#ff0000"})).unwrap();
         app.run("shape.create", json!({"kind": "rect", "rect": [20, 0, 20, 20], "fill": "#00ff00"})).unwrap();
@@ -2232,7 +2232,7 @@ mod tests {
     #[test]
     fn brush_drag_shows_the_real_stroke_and_commits_it() {
         // The drag used to draw a hard, flat stand-in and only showed the soft brush on release.
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 120, "height": 60, "background": "transparent"})).unwrap();
         app.run("tools.setBrush", json!({"brush": {"size": 20, "hardness": 0.0}})).unwrap();
         app.ui.tool = Tool::Brush;
@@ -2262,7 +2262,7 @@ mod tests {
         // Pen tilt drives the size; the preview must use the tilt the commit gets. The document
         // is wider than MAX_TEXTURE, so the CPU texture is reduced (factor 2) and each step
         // must update only the reduced pixels it touched.
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), Default::default());
         let ctx = egui::Context::default();
         app.run("file.new", json!({"width": 4097, "height": 90, "background": "transparent"})).unwrap();
         let tilt = json!({"size": 30, "hardness": 1.0, "spacing": 0.05, "shapeDynamics": {"enabled": true, "size": {"control": "penTilt"}}});
@@ -2293,8 +2293,8 @@ mod tests {
     /// Brush drag along y = 40 with one canvas frame per pointer move; returns the document the
     /// canvas showed at the last move, the committed one, and whether the release refreshed only
     /// the stroke's rectangle.
-    fn drag_frames(smoothing: f32, xs: &[f64]) -> (std::sync::Arc<Document>, std::sync::Arc<Document>, bool, PhotocraftApp) {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+    fn drag_frames(smoothing: f32, xs: &[f64]) -> (std::sync::Arc<Document>, std::sync::Arc<Document>, bool, OpenPhotoApp) {
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), Default::default());
         let ctx = egui::Context::default();
         app.run("file.new", json!({"width": 200, "height": 80, "background": "transparent"})).unwrap();
         app.run("tools.setBrush", json!({"brush": {"size": 16, "hardness": 0.5}})).unwrap();
@@ -2348,7 +2348,7 @@ mod tests {
         let (_, rough, _, _) = drag_frames(0.0, &xs);
         assert!(!same_pixels(&rough, &done), "smoothing changes the stroke");
         // And the commit is what `paint.stroke` gives with that smoothing.
-        let mut s = photocraft_engine::Session::new();
+        let mut s = openphoto_engine::Session::new();
         s.execute("file.new", json!({"width": 200, "height": 80, "background": "transparent"})).unwrap();
         s.execute("tools.setBrush", json!({"brush": {"size": 16, "hardness": 0.5, "smoothing": {"amount": 0.5}}})).unwrap();
         let mut pts = vec![json!([10.0, 40.0, 1.0])];
@@ -2362,7 +2362,7 @@ mod tests {
     fn smoothing_preview_redraws_the_tail_each_step() {
         // The tail drawn at one step must not linger once the brush moves on: a sharp turn would
         // leave a stale tail behind if it weren't restored.
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 200, "height": 120, "background": "transparent"})).unwrap();
         app.run("tools.setBrush", json!({"brush": {"size": 10, "hardness": 1.0, "smoothing": {"amount": 0.6}}})).unwrap();
         app.ui.tool = Tool::Brush;
@@ -2379,7 +2379,7 @@ mod tests {
     }
 
     /// Shapes the drag preview paints for `app` this frame.
-    fn drag_preview_shapes(app: &mut PhotocraftApp, ctx: &egui::Context, zoom: f32) -> Vec<egui::epaint::ClippedShape> {
+    fn drag_preview_shapes(app: &mut OpenPhotoApp, ctx: &egui::Context, zoom: f32) -> Vec<egui::epaint::ClippedShape> {
         let out = ctx.run_ui(egui::RawInput::default(), |ui| {
             let ctx = ui.ctx();
             let rect = Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0));
@@ -2398,7 +2398,7 @@ mod tests {
         // as the brush; zoomed in, egui tessellated it into hard black wedges fanning out from the
         // start. The canvas shows the real stroke (`LiveStroke`) and nothing is drawn over it.
         let ctx = egui::Context::default();
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 120, "height": 60})).unwrap();
         app.run("tools.setBrush", json!({"brush": {"size": 30, "hardness": 0.0}})).unwrap();
         for tool in [Tool::Brush, Tool::Eraser] {
@@ -2420,7 +2420,7 @@ mod tests {
         // The retouching tools' trail was the same brush-wide polyline (#189): now a mask of the
         // footprint, with nothing outside the brush radius of the path, however small the steps.
         let ctx = egui::Context::default();
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 120, "height": 60})).unwrap();
         app.run("tools.setBrush", json!({"brush": {"size": 30}})).unwrap();
         app.ui.tool = Tool::Dodge;
@@ -2457,7 +2457,7 @@ mod tests {
 
     #[test]
     fn layer_style_dialog_previews_live_and_cancel_restores() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 16, "height": 16})).unwrap();
         app.run("layer.new.layer", json!({})).unwrap();
         let fx = |d: &Document| d.layers.iter().map(|l| l.effects.items.len()).sum::<usize>();
@@ -2484,12 +2484,12 @@ mod tests {
 
     #[test]
     fn damage_grows_by_nested_effect_reach() {
-        use photocraft_doc::{Effect, Layer};
-        let fmt = photocraft_color::PixelFormat::RGBA8;
+        use openphoto_doc::{Effect, Layer};
+        let fmt = openphoto_color::PixelFormat::RGBA8;
         assert_eq!(effect_reach(&[Layer::raster("plain", fmt)]), 0);
         let mut inner = Layer::raster("inner", fmt);
         inner.effects.items.push(Effect::default_drop_shadow());
-        let m = photocraft_compose::effects::margin(&inner);
+        let m = openphoto_compose::effects::margin(&inner);
         let mut group = Layer::group("g", vec![inner.clone()]);
         group.effects.items.push(Effect::default_drop_shadow());
         assert_eq!(effect_reach(std::slice::from_ref(&inner)), m);
@@ -2507,7 +2507,7 @@ mod transform_controls_tests {
 
     #[test]
     fn move_transform_controls_start_free_transform_for_vector_shapes() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
         app.session.execute("file.new", json!({"width": 200, "height": 200})).unwrap();
         app.session.execute("shape.create", json!({"kind": "rect", "rect": [20, 30, 80, 40], "fill": "#ff0000"})).unwrap();
         app.sync_views();

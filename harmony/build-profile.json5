@@ -1,0 +1,41 @@
+{
+  "app": {
+    // NOTE: no `signingConfig` here on purpose: hvigor only accepts DevEco-encrypted passwords,
+    // so it assembles the HAP unsigned and scripts/ohos-build.sh signs it afterwards with the
+    // SDK's hap-sign-tool and the local debug material from scripts/ohos-sign.sh.
+    "products": [
+      {
+        "name": "default",
+        "compatibleSdkVersion": "5.0.0(12)",
+        "targetSdkVersion": "5.0.0(12)",
+        "runtimeOS": "HarmonyOS",
+        "buildOption": {
+          "strictMode": {
+            "caseSensitiveCheck": true,
+            "useNormalizedOHMUrl": true
+          }
+        }
+      }
+    ],
+    "buildModeSet": [
+      {
+        "name": "debug"
+      },
+      {
+        "name": "release"
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": ["default"]
+        }
+      ]
+    }
+  ]
+}

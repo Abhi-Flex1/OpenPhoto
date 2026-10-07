@@ -14,7 +14,7 @@ use egui::{Align2, Color32, ColorImage, CornerRadius, FontId, Pos2, Rect, Sense,
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 use crate::state::Tool;
 use crate::theme::Tokens;
 
@@ -77,7 +77,7 @@ fn float_flag<'a>(p: &'a mut PresetUi, id: &str) -> Option<&'a mut bool> {
 }
 
 /// Window › <panel>: toggles the panel (Gradients and Patterns: the Color card tab).
-pub fn menu(app: &mut PhotocraftApp, id: &str, params: &Value) -> Option<Result<Value, String>> {
+pub fn menu(app: &mut OpenPhotoApp, id: &str, params: &Value) -> Option<Result<Value, String>> {
     if !handles(id) {
         return None;
     }
@@ -98,7 +98,7 @@ pub fn menu(app: &mut PhotocraftApp, id: &str, params: &Value) -> Option<Result<
     Some(Ok(json!({"visible": *flag})))
 }
 
-pub fn checked(app: &PhotocraftApp, id: &str) -> Option<bool> {
+pub fn checked(app: &OpenPhotoApp, id: &str) -> Option<bool> {
     if let Some(tab) = color_tab(id) {
         return Some(app.ui.panels.color && app.ui.dock_tabs.color == tab);
     }
@@ -106,7 +106,7 @@ pub fn checked(app: &PhotocraftApp, id: &str) -> Option<bool> {
     float_flag(&mut p, id).map(|f| *f)
 }
 
-fn run(app: &mut PhotocraftApp, id: &str, p: Value) -> Option<Value> {
+fn run(app: &mut OpenPhotoApp, id: &str, p: Value) -> Option<Value> {
     match app.run(id, p) {
         Ok(v) => Some(v),
         Err(e) => {
@@ -163,11 +163,11 @@ pub fn paint_gradient(ui: &egui::Ui, rect: Rect, stops: &[(f32, [f32; 4])]) {
     p.add(mesh);
 }
 
-fn pattern_texture(ctx: &egui::Context, pat: &photocraft_doc::Pattern) -> TextureHandle {
+fn pattern_texture(ctx: &egui::Context, pat: &openphoto_doc::Pattern) -> TextureHandle {
     cached_texture(ctx, ("pattern", pat.id.clone()), || {
         let (w, h) = (pat.width.max(1), pat.height.max(1));
         let fmt = pat.surface.format();
-        let px = pat.surface.read_region(photocraft_geom::Rect::new(0, 0, w as i32, h as i32));
+        let px = pat.surface.read_region(openphoto_geom::Rect::new(0, 0, w as i32, h as i32));
         let n = fmt.channels();
         // Tiles smaller than the swatch repeat; larger ones are shown shrunk.
         const S: u32 = 64;
@@ -178,27 +178,27 @@ fn pattern_texture(ctx: &egui::Context, pat: &photocraft_doc::Pattern) -> Textur
                 let sx = ((x as f32 * step) as u32) % w;
                 let sy = ((y as f32 * step) as u32) % h;
                 let i = (sy * w + sx) as usize * n;
-                img.pixels[(y * S + x) as usize] = c32(photocraft_raster::to_rgba(&fmt, &px[i..i + n]));
+                img.pixels[(y * S + x) as usize] = c32(openphoto_raster::to_rgba(&fmt, &px[i..i + n]));
             }
         }
         img
     })
 }
 
-fn style_texture(app: &PhotocraftApp, ctx: &egui::Context, st: &photocraft_engine::presets::styles::StylePreset) -> TextureHandle {
+fn style_texture(app: &OpenPhotoApp, ctx: &egui::Context, st: &openphoto_engine::presets::styles::StylePreset) -> TextureHandle {
     let key = ("style", st.name.clone(), st.effects.len(), format!("{:?}{:?}", st.blend, st.fill_opacity));
     cached_texture(ctx, key, || {
         const S: u32 = 64;
-        let px = photocraft_engine::presets::styles::thumbnail(&app.session, st, S);
+        let px = openphoto_engine::presets::styles::thumbnail(&app.session, st, S);
         ColorImage::from_rgba_unmultiplied([S as usize, S as usize], &px)
     })
 }
 
-fn shape_texture(ctx: &egui::Context, sh: &photocraft_engine::presets::shapes::ShapePreset) -> TextureHandle {
+fn shape_texture(ctx: &egui::Context, sh: &openphoto_engine::presets::shapes::ShapePreset) -> TextureHandle {
     let knots: usize = sh.path.subpaths.iter().map(|s| s.knots.len()).sum();
     cached_texture(ctx, ("shape", sh.name.clone(), knots), || {
         const S: u32 = 64;
-        let cov = photocraft_engine::presets::shapes::thumbnail(&sh.path, S);
+        let cov = openphoto_engine::presets::shapes::thumbnail(&sh.path, S);
         ColorImage::new([S as usize, S as usize], cov.iter().map(|a| Color32::from_white_alpha((a.clamp(0.0, 1.0) * 255.0).round() as u8)).collect())
     })
 }
@@ -427,7 +427,7 @@ fn browser(
 }
 
 /// Shared handling of the generic events through `<prefix>.edit` / `.new`.
-fn generic(app: &mut PhotocraftApp, panel: &str, prefix: &str, e: &Ev, new_params: Value) -> bool {
+fn generic(app: &mut OpenPhotoApp, panel: &str, prefix: &str, e: &Ev, new_params: Value) -> bool {
     let edit = format!("{prefix}.edit");
     match e {
         Ev::Rename(k, n) => {
@@ -470,7 +470,7 @@ fn empty(ui: &mut egui::Ui, s: &str) {
 }
 
 /// Document point under a screen position on the main canvas.
-fn doc_point(app: &PhotocraftApp, pos: Pos2) -> Option<[f64; 2]> {
+fn doc_point(app: &OpenPhotoApp, pos: Pos2) -> Option<[f64; 2]> {
     let i = app.session.active_index()?;
     let v = app.ui.views.get(i)?;
     let xf = crate::canvas::ViewXform { rect: app.last_canvas_rect, zoom: v.zoom, center: v.center, flip: app.ui.view.flip_horizontal };
@@ -479,7 +479,7 @@ fn doc_point(app: &PhotocraftApp, pos: Pos2) -> Option<[f64; 2]> {
 
 // ------------------------------------------------------------------ Gradients
 
-pub fn gradients_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+pub fn gradients_panel(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let (fg, bg) = (app.session.tools.foreground, app.session.tools.background);
     let groups_src = app.session.presets.gradients.clone();
     // Current gradient (what the Gradient tool paints), like the panel's top "recent" row.
@@ -519,8 +519,8 @@ pub fn gradients_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
 
 // ------------------------------------------------------------------ Patterns
 
-pub fn patterns_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
-    photocraft_engine::presets::patterns::sync(&mut app.session);
+pub fn patterns_panel(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
+    openphoto_engine::presets::patterns::sync(&mut app.session);
     let lib = app.session.patterns.items.clone();
     let groups: Vec<GroupView> = app
         .session
@@ -537,7 +537,7 @@ pub fn patterns_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
                 .collect(),
         })
         .collect();
-    let pats: Vec<Vec<photocraft_doc::Pattern>> =
+    let pats: Vec<Vec<openphoto_doc::Pattern>> =
         app.session.presets.pattern_groups.iter().map(|g| g.items.iter().filter_map(|id| lib.iter().find(|p| &p.id == id).cloned()).collect()).collect();
     let canvas = app.last_canvas_rect;
     let mut st = std::mem::take(&mut app.ui.presets_ui);
@@ -569,13 +569,13 @@ pub fn patterns_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
 // ------------------------------------------------------------------ floating panels
 
 fn float_window(
-    app: &mut PhotocraftApp,
+    app: &mut OpenPhotoApp,
     ctx: &egui::Context,
     key: &str,
     title: &str,
     width: f32,
     offset: f32,
-    body: impl FnOnce(&mut PhotocraftApp, &mut egui::Ui),
+    body: impl FnOnce(&mut OpenPhotoApp, &mut egui::Ui),
 ) -> bool {
     let t = Tokens::get(ctx);
     let frame = egui::Frame::NONE
@@ -611,7 +611,7 @@ fn float_window(
 }
 
 /// Draws the open floating panels (Styles, Shapes, Tool Presets, Clone Source).
-pub fn windows(app: &mut PhotocraftApp, ctx: &egui::Context) {
+pub fn windows(app: &mut OpenPhotoApp, ctx: &egui::Context) {
     let p = app.ui.presets_ui.clone();
     if p.styles && float_window(app, ctx, "styles", tl!("Styles"), 250.0, 0.0, styles_panel) {
         app.ui.presets_ui.styles = false;
@@ -629,7 +629,7 @@ pub fn windows(app: &mut PhotocraftApp, ctx: &egui::Context) {
 
 // ------------------------------------------------------------------ Styles
 
-pub fn styles_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+pub fn styles_panel(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let src = app.session.presets.styles.clone();
     let groups: Vec<GroupView> = src
         .iter()
@@ -677,8 +677,8 @@ pub fn styles_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
 
 // ------------------------------------------------------------------ Shapes
 
-pub fn shapes_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
-    let src = photocraft_engine::presets::shapes::all_groups(&app.session);
+pub fn shapes_panel(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
+    let src = openphoto_engine::presets::shapes::all_groups(&app.session);
     let groups: Vec<GroupView> = src
         .iter()
         .map(|g| GroupView { name: g.name.clone(), items: g.items.iter().map(|i| ItemView { key: i.name.clone(), name: i.name.clone() }).collect() })
@@ -728,17 +728,17 @@ pub fn shapes_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
     }
 }
 
-fn shape_fill(app: &PhotocraftApp) -> Value {
+fn shape_fill(app: &OpenPhotoApp) -> Value {
     let f = app.session.tools.foreground;
     let q = |v: f32| (v.clamp(0.0, 1.0) * 255.0).round() as u8;
     if app.ui.tool_options.shape_fill { json!(format!("#{:02x}{:02x}{:02x}", q(f[0]), q(f[1]), q(f[2]))) } else { Value::Null }
 }
 
 /// Options-bar shape picker for the Custom Shape tool.
-pub fn shape_picker(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+pub fn shape_picker(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     ui.label(egui::RichText::new(tl!("Shape:")).color(t.text_dim).size(12.0));
-    let groups = photocraft_engine::presets::shapes::all_groups(&app.session);
+    let groups = openphoto_engine::presets::shapes::all_groups(&app.session);
     let cur = app.ui.presets_ui.shape().to_string();
     let ctx = ui.ctx().clone();
     let (r, resp) = ui.allocate_exact_size(vec2(36.0, 22.0), Sense::click());
@@ -790,10 +790,10 @@ pub fn shape_picker(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
 }
 
 /// Custom Shape tool drag: places the selected shape in the dragged rect (⇧ keeps proportions).
-pub fn finish_custom_shape(app: &mut PhotocraftApp, rect: [f64; 4], keep: bool, fill: Value, stroke: Value) {
+pub fn finish_custom_shape(app: &mut OpenPhotoApp, rect: [f64; 4], keep: bool, fill: Value, stroke: Value) {
     let name = app.ui.presets_ui.shape().to_string();
     let r = run(app, "shape.presets.place", json!({"preset": name, "rect": rect, "keepAspect": keep, "fill": fill, "stroke": stroke}));
-    if r.is_none() && !photocraft_engine::presets::shapes::all_groups(&app.session).iter().any(|g| g.items.iter().any(|s| s.name == name)) {
+    if r.is_none() && !openphoto_engine::presets::shapes::all_groups(&app.session).iter().any(|g| g.items.iter().any(|s| s.name == name)) {
         app.ui.status = format!("No custom shape \"{name}\": pick one in the options bar or Window › Shapes");
     }
 }
@@ -807,7 +807,7 @@ fn tool_id(t: Tool) -> String {
 }
 
 /// Apply a tool preset: the engine sets the brush/colour, the shell switches tool and options.
-pub fn select_tool_preset(app: &mut PhotocraftApp, name: &str) {
+pub fn select_tool_preset(app: &mut OpenPhotoApp, name: &str) {
     let Some(r) = run(app, "tool.presets.select", json!({"preset": name})) else { return };
     if let Some(tool) = r["tool"].as_str().and_then(Tool::from_name) {
         app.ui.tool = tool;
@@ -825,7 +825,7 @@ pub fn select_tool_preset(app: &mut PhotocraftApp, name: &str) {
     }
 }
 
-pub fn tool_presets_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+pub fn tool_presets_panel(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     let only = app.ui.presets_ui.current_tool_only;
     let cur = app.ui.tool;
@@ -917,7 +917,7 @@ pub fn tool_presets_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
 
 // ------------------------------------------------------------------ Clone Source
 
-pub fn clone_source_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+pub fn clone_source_panel(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     let cs = app.session.presets.clone.clone();
     let slot = cs.active().clone();
@@ -925,7 +925,7 @@ pub fn clone_source_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
     // The five source buttons.
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 4.0;
-        for i in 0..photocraft_engine::presets::clone_source::SLOTS {
+        for i in 0..openphoto_engine::presets::clone_source::SLOTS {
             let set = cs.slots[i].source.is_some();
             let tip = match cs.slots[i].source {
                 Some(s) => format!("Clone source {}: {:.0}, {:.0}", i + 1, s[0], s[1]),
@@ -946,7 +946,7 @@ pub fn clone_source_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
     });
     ui.add_space(4.0);
     let src_line =
-        match (slot.source, slot.layer.and_then(|l| app.session.active().and_then(|d| d.doc.layer(photocraft_doc::LayerId(l)).map(|x| x.name.clone())))) {
+        match (slot.source, slot.layer.and_then(|l| app.session.active().and_then(|d| d.doc.layer(openphoto_doc::LayerId(l)).map(|x| x.name.clone())))) {
             (Some(_), Some(l)) => format!("Source: {} : {l}", app.session.active().map(|d| d.doc.name.clone()).unwrap_or_default()),
             (Some(_), None) => "Source: set".to_string(),
             _ => crate::i18n::fmt(tl!("Source: not set ({key}-click with Clone Stamp)"), &[("key", &crate::shortcuts::pretty("Alt"))]),
@@ -1036,8 +1036,8 @@ pub fn clone_source_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
 }
 
 /// Where the active clone source samples for document point `at` (for the canvas marker).
-pub fn clone_sample_point(app: &PhotocraftApp, at: Option<[f64; 2]>) -> Option<[f64; 2]> {
-    use photocraft_engine::presets::clone_source::{Mapping, transform_matrix};
+pub fn clone_sample_point(app: &OpenPhotoApp, at: Option<[f64; 2]>) -> Option<[f64; 2]> {
+    use openphoto_engine::presets::clone_source::{Mapping, transform_matrix};
     let s = app.session.presets.clone.active();
     let src = s.source?;
     match (s.anchor, at) {
@@ -1055,9 +1055,9 @@ mod tests {
     use super::*;
     use crate::menus::invoke;
 
-    fn app() -> (PhotocraftApp, egui::Context) {
+    fn app() -> (OpenPhotoApp, egui::Context) {
         let ctx = egui::Context::default();
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 64, "height": 48})).unwrap();
         app.sync_views();
         (app, ctx)
@@ -1110,7 +1110,7 @@ mod tests {
         let d = app.session.active().unwrap();
         let l = d.doc.layer(d.active_layer.unwrap()).unwrap();
         assert_eq!(l.name, "Star");
-        assert!(matches!(l.content, photocraft_doc::LayerContent::Shape(_)));
+        assert!(matches!(l.content, openphoto_doc::LayerContent::Shape(_)));
     }
 
     #[test]

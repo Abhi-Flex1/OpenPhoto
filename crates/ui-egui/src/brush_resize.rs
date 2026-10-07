@@ -13,7 +13,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use egui::{Color32, Pos2, Stroke, vec2};
 use serde_json::json;
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 use crate::canvas::{ToolEvent, ViewXform};
 use crate::state::Tool;
 
@@ -56,7 +56,7 @@ pub fn resized(start: (f32, f32), dx: f64, dy: f64, zoom: f32) -> (f32, f32) {
 
 /// Route a tool event: true when it belongs to a resize drag (begun here with Control+Alt held,
 /// or already in progress), so the tool never sees it.
-pub fn pointer(app: &mut PhotocraftApp, ev: ToolEvent, mods: egui::Modifiers) -> bool {
+pub fn pointer(app: &mut OpenPhotoApp, ev: ToolEvent, mods: egui::Modifiers) -> bool {
     static KEY: AtomicU64 = AtomicU64::new(0);
     match ev {
         ToolEvent::Down { x, y, .. } => {
@@ -84,7 +84,7 @@ pub fn pointer(app: &mut PhotocraftApp, ev: ToolEvent, mods: egui::Modifiers) ->
     }
 }
 
-fn update(app: &mut PhotocraftApp, r: Resize, x: f64, y: f64) {
+fn update(app: &mut OpenPhotoApp, r: Resize, x: f64, y: f64) {
     // Right is bigger on screen, also in a flipped view (View › Flip Horizontal).
     let dx = (x - r.anchor[0]) * if app.ui.view.flip_horizontal { -1.0 } else { 1.0 };
     let (size, hardness) = resized(r.start, dx, y - r.anchor[1], app.current_zoom());
@@ -101,7 +101,7 @@ fn update(app: &mut PhotocraftApp, r: Resize, x: f64, y: f64) {
 /// Draw the resize feedback: the brush circle at the anchor, filled with a red tip preview whose
 /// solid core shows the hardness (Photoshop's), and the readout beside the pointer. Returns true
 /// while a resize is in progress (the canvas then hides its cursor).
-pub fn draw(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXform) -> bool {
+pub fn draw(app: &OpenPhotoApp, painter: &egui::Painter, xf: &ViewXform) -> bool {
     let Some(r) = app.brush_resize else { return false };
     let b = &app.session.tools.brush;
     let c = xf.to_screen(r.anchor[0] as f32, r.anchor[1] as f32);
@@ -163,15 +163,15 @@ mod tests {
 
     const CTRL_ALT: Modifiers = Modifiers { alt: true, ctrl: true, shift: false, mac_cmd: false, command: false };
 
-    fn app(tool: Tool) -> PhotocraftApp {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+    fn app(tool: Tool) -> OpenPhotoApp {
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), Default::default());
         app.run("file.new", json!({"width": 300, "height": 200, "background": "transparent"})).unwrap();
         app.run("tools.setBrush", json!({"brush": {"size": 40, "hardness": 0.2}})).unwrap();
         app.ui.tool = tool;
         app
     }
 
-    fn history(app: &PhotocraftApp) -> usize {
+    fn history(app: &OpenPhotoApp) -> usize {
         app.session.active().unwrap().history.past_len()
     }
 
@@ -233,7 +233,7 @@ mod tests {
         let mut a = app(Tool::Brush);
         a.sync_views();
         let mut h = Harness::builder().with_size(vec2(1000.0, 700.0)).build_ui_state(
-            |ui, app: &mut PhotocraftApp| {
+            |ui, app: &mut OpenPhotoApp| {
                 let ctx = ui.ctx().clone();
                 if !ctx.fonts(|f| f.families().contains(&egui::FontFamily::Name("medium".into()))) {
                     return;
@@ -242,10 +242,10 @@ mod tests {
             },
             a,
         );
-        PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::default());
+        OpenPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::default());
         h.run_steps(4);
         let c = h.state().last_canvas_rect.center();
-        let press = |h: &mut Harness<'static, PhotocraftApp>, pos: Pos2, pressed: bool| {
+        let press = |h: &mut Harness<'static, OpenPhotoApp>, pos: Pos2, pressed: bool| {
             h.event(egui::Event::PointerButton { pos, button: PointerButton::Primary, pressed, modifiers: CTRL_ALT });
             h.run();
         };

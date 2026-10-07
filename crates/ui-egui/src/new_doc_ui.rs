@@ -322,7 +322,7 @@ mod tests {
         assert_eq!(p["height"], 3508);
         assert_eq!(p["resolution"], 300.0);
         assert!(p.get("__preset").is_none() && p.get("__unit").is_none());
-        let mut s = photocraft_engine::Session::new();
+        let mut s = openphoto_engine::Session::new();
         s.execute("file.new", p).unwrap();
         let d = &s.active().unwrap().doc;
         assert_eq!((d.size.width, d.size.height, d.resolution_dpi), (2480, 3508, 300.0));
@@ -330,21 +330,21 @@ mod tests {
     /// The real dialog (#254): a typed size must reach `file.new`, however it is confirmed.
     mod dialog {
         use super::super::{CATEGORIES, apply_preset};
-        use crate::PhotocraftApp;
+        use crate::OpenPhotoApp;
         use crate::state::{DialogKind, UiState};
         use egui::accesskit::Role;
         use egui_kittest::{Harness, kittest::Queryable};
 
-        fn harness() -> Harness<'static, PhotocraftApp> {
-            let app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+        fn harness() -> Harness<'static, OpenPhotoApp> {
+            let app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
             let mut h = Harness::builder().with_size(egui::vec2(1400.0, 900.0)).build_ui_state(|ui, app| crate::dialogs::show(app, ui.ctx()), app);
-            PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+            OpenPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
             h.state_mut().ui.open_dialog(DialogKind::NewDocument, UiState::new_document_fields());
             h.run_steps(3);
             h
         }
 
-        fn click_at(h: &mut Harness<'static, PhotocraftApp>, at: egui::Pos2) {
+        fn click_at(h: &mut Harness<'static, OpenPhotoApp>, at: egui::Pos2) {
             h.hover_at(at);
             h.run_steps(1);
             h.drag_at(at);
@@ -354,12 +354,12 @@ mod tests {
         }
 
         /// The Width (0), Height (1) and Resolution (2) fields.
-        fn field(h: &Harness<'static, PhotocraftApp>, i: usize) -> egui::Rect {
+        fn field(h: &Harness<'static, OpenPhotoApp>, i: usize) -> egui::Rect {
             h.query_all_by_role(Role::SpinButton).nth(i).map(|n| n.rect()).expect("a size field")
         }
 
         /// Click into field `i` (which selects its text) and type `text`, as a user does.
-        fn type_into(h: &mut Harness<'static, PhotocraftApp>, i: usize, text: &str) {
+        fn type_into(h: &mut Harness<'static, OpenPhotoApp>, i: usize, text: &str) {
             let r = field(h, i);
             click_at(h, r.center());
             for c in text.chars() {
@@ -368,21 +368,21 @@ mod tests {
             }
         }
 
-        fn fields(h: &Harness<'static, PhotocraftApp>) -> serde_json::Map<String, serde_json::Value> {
+        fn fields(h: &Harness<'static, OpenPhotoApp>) -> serde_json::Map<String, serde_json::Value> {
             h.state().ui.dialogs.first().map(|d| d.fields.clone()).expect("the dialog is open")
         }
 
-        fn set_fields(h: &mut Harness<'static, PhotocraftApp>, f: serde_json::Map<String, serde_json::Value>) {
+        fn set_fields(h: &mut Harness<'static, OpenPhotoApp>, f: serde_json::Map<String, serde_json::Value>) {
             h.state_mut().ui.dialogs[0].fields = f;
             h.run_steps(2);
         }
 
-        fn enter(h: &mut Harness<'static, PhotocraftApp>) {
+        fn enter(h: &mut Harness<'static, OpenPhotoApp>) {
             h.key_press(egui::Key::Enter);
             h.run_steps(3);
         }
 
-        fn created(h: &Harness<'static, PhotocraftApp>) -> (u32, u32, f32) {
+        fn created(h: &Harness<'static, OpenPhotoApp>) -> (u32, u32, f32) {
             assert!(h.state().ui.dialogs.is_empty(), "the dialog closed");
             let d = &h.state().session.active().expect("a new document").doc;
             (d.size.width, d.size.height, d.resolution_dpi)

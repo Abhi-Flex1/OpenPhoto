@@ -61,7 +61,7 @@ choice!(CanvasBorder { DropShadow = "dropShadow", Line = "line", None = "none" }
 choice!(UiScale { Auto = "auto", P100 = "100", P200 = "200" } default Auto);
 choice!(
     /// Graphics backend of the desktop app's window and GPU canvas (applies at next launch).
-    /// `auto` lets PhotoCraft pick (DX12 for Intel adapters on Windows); `cpu` composites on the
+    /// `auto` lets OpenPhoto pick (DX12 for Intel adapters on Windows); `cpu` composites on the
     /// CPU and draws the window with a software adapter where the platform has one. A start that
     /// crashes inside the graphics driver moves this to the next safer choice.
     GpuBackend { Auto = "auto", Vulkan = "vulkan", Dx12 = "dx12", Metal = "metal", Gl = "gl", Cpu = "cpu" } default Auto
@@ -374,7 +374,7 @@ impl Default for Export {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Performance {
-    /// Memory PhotoCraft may use, in MB: bounds each document's pixels plus its History (the
+    /// Memory OpenPhoto may use, in MB: bounds each document's pixels plus its History (the
     /// oldest states are dropped beyond it).
     pub memory_usage_mb: u32,
     /// Undo steps kept per document (History panel states).
@@ -1221,7 +1221,7 @@ impl Session {
             st.history.max_bytes = bytes;
             st.history.trim(&st.doc);
         }
-        photocraft_compose::set_effect_cache_budget(budget << 20);
+        openphoto_compose::set_effect_cache_budget(budget << 20);
         crate::plugin_cmds::sync_prefs(self);
     }
 
@@ -1245,7 +1245,7 @@ impl Session {
         let prefs: Preferences = serde_json::from_value(v).map_err(|e| format!("preferences: {e}"))?;
         if let Some(c) = color {
             self.color.settings = serde_json::from_value(c).unwrap_or_default();
-            photocraft_compose::psblend::set_text_gamma(self.color.settings.blend_text_gamma);
+            openphoto_compose::psblend::set_text_gamma(self.color.settings.blend_text_gamma);
         }
         self.prefs.edit(|p| *p = prefs);
         if let Some(v) = presets {

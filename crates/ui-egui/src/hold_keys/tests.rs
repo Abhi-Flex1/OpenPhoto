@@ -4,20 +4,20 @@
 
 use egui::{Event, Key, Modifiers, PointerButton, Pos2, vec2};
 use egui_kittest::Harness;
-use photocraft_geom::Rect;
+use openphoto_geom::Rect;
 use serde_json::json;
 
 use super::*;
 use crate::canvas::ViewXform;
 
-fn harness(tool: Tool) -> Harness<'static, PhotocraftApp> {
-    let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+fn harness(tool: Tool) -> Harness<'static, OpenPhotoApp> {
+    let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app.sync_views();
     app.ui.extras.rulers = false;
     app.ui.tool = tool;
     let mut h = Harness::builder().with_size(vec2(1000.0, 700.0)).build_ui_state(
-        |ui, app: &mut PhotocraftApp| {
+        |ui, app: &mut OpenPhotoApp| {
             let ctx = ui.ctx().clone();
             if !ctx.fonts(|f| f.families().contains(&egui::FontFamily::Name("medium".into()))) {
                 return;
@@ -27,7 +27,7 @@ fn harness(tool: Tool) -> Harness<'static, PhotocraftApp> {
         },
         app,
     );
-    PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+    OpenPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
     h.run_steps(4);
     let v = &mut h.state_mut().ui.views[0];
     v.zoom = 1.0;
@@ -37,7 +37,7 @@ fn harness(tool: Tool) -> Harness<'static, PhotocraftApp> {
     h
 }
 
-fn screen(h: &Harness<'static, PhotocraftApp>, x: f32, y: f32) -> Pos2 {
+fn screen(h: &Harness<'static, OpenPhotoApp>, x: f32, y: f32) -> Pos2 {
     let app = h.state();
     let v = &app.ui.views[0];
     let xf = ViewXform { rect: crate::rulers::content_rect(app, app.last_canvas_rect), zoom: v.zoom, center: v.center, flip: app.ui.view.flip_horizontal };
@@ -58,32 +58,32 @@ fn platform(m: Modifiers) -> Modifiers {
     out
 }
 
-fn key(h: &mut Harness<'static, PhotocraftApp>, k: Key, pressed: bool, m: Modifiers) {
+fn key(h: &mut Harness<'static, OpenPhotoApp>, k: Key, pressed: bool, m: Modifiers) {
     let m = platform(m);
     h.event(Event::ModifiersChanged(m));
     h.event(Event::Key { key: k, physical_key: None, pressed, repeat: false, modifiers: m });
     h.run_steps(1);
 }
 
-fn tap(h: &mut Harness<'static, PhotocraftApp>, k: Key, m: Modifiers) {
+fn tap(h: &mut Harness<'static, OpenPhotoApp>, k: Key, m: Modifiers) {
     key(h, k, true, m);
     key(h, k, false, m);
     h.event(Event::ModifiersChanged(Modifiers::NONE));
     h.run_steps(1);
 }
 
-fn button(h: &mut Harness<'static, PhotocraftApp>, p: Pos2, down: bool, m: Modifiers) {
+fn button(h: &mut Harness<'static, OpenPhotoApp>, p: Pos2, down: bool, m: Modifiers) {
     h.event(Event::PointerButton { pos: p, button: PointerButton::Primary, pressed: down, modifiers: platform(m) });
     h.run_steps(1);
 }
 
-fn move_to(h: &mut Harness<'static, PhotocraftApp>, x: f32, y: f32) {
+fn move_to(h: &mut Harness<'static, OpenPhotoApp>, x: f32, y: f32) {
     let p = screen(h, x, y);
     h.event(Event::PointerMoved(p));
     h.run_steps(2);
 }
 
-fn press_at(h: &mut Harness<'static, PhotocraftApp>, x: f32, y: f32) {
+fn press_at(h: &mut Harness<'static, OpenPhotoApp>, x: f32, y: f32) {
     let p = screen(h, x, y);
     h.event(Event::PointerMoved(p));
     h.run_steps(1);
@@ -91,11 +91,11 @@ fn press_at(h: &mut Harness<'static, PhotocraftApp>, x: f32, y: f32) {
     move_to(h, x + 8.0, y + 6.0);
 }
 
-fn selection(h: &Harness<'static, PhotocraftApp>) -> Rect {
+fn selection(h: &Harness<'static, OpenPhotoApp>) -> Rect {
     h.state().session.active().unwrap().doc.selection.as_ref().map_or(Rect::EMPTY, |s| s.content_bounds())
 }
 
-fn click(h: &mut Harness<'static, PhotocraftApp>, x: f32, y: f32, m: Modifiers) {
+fn click(h: &mut Harness<'static, OpenPhotoApp>, x: f32, y: f32, m: Modifiers) {
     let p = screen(h, x, y);
     h.event(Event::PointerMoved(p));
     h.run_steps(1);
@@ -229,7 +229,7 @@ fn rebound_temporary_zoom_uses_the_new_key_only() {
     assert!(!reposition_held(h.state(), &h.ctx));
 }
 
-fn fg_bg(h: &Harness<'static, PhotocraftApp>) -> ([f32; 4], [f32; 4]) {
+fn fg_bg(h: &Harness<'static, OpenPhotoApp>) -> ([f32; 4], [f32; 4]) {
     let t = &h.state().session.tools;
     (t.foreground, t.background)
 }
@@ -252,7 +252,7 @@ fn d_and_x_are_rebindable_commands() {
     assert_eq!(fg_bg(&h), ([0.0, 1.0, 0.0, 1.0], [1.0, 0.0, 0.0, 1.0]));
 }
 
-fn rgba(h: &Harness<'static, PhotocraftApp>, x: i32, y: i32) -> [f32; 4] {
+fn rgba(h: &Harness<'static, OpenPhotoApp>, x: i32, y: i32) -> [f32; 4] {
     h.state().session.active().unwrap().doc.layers.last().unwrap().surface().unwrap().rgba(x, y)
 }
 
@@ -299,7 +299,7 @@ fn fill_key_on_a_locked_layer_reports_instead_of_crashing() {
 
 #[test]
 fn keyboard_shortcuts_dialog_lists_the_keys_under_tools() {
-    let app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+    let app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
     let items = crate::prefs_ui::shortcut_items(&app);
     let find = |id: &str| items.iter().find(|i| i.0 == id).map(|i| (i.2.clone(), i.3.clone()));
     let tools = || vec!["Tools".to_string()];
@@ -323,7 +323,7 @@ fn keyboard_shortcuts_dialog_lists_the_keys_under_tools() {
 #[test]
 fn agents_reposition_a_marquee_with_space() {
     use crate::control::{ControlRequest, Outcome, handle};
-    let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+    let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
     let ctx = egui::Context::default();
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     let mut call = |p: serde_json::Value| {
@@ -337,7 +337,7 @@ fn agents_reposition_a_marquee_with_space() {
     assert_eq!(sel, Rect::new(70, 50, 170, 110));
 }
 
-fn release(h: &mut Harness<'static, PhotocraftApp>, x: f32, y: f32, m: Modifiers) {
+fn release(h: &mut Harness<'static, OpenPhotoApp>, x: f32, y: f32, m: Modifiers) {
     let p = screen(h, x, y);
     button(h, p, false, m);
 }

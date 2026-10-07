@@ -1,14 +1,14 @@
 //! Destructive pixel operations on layers (Image → Adjustments, flips, fills).
 
-use photocraft_compose::{Buffer, adjust};
-use photocraft_doc::{Adjustment, Document, Layer, LayerContent};
-use photocraft_geom::Rect;
-use photocraft_raster::{Surface, from_rgba, to_rgba};
+use openphoto_compose::{Buffer, adjust};
+use openphoto_doc::{Adjustment, Document, Layer, LayerContent};
+use openphoto_geom::Rect;
+use openphoto_raster::{Surface, from_rgba, to_rgba};
 
 /// Apply an adjustment destructively to a surface, weighted by an optional selection.
 /// Applies `adj` to a surface (any colour model and depth, via straight RGBA) through the
 /// selection; `mode` is the document's, for the tone transfer (e.g. Exposure in Grayscale).
-pub fn adjust_surface(s: &mut Surface, adj: &Adjustment, selection: Option<&Surface>, mode: photocraft_color::ColorMode) {
+pub fn adjust_surface(s: &mut Surface, adj: &Adjustment, selection: Option<&Surface>, mode: openphoto_color::ColorMode) {
     let r = s.content_bounds();
     if r.is_empty() {
         return;
@@ -25,7 +25,7 @@ pub fn adjust_surface(s: &mut Surface, adj: &Adjustment, selection: Option<&Surf
         let k = selection.map_or(1.0, |sel| sel.sample_channel(r.x0 + (i % w) as i32, r.y0 + (i / w) as i32, 0));
         let mixed: [f32; 4] = std::array::from_fn(|c| o[c] + (a[c] - o[c]) * k);
         let mut enc = [0.0f32; 8];
-        let m = photocraft_raster::from_rgba_into(&fmt, mixed, &mut enc);
+        let m = openphoto_raster::from_rgba_into(&fmt, mixed, &mut enc);
         out.extend_from_slice(&enc[..m]);
     }
     s.write_region(r, &out);
@@ -55,7 +55,7 @@ pub fn fill_surface(s: &mut Surface, area: Rect, color: [f32; 4], selection: Opt
         }
         o[3] = if lock_transparency { d[3] } else { oa };
         let mut enc = [0.0f32; 8];
-        photocraft_raster::from_rgba_into(&fmt, o, &mut enc);
+        openphoto_raster::from_rgba_into(&fmt, o, &mut enc);
         px.copy_from_slice(&enc[..n]);
     }
     s.write_region(area, &region);
@@ -98,12 +98,12 @@ pub fn remap_surface(s: &Surface, map: impl Fn(i32, i32) -> (i32, i32)) -> Surfa
 }
 
 /// Merge `upper` onto `lower` producing a raster layer (Layer → Merge Down).
-pub fn merge_down(doc_bounds: Rect, lower: &Layer, upper: &Layer, format: photocraft_color::PixelFormat) -> Layer {
+pub fn merge_down(doc_bounds: Rect, lower: &Layer, upper: &Layer, format: openphoto_color::PixelFormat) -> Layer {
     let area = [lower, upper].iter().map(|l| l.surface().map(|s| s.content_bounds()).unwrap_or(doc_bounds)).fold(Rect::EMPTY, |a, b| a.union(&b));
     let stack = vec![lower.clone(), upper.clone()];
     let mut tmp = Document::new("merge", doc_bounds.size(), format.mode, format.sample);
     tmp.layers = stack;
-    let buf = photocraft_compose::render(&tmp, area);
+    let buf = openphoto_compose::render(&tmp, area);
     let mut s = Surface::new(format);
     let data: Vec<f32> = buf.px.iter().flat_map(|p| from_rgba(&format, *p)).collect();
     if !area.is_empty() {

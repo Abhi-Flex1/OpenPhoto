@@ -1,19 +1,19 @@
-//! Camera raw files via `photocraft-raw`: developed to a 16-bit RGB document
+//! Camera raw files via `openphoto-raw`: developed to a 16-bit RGB document
 //! in ProPhoto RGB (the embedded profile is the built-in ProPhoto-compatible
 //! profile), or, for raw variants not decoded yet, the camera's embedded
 //! JPEG preview with a warning.
 
 use std::sync::Arc;
 
-use photocraft_codecs::{self as codecs, ChannelLayout, Format, Image};
-use photocraft_raw::{DevelopOptions, Limits, RawError};
+use openphoto_codecs::{self as codecs, ChannelLayout, Format, Image};
+use openphoto_raw::{DevelopOptions, Limits, RawError};
 
 use crate::flat::image_to_document;
 use crate::{ImportResult, IoError};
 
-/// `true` if `bytes` are a camera raw file `photocraft-raw` recognises.
+/// `true` if `bytes` are a camera raw file `openphoto-raw` recognises.
 pub fn is_raw(bytes: &[u8]) -> bool {
-    photocraft_raw::is_raw(bytes)
+    openphoto_raw::is_raw(bytes)
 }
 
 /// The decode limits shared with the flat codecs.
@@ -25,7 +25,7 @@ fn limits() -> Limits {
 /// A raw file's embedded JPEG preview, turned upright. Its own EXIF orientation wins when it
 /// has one; otherwise the raw's IFD0 orientation applies (TIFF-based raws record it there, and
 /// their previews are usually stored as the sensor reads out). Developed raws are oriented by
-/// `photocraft-raw` and carry no EXIF, so nothing is turned twice.
+/// `openphoto-raw` and carry no EXIF, so nothing is turned twice.
 fn upright_preview(raw: &[u8], jpeg: &[u8]) -> Result<Image, IoError> {
     let img = codecs::decode_as_with(Format::Jpeg, jpeg, &codecs::DecodeOptions { keep_orientation: true, ..Default::default() })?;
     let own = img.meta.exif.as_deref().map_or(1, codecs::exif_orientation);
@@ -40,12 +40,12 @@ pub fn import_raw(name: &str, bytes: &[u8]) -> Result<ImportResult, IoError> {
 
 /// Develops a raw file with explicit settings.
 pub fn import_raw_with(name: &str, bytes: &[u8], opts: &DevelopOptions) -> Result<ImportResult, IoError> {
-    let format = photocraft_raw::identify(bytes).map(|f| f.name()).unwrap_or("camera raw");
-    match photocraft_raw::develop(bytes, opts) {
+    let format = openphoto_raw::identify(bytes).map(|f| f.name()).unwrap_or("camera raw");
+    match openphoto_raw::develop(bytes, opts) {
         Ok(dev) => {
             let img = Image::from_u16(dev.width, dev.height, ChannelLayout::Rgb, &dev.rgb)?;
             let mut r = image_to_document(name, &img)?;
-            r.document.icc_profile = Some(Arc::new(photocraft_cms::Builtin::ProPhotoCompat.profile().to_bytes().to_vec()));
+            r.document.icc_profile = Some(Arc::new(openphoto_cms::Builtin::ProPhotoCompat.profile().to_bytes().to_vec()));
             // "Canon" + "Canon EOS 80D" reads as "Canon EOS 80D".
             let camera = match (dev.info.make.as_deref(), dev.info.model.as_deref()) {
                 (Some(make), Some(model)) if model.to_ascii_lowercase().starts_with(&make.to_ascii_lowercase()) => model.to_string(),
@@ -55,12 +55,12 @@ pub fn import_raw_with(name: &str, bytes: &[u8], opts: &DevelopOptions) -> Resul
                 "{format}{} developed with default settings ({} demosaic, as-shot white balance) into 16-bit {}",
                 if camera.is_empty() { String::new() } else { format!(" from {camera}") },
                 opts.demosaic.id(),
-                photocraft_raw::OUTPUT_SPACE
+                openphoto_raw::OUTPUT_SPACE
             ));
             r.warnings.extend(dev.warnings);
             Ok(r)
         }
-        Err(RawError::Unsupported(reason)) => match photocraft_raw::embedded_preview(bytes) {
+        Err(RawError::Unsupported(reason)) => match openphoto_raw::embedded_preview(bytes) {
             Some(p) => {
                 let img = upright_preview(bytes, p.jpeg)?;
                 let mut r = image_to_document(name, &img)?;

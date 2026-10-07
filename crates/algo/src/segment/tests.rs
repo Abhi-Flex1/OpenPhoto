@@ -1,7 +1,7 @@
 use super::gmm::Gmm;
 use super::maxflow::Graph;
 use super::*;
-use photocraft_geom::Rect;
+use openphoto_geom::Rect;
 
 // ---------- max-flow ----------
 

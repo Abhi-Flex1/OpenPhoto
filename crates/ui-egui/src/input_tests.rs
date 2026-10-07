@@ -6,14 +6,14 @@ use egui::{Key, Modifiers, Pos2, pos2, vec2};
 use egui_kittest::Harness;
 use serde_json::json;
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 
-fn harness() -> Harness<'static, PhotocraftApp> {
-    let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+fn harness() -> Harness<'static, OpenPhotoApp> {
+    let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
     app.run("file.new", json!({"width": 400, "height": 300})).unwrap();
     app.sync_views();
     let mut h = Harness::builder().with_size(vec2(1200.0, 800.0)).build_ui_state(
-        |ui, app: &mut PhotocraftApp| {
+        |ui, app: &mut OpenPhotoApp| {
             let ctx = ui.ctx().clone();
             // Fonts set up after the first frame only apply from the next one.
             if !ctx.fonts(|f| f.families().contains(&egui::FontFamily::Name("medium".into()))) {
@@ -25,23 +25,23 @@ fn harness() -> Harness<'static, PhotocraftApp> {
         },
         app,
     );
-    PhotocraftApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
+    OpenPhotoApp::setup_context(&h.ctx, crate::theme::ThemeKind::ALL[0]);
     h.run_steps(4);
     h
 }
 
-fn zoom(h: &Harness<'static, PhotocraftApp>) -> f32 {
+fn zoom(h: &Harness<'static, OpenPhotoApp>) -> f32 {
     h.state().current_zoom()
 }
 
-fn open_dialog(h: &mut Harness<'static, PhotocraftApp>) {
+fn open_dialog(h: &mut Harness<'static, OpenPhotoApp>) {
     crate::dialogs::open_command_dialog(h.state_mut(), "image.adjustments.brightnessContrast", "Brightness/Contrast…");
     h.run_steps(3);
     assert_eq!(h.state().ui.dialogs.len(), 1);
 }
 
 /// A point on the canvas well away from the centred dialog.
-fn free_canvas(h: &Harness<'static, PhotocraftApp>) -> Pos2 {
+fn free_canvas(h: &Harness<'static, OpenPhotoApp>) -> Pos2 {
     let r = h.state().last_canvas_rect;
     pos2(r.left() + 60.0, r.bottom() - 60.0)
 }
@@ -138,23 +138,23 @@ fn clicking_outside_a_dialog_keeps_it_open_and_the_canvas_pans_and_zooms() {
 /// the selection by a word.
 #[test]
 fn type_tool_alt_arrows_kern_the_pair() {
-    use photocraft_doc::text::Kerning;
+    use openphoto_doc::text::Kerning;
     let mut h = harness();
     let id = h.state_mut().run("type.create", json!({"x": 20, "y": 80, "text": "AVA To", "size": 40, "font": "Inter"})).unwrap()["layer"].as_u64().unwrap();
-    let text = |h: &Harness<'static, PhotocraftApp>| {
+    let text = |h: &Harness<'static, OpenPhotoApp>| {
         let st = h.state().session.active().unwrap();
-        match &st.doc.layer(photocraft_doc::LayerId(id)).unwrap().content {
-            photocraft_doc::LayerContent::Text(t) => t.clone(),
+        match &st.doc.layer(openphoto_doc::LayerId(id)).unwrap().content {
+            openphoto_doc::LayerContent::Text(t) => t.clone(),
             _ => panic!("not text"),
         }
     };
-    let kern = |h: &Harness<'static, PhotocraftApp>| {
+    let kern = |h: &Harness<'static, OpenPhotoApp>| {
         let t = text(h);
         let r = t.char_runs();
         (r[0].style.kerning, r[0].style.kern, r.len())
     };
-    let steps = |h: &Harness<'static, PhotocraftApp>| h.state().session.active().unwrap().history.entries().len();
-    let metric = photocraft_text::shared().lock().unwrap().pair_kerning(&text(&h), 72.0, 0).unwrap().round();
+    let steps = |h: &Harness<'static, OpenPhotoApp>| h.state().session.active().unwrap().history.entries().len();
+    let metric = openphoto_text::shared().lock().unwrap().pair_kerning(&text(&h), 72.0, 0).unwrap().round();
     h.state_mut().ui.text_edit =
         Some(crate::state::TextEdit { layer: id, caret: 1, anchor: 1, session: "kern-test".into(), created: false, dragging: false, preedit: None });
     h.run_steps(2);
@@ -195,7 +195,7 @@ fn type_tool_alt_arrows_kern_the_pair() {
 /// The Character panel's kerning field reads and parses Photoshop's values.
 #[test]
 fn kerning_field_values() {
-    use photocraft_doc::text::Kerning;
+    use openphoto_doc::text::Kerning;
     assert_eq!(crate::type_tool::kerning_label((Kerning::Metrics, 0.0)), "Metrics");
     assert_eq!(crate::type_tool::kerning_label((Kerning::Optical, 0.0)), "Optical");
     assert_eq!(crate::type_tool::kerning_label((Kerning::Off, 0.0)), "0");

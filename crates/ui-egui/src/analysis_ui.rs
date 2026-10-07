@@ -7,11 +7,11 @@
 //! serialisable UI state so the control channel can read and drive it).
 
 use egui::{Align2, Color32, CornerRadius, FontId, Pos2, RichText, Stroke, pos2, vec2};
-use photocraft_doc::{Document, Ruler};
+use openphoto_doc::{Document, Ruler};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 use crate::canvas::{ToolEvent, ViewXform};
 use crate::state::Tool;
 use crate::theme::Tokens;
@@ -74,7 +74,7 @@ pub fn handles(id: &str) -> bool {
     PANELS.contains(&id)
 }
 
-pub fn checked(app: &PhotocraftApp, id: &str) -> Option<bool> {
+pub fn checked(app: &OpenPhotoApp, id: &str) -> Option<bool> {
     match id {
         "window.panel.measurementLog" => Some(app.ui.analysis.measurement_log),
         "window.panel.notes" => Some(app.ui.analysis.notes),
@@ -82,7 +82,7 @@ pub fn checked(app: &PhotocraftApp, id: &str) -> Option<bool> {
         "image.analysis.countTool" => Some(app.ui.tool == Tool::Count),
         _ => {
             // View › Proof Setup simulations: checked while that proof is shown.
-            let kind = id.strip_prefix("view.proofSetup.").and_then(photocraft_engine::proof_sim::ProofKind::from_id)?;
+            let kind = id.strip_prefix("view.proofSetup.").and_then(openphoto_engine::proof_sim::ProofKind::from_id)?;
             let d = app.session.active()?;
             let pv = app.session.color.proof(d.doc.id);
             Some(pv.enabled && pv.setup.kind == kind)
@@ -100,7 +100,7 @@ fn fields(v: Value) -> Map<String, Value> {
 
 /// Menu front ends: panel toggles, tool selection, dialogs and pickers in front of the engine's
 /// analysis commands. `None` when `id` isn't ours (or the engine should run it directly).
-pub fn menu(app: &mut PhotocraftApp, id: &str, params: &Value) -> Option<Result<Value, String>> {
+pub fn menu(app: &mut OpenPhotoApp, id: &str, params: &Value) -> Option<Result<Value, String>> {
     let a = &mut app.ui.analysis;
     match id {
         "window.panel.measurementLog" | "window.panel.notes" => {
@@ -160,7 +160,7 @@ pub fn menu(app: &mut PhotocraftApp, id: &str, params: &Value) -> Option<Result<
         }
         "file.import.notes" => {
             let (name, bytes) = app.services.pick_open.as_mut().and_then(|f| f())?;
-            let r = photocraft_engine::notes_cmds::import_notes_from(&mut app.session, &name, &bytes).map_err(|e| e.to_string());
+            let r = openphoto_engine::notes_cmds::import_notes_from(&mut app.session, &name, &bytes).map_err(|e| e.to_string());
             if r.is_ok() {
                 app.ui.analysis.notes = true;
                 app.sync_views();
@@ -172,7 +172,7 @@ pub fn menu(app: &mut PhotocraftApp, id: &str, params: &Value) -> Option<Result<
     })
 }
 
-fn open(app: &mut PhotocraftApp, kind: &str, f: Value) -> Result<Value, String> {
+fn open(app: &mut OpenPhotoApp, kind: &str, f: Value) -> Result<Value, String> {
     app.ui.analysis.dialog = Some((kind.to_string(), fields(f)));
     Ok(json!({"dialog": kind}))
 }
@@ -185,7 +185,7 @@ fn suggested_length(d: &Document) -> f64 {
 }
 
 /// Export the Measurement Log (or the given rows) as CSV through the save picker.
-fn export_log(app: &mut PhotocraftApp, rows: Option<Vec<u64>>) -> Result<Value, String> {
+fn export_log(app: &mut OpenPhotoApp, rows: Option<Vec<u64>>) -> Result<Value, String> {
     let p = rows.map_or(json!({}), |r| json!({"rows": r}));
     let csv = app.run("measurementLog.export", p)?;
     let text = csv["csv"].as_str().unwrap_or_default().to_string();
@@ -197,7 +197,7 @@ fn export_log(app: &mut PhotocraftApp, rows: Option<Vec<u64>>) -> Result<Value, 
 
 // ------------------------------------------------------------------ tools
 
-fn tolerance(app: &PhotocraftApp) -> f64 {
+fn tolerance(app: &OpenPhotoApp) -> f64 {
     7.0 / f64::from(app.current_zoom().max(0.01))
 }
 
@@ -216,12 +216,12 @@ fn constrain(from: [f64; 2], to: [f64; 2], shift: bool) -> [f64; 2] {
     [from[0] + l * a.cos(), from[1] + l * a.sin()]
 }
 
-fn set_ruler(app: &mut PhotocraftApp, r: Ruler) {
+fn set_ruler(app: &mut OpenPhotoApp, r: Ruler) {
     let _ = app.run("image.analysis.rulerTool", json!({"start": r.start, "end": r.end, "protractor": r.protractor}));
 }
 
 /// Pointer input for the Ruler, Count and Note tools. Returns true when consumed.
-pub fn pointer(app: &mut PhotocraftApp, ev: ToolEvent, mods: egui::Modifiers) -> bool {
+pub fn pointer(app: &mut OpenPhotoApp, ev: ToolEvent, mods: egui::Modifiers) -> bool {
     let tool = app.ui.tool;
     if !matches!(tool, Tool::Ruler | Tool::Count | Tool::Note) {
         return false;
@@ -345,7 +345,7 @@ fn handle(painter: &egui::Painter, p: Pos2) {
 }
 
 /// Ruler line (while the Ruler tool is active), count markers and note icons.
-pub fn draw_overlay(app: &PhotocraftApp, painter: &egui::Painter, xf: &ViewXform) {
+pub fn draw_overlay(app: &OpenPhotoApp, painter: &egui::Painter, xf: &ViewXform) {
     let Some(doc) = app.session.active().map(|d| d.doc.clone()) else { return };
     let v = &app.ui.view;
     if app.ui.tool == Tool::Ruler
@@ -409,13 +409,13 @@ fn readout(ui: &mut egui::Ui, label: &str, value: Option<f64>) {
 }
 
 /// Options bar of the Ruler, Count and Note tools. Returns true when drawn.
-pub fn options_bar(app: &mut PhotocraftApp, ui: &mut egui::Ui, tool: Tool) -> bool {
+pub fn options_bar(app: &mut OpenPhotoApp, ui: &mut egui::Ui, tool: Tool) -> bool {
     let Some(doc) = app.session.active().map(|d| d.doc.clone()) else { return matches!(tool, Tool::Ruler | Tool::Count | Tool::Note) };
     match tool {
         Tool::Ruler => {
             let sc = doc.measurement.scale.clone();
             let f = if app.ui.analysis.use_measurement_scale { sc.factor() } else { 1.0 };
-            let info = doc.measurement.ruler.map(|r| photocraft_engine::analysis_cmds::ruler_info(&r, &sc));
+            let info = doc.measurement.ruler.map(|r| openphoto_engine::analysis_cmds::ruler_info(&r, &sc));
             let g = |k: &str| info.as_ref().and_then(|i| i[k].as_f64());
             readout(ui, "X:", g("x").map(|v| v * f));
             readout(ui, "Y:", g("y").map(|v| v * f));
@@ -526,7 +526,7 @@ pub(crate) fn title_row(ui: &mut egui::Ui, title: &str) -> bool {
 }
 
 /// A floating panel window; `movable` follows Window › Workspace › Lock Workspace.
-pub(crate) fn panel_window(app: &PhotocraftApp, ctx: &egui::Context, id: &str, title: &str, offset: egui::Vec2, width: f32, body: impl FnOnce(&mut egui::Ui)) {
+pub(crate) fn panel_window(app: &OpenPhotoApp, ctx: &egui::Context, id: &str, title: &str, offset: egui::Vec2, width: f32, body: impl FnOnce(&mut egui::Ui)) {
     let t = Tokens::get(ctx);
     let canvas = app.last_canvas_rect;
     egui::Window::new(title)
@@ -546,7 +546,7 @@ pub(crate) fn panel_window(app: &PhotocraftApp, ctx: &egui::Context, id: &str, t
 }
 
 /// Draws the open panels and dialogs.
-pub fn windows(app: &mut PhotocraftApp, ctx: &egui::Context) {
+pub fn windows(app: &mut OpenPhotoApp, ctx: &egui::Context) {
     if app.ui.analysis.measurement_log {
         let mut act: Option<(&str, Value)> = None;
         let mut close = false;
@@ -574,11 +574,11 @@ pub fn windows(app: &mut PhotocraftApp, ctx: &egui::Context) {
                     }
                 });
             });
-            let cols: Vec<&str> = photocraft_engine::analysis_cmds::log_columns(&rows).into_iter().filter(|c| *c != "histogram").collect();
+            let cols: Vec<&str> = openphoto_engine::analysis_cmds::log_columns(&rows).into_iter().filter(|c| *c != "histogram").collect();
             egui::ScrollArea::both().max_height(220.0).max_width(620.0).show(ui, |ui| {
                 egui::Grid::new("mlog-grid").striped(true).spacing(vec2(10.0, 2.0)).show(ui, |ui| {
                     for c in &cols {
-                        let name = photocraft_engine::analysis_cmds::COLUMNS.iter().find(|x| x.0 == *c).map_or(*c, |x| x.1);
+                        let name = openphoto_engine::analysis_cmds::COLUMNS.iter().find(|x| x.0 == *c).map_or(*c, |x| x.1);
                         ui.label(RichText::new(name).color(t.text_dim).size(10.5).strong());
                     }
                     ui.end_row();
@@ -637,7 +637,7 @@ pub fn windows(app: &mut PhotocraftApp, ctx: &egui::Context) {
     }
 }
 
-fn notes_panel(app: &mut PhotocraftApp, ctx: &egui::Context) {
+fn notes_panel(app: &mut OpenPhotoApp, ctx: &egui::Context) {
     let notes = app.session.active().map(|d| d.doc.notes.clone()).unwrap_or_default();
     let n = notes.len();
     let mut sel = app.ui.analysis.note_selected.filter(|i| *i < n).or((n > 0).then_some(0));
@@ -736,7 +736,7 @@ pub fn dialog_command(kind: &str, f: &Map<String, Value>) -> Option<(&'static st
     })
 }
 
-fn dialog(app: &mut PhotocraftApp, ctx: &egui::Context) {
+fn dialog(app: &mut OpenPhotoApp, ctx: &egui::Context) {
     let Some((kind, mut f)) = app.ui.analysis.dialog.clone() else { return };
     let t = Tokens::get(ctx);
     let title = match kind.as_str() {
@@ -786,8 +786,8 @@ fn dialog(app: &mut PhotocraftApp, ctx: &egui::Context) {
                                     .map(|a| a.iter().filter_map(Value::as_str).map(String::from).collect())
                                     .unwrap_or_default();
                                 let mut changed = false;
-                                for key in photocraft_engine::analysis_cmds::available(source) {
-                                    let name = photocraft_engine::analysis_cmds::COLUMNS.iter().find(|c| c.0 == key).map_or(key, |c| c.1);
+                                for key in openphoto_engine::analysis_cmds::available(source) {
+                                    let name = openphoto_engine::analysis_cmds::COLUMNS.iter().find(|c| c.0 == key).map_or(key, |c| c.1);
                                     let mut on = list.iter().any(|x| x == key);
                                     if crate::widgets::checkbox(ui, &mut on, name).changed() {
                                         list.retain(|x| x != key);
@@ -845,32 +845,32 @@ fn dialog(app: &mut PhotocraftApp, ctx: &egui::Context) {
 pub(crate) mod tests {
     use super::*;
 
-    fn app() -> (PhotocraftApp, egui::Context) {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+    fn app() -> (OpenPhotoApp, egui::Context) {
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 200, "height": 100})).unwrap();
         (app, egui::Context::default())
     }
 
     /// Draw `f` for a few frames (fonts load on the first).
-    pub(crate) fn render(app: &mut PhotocraftApp, ctx: &egui::Context, f: fn(&mut PhotocraftApp, &egui::Context)) {
-        PhotocraftApp::setup_context(ctx, Default::default());
+    pub(crate) fn render(app: &mut OpenPhotoApp, ctx: &egui::Context, f: fn(&mut OpenPhotoApp, &egui::Context)) {
+        OpenPhotoApp::setup_context(ctx, Default::default());
         for _ in 0..3 {
             let mut o = ctx.run_ui(Default::default(), |ui| f(app, ui.ctx()));
             o.textures_delta.clear();
         }
     }
 
-    fn down(app: &mut PhotocraftApp, x: f64, y: f64, m: egui::Modifiers) {
+    fn down(app: &mut OpenPhotoApp, x: f64, y: f64, m: egui::Modifiers) {
         crate::canvas::tool_event(app, ToolEvent::Down { x, y, pressure: 1.0 }, m);
     }
-    fn mv(app: &mut PhotocraftApp, x: f64, y: f64, m: egui::Modifiers) {
+    fn mv(app: &mut OpenPhotoApp, x: f64, y: f64, m: egui::Modifiers) {
         crate::canvas::tool_event(app, ToolEvent::Move { x, y, pressure: 1.0 }, m);
     }
-    fn up(app: &mut PhotocraftApp, x: f64, y: f64) {
+    fn up(app: &mut OpenPhotoApp, x: f64, y: f64) {
         crate::canvas::tool_event(app, ToolEvent::Up { x, y }, egui::Modifiers::NONE);
     }
 
-    fn ruler(app: &PhotocraftApp) -> Option<Ruler> {
+    fn ruler(app: &OpenPhotoApp) -> Option<Ruler> {
         app.session.active().unwrap().doc.measurement.ruler
     }
 
@@ -918,7 +918,7 @@ pub(crate) mod tests {
         down(&mut app, 10.0, 10.0, egui::Modifiers::ALT);
         mv(&mut app, 60.0, 10.0, none);
         up(&mut app, 60.0, 10.0);
-        let info = photocraft_engine::analysis_cmds::ruler_info(&ruler(&app).unwrap(), &Default::default());
+        let info = openphoto_engine::analysis_cmds::ruler_info(&ruler(&app).unwrap(), &Default::default());
         assert!((info["angle"].as_f64().unwrap() - 90.0).abs() < 1e-6, "{info}");
         // A click without a drag far away starts a new line and clears it.
         down(&mut app, 150.0, 80.0, none);
@@ -935,7 +935,7 @@ pub(crate) mod tests {
         up(&mut app, 20.0, 20.0);
         down(&mut app, 50.0, 50.0, egui::Modifiers::NONE);
         up(&mut app, 50.0, 50.0);
-        let pts = |app: &PhotocraftApp| app.session.active().unwrap().doc.measurement.count_groups[0].points.clone();
+        let pts = |app: &OpenPhotoApp| app.session.active().unwrap().doc.measurement.count_groups[0].points.clone();
         assert_eq!(pts(&app).len(), 2);
         // Drag marker 1.
         down(&mut app, 20.5, 20.5, egui::Modifiers::NONE);

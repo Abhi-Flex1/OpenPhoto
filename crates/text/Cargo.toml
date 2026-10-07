@@ -1,5 +1,5 @@
 [package]
-name = "photocraft-text"
+name = "openphoto-text"
 description = "Font database, text shaping/layout (parley) and text-layer rasterization"
 version.workspace = true
 edition.workspace = true
@@ -10,11 +10,11 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-photocraft-geom = { workspace = true }
-photocraft-color = { workspace = true }
-photocraft-raster = { workspace = true }
-photocraft-doc = { workspace = true }
-photocraft-psd = { workspace = true }
+openphoto-geom = { workspace = true }
+openphoto-color = { workspace = true }
+openphoto-raster = { workspace = true }
+openphoto-doc = { workspace = true }
+openphoto-psd = { workspace = true }
 # No `system` feature: fontique's system backend links fontconfig on Linux. We scan font
 # directories ourselves (native) and always register the bundled fonts (native + web).
 # Include ICU dictionary data for Japanese word boundaries and complex-script line breaking.

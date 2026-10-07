@@ -1,8 +1,8 @@
 use super::*;
 use crate::{Services, menus, notices};
-use photocraft_color::{ColorMode, SampleType};
-use photocraft_doc::Document;
-use photocraft_geom::Size;
+use openphoto_color::{ColorMode, SampleType};
+use openphoto_doc::Document;
+use openphoto_geom::Size;
 use serde_json::json;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -10,10 +10,10 @@ use std::rc::Rc;
 /// Writes recorded by the fake writer: (path, bytes).
 type Written = Rc<RefCell<Vec<(String, Vec<u8>)>>>;
 
-/// An app whose importer names the document after the file (like `photocraft-io`) and reports a
+/// An app whose importer names the document after the file (like `openphoto-io`) and reports a
 /// warning for names containing "warn", and fails for bytes "bad"; the exporter warns for ".png"
 /// and the writer records what it wrote.
-fn app_with(pick_open: Option<(String, Vec<u8>)>, pick_save: Option<String>) -> (PhotocraftApp, Written) {
+fn app_with(pick_open: Option<(String, Vec<u8>)>, pick_save: Option<String>) -> (OpenPhotoApp, Written) {
     let written: Written = Rc::default();
     let w = written.clone();
     let mut pick_open = pick_open;
@@ -37,7 +37,7 @@ fn app_with(pick_open: Option<(String, Vec<u8>)>, pick_save: Option<String>) -> 
         })),
         ..Default::default()
     };
-    (PhotocraftApp::new(photocraft_engine::Session::new(), services), written)
+    (OpenPhotoApp::new(openphoto_engine::Session::new(), services), written)
 }
 
 #[test]
@@ -93,7 +93,7 @@ fn pcraft_documents_save_in_place_but_flat_files_ask() {
 
 #[test]
 fn import_warnings_reach_status_notice_and_control_response() {
-    let dir = std::env::temp_dir().join(format!("photocraft-open-warn-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("openphoto-open-warn-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("warn.psd");
     std::fs::write(&path, b"x").unwrap();
@@ -143,7 +143,7 @@ fn open_failures_are_errors_and_leave_no_document() {
 #[test]
 fn open_paths_reports_each_failure_without_panicking() {
     let (mut app, _) = app_with(None, None);
-    let missing = std::env::temp_dir().join("photocraft-definitely-missing-file.psd").to_string_lossy().to_string();
+    let missing = std::env::temp_dir().join("openphoto-definitely-missing-file.psd").to_string_lossy().to_string();
     let dir = std::env::temp_dir().to_string_lossy().to_string();
     let n = app.open_paths(&[missing, String::new(), dir, "\u{0}".into()]);
     assert_eq!(n, 0);
@@ -157,7 +157,7 @@ fn open_paths_reports_each_failure_without_panicking() {
 
 #[test]
 fn os_open_events_open_files_with_paths() {
-    let dir = std::env::temp_dir().join(format!("photocraft-os-open-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("openphoto-os-open-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let a = dir.join("a.psd");
     let b = dir.join("b.png");

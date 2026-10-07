@@ -9,7 +9,7 @@ use egui::{Align2, Color32, CornerRadius, Rect, RichText, Sense, Stroke, Texture
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 use crate::theme::Tokens;
 
 /// View state of the type panels.
@@ -64,7 +64,7 @@ pub fn handles(id: &str) -> bool {
     IDS.contains(&id)
 }
 
-pub fn checked(app: &PhotocraftApp, id: &str) -> Option<bool> {
+pub fn checked(app: &OpenPhotoApp, id: &str) -> Option<bool> {
     let p = &app.ui.type_panels;
     Some(match id {
         "type.panels.characterStyles" | "window.panel.characterStyles" => p.styles && p.styles_tab == 0,
@@ -76,7 +76,7 @@ pub fn checked(app: &PhotocraftApp, id: &str) -> Option<bool> {
 
 /// Window/Type › panel toggles, and Edit › Check Spelling… (opens the dialog when run without an
 /// `action`). `params.show` forces a panel open or closed.
-pub fn menu(app: &mut PhotocraftApp, id: &str, params: &Value) -> Option<Result<Value, String>> {
+pub fn menu(app: &mut OpenPhotoApp, id: &str, params: &Value) -> Option<Result<Value, String>> {
     if id == "edit.checkSpelling" && params.get("action").is_none() && params.get("ui").is_none_or(|u| u.as_bool() != Some(false)) {
         return Some(open_spelling(app, params.get("allLayers").and_then(Value::as_bool).unwrap_or(true)));
     }
@@ -108,7 +108,7 @@ pub fn menu(app: &mut PhotocraftApp, id: &str, params: &Value) -> Option<Result<
     Some(Ok(json!({ "visible": visible })))
 }
 
-fn run(app: &mut PhotocraftApp, id: &str, p: Value) -> Option<Value> {
+fn run(app: &mut OpenPhotoApp, id: &str, p: Value) -> Option<Value> {
     match app.run(id, p) {
         Ok(v) => Some(v),
         Err(e) => {
@@ -121,7 +121,7 @@ fn run(app: &mut PhotocraftApp, id: &str, p: Value) -> Option<Value> {
 
 /// The type the panels act on: the layer being edited (with its selection), else the selected
 /// layers. Returns params with `layer` + `range`, or `{}` (selected layers).
-fn target(app: &PhotocraftApp) -> Value {
+fn target(app: &OpenPhotoApp) -> Value {
     if let Some(ed) = &app.ui.text_edit {
         let (a, b) = (ed.caret.min(ed.anchor), ed.caret.max(ed.anchor));
         return json!({ "layer": ed.layer, "range": [a, b], "coalesce": ed.session });
@@ -139,7 +139,7 @@ fn float_frame(t: &Tokens) -> egui::Frame {
 }
 
 /// Draws the open type panels and the spelling dialog.
-pub fn windows(app: &mut PhotocraftApp, ctx: &egui::Context) {
+pub fn windows(app: &mut OpenPhotoApp, ctx: &egui::Context) {
     let t = Tokens::get(ctx);
     let canvas = app.last_canvas_rect;
     if app.ui.type_panels.styles {
@@ -210,7 +210,7 @@ pub fn windows(app: &mut PhotocraftApp, ctx: &egui::Context) {
 
 // ------------------------------------------------------------------ styles
 
-pub fn styles_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui, paragraph: bool) {
+pub fn styles_panel(app: &mut OpenPhotoApp, ui: &mut egui::Ui, paragraph: bool) {
     let t = Tokens::get(ui.ctx());
     if app.session.active().is_none() {
         ui.label(RichText::new(tl!("No document")).color(t.text_faint).size(11.5));
@@ -336,7 +336,7 @@ pub fn styles_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui, paragraph: bool)
 
 /// Style Options: name plus the common attributes; a checkbox marks an attribute as part of the
 /// style (unchecked = inherited).
-fn options_editor(app: &mut PhotocraftApp, ui: &mut egui::Ui, paragraph: bool, s: &Value) {
+fn options_editor(app: &mut OpenPhotoApp, ui: &mut egui::Ui, paragraph: bool, s: &Value) {
     let t = Tokens::get(ui.ctx());
     let prefix = if paragraph { "type.paragraphStyle" } else { "type.characterStyle" };
     let id = s["id"].as_u64().unwrap_or(0);
@@ -407,7 +407,7 @@ fn options_editor(app: &mut PhotocraftApp, ui: &mut egui::Ui, paragraph: bool, s
                     }
                 }
                 "color" => {
-                    let c = serde_json::from_value::<photocraft_doc::Color>(v.clone()).map(|c| c.to_rgb()).unwrap_or([0.0; 3]);
+                    let c = serde_json::from_value::<openphoto_doc::Color>(v.clone()).map(|c| c.to_rgb()).unwrap_or([0.0; 3]);
                     // Style colours are stored encoded (like the Color panel's hex), not linear.
                     let h = |f: f32| (f.clamp(0.0, 1.0) * 255.0).round() as u8;
                     let mut rgb = c.map(h);
@@ -497,7 +497,7 @@ fn options_editor(app: &mut PhotocraftApp, ui: &mut egui::Ui, paragraph: bool, s
 fn family_picker(ui: &mut egui::Ui, salt: &str, current: &mut String) -> bool {
     let mut changed = false;
     let search_id = egui::Id::new(("family-search", salt));
-    let shown = if current.is_empty() { photocraft_text::fonts::DEFAULT_FAMILY.to_string() } else { current.clone() };
+    let shown = if current.is_empty() { openphoto_text::fonts::DEFAULT_FAMILY.to_string() } else { current.clone() };
     egui::ComboBox::from_id_salt(salt).selected_text(shown.clone()).width(140.0).height(360.0).icon(crate::widgets::chevron_icon).show_ui(ui, |ui| {
         let mut q: String = ui.data(|d| d.get_temp(search_id)).unwrap_or_default();
         let r = ui.add(egui::TextEdit::singleline(&mut q).hint_text(tl!("Search fonts")).desired_width(180.0));
@@ -520,28 +520,28 @@ fn family_picker(ui: &mut egui::Ui, salt: &str, current: &mut String) -> bool {
 // ------------------------------------------------------------------ glyphs
 
 /// Font family/style the Glyphs panel shows: its own choice, else the type selection's font.
-fn glyph_font(app: &PhotocraftApp) -> (String, String) {
+fn glyph_font(app: &OpenPhotoApp) -> (String, String) {
     let p = &app.ui.type_panels;
     if !p.glyph_family.is_empty() {
         return (p.glyph_family.clone(), if p.glyph_style.is_empty() { tl!("Regular").into() } else { p.glyph_style.clone() });
     }
-    let layer = app.ui.text_edit.as_ref().map(|e| photocraft_doc::LayerId(e.layer)).or_else(|| app.session.active().and_then(|s| s.active_layer));
+    let layer = app.ui.text_edit.as_ref().map(|e| openphoto_doc::LayerId(e.layer)).or_else(|| app.session.active().and_then(|s| s.active_layer));
     if let Some(st) = app.session.active()
         && let Some(id) = layer
-        && let Some(photocraft_doc::LayerContent::Text(tl)) = st.doc.layer(id).map(|l| &l.content)
+        && let Some(openphoto_doc::LayerContent::Text(tl)) = st.doc.layer(id).map(|l| &l.content)
         && let Some(r) = tl.char_runs().first()
     {
-        let fam = if r.style.font_family.is_empty() { photocraft_text::fonts::DEFAULT_FAMILY.to_string() } else { r.style.font_family.clone() };
+        let fam = if r.style.font_family.is_empty() { openphoto_text::fonts::DEFAULT_FAMILY.to_string() } else { r.style.font_family.clone() };
         let style =
             if r.style.font_style.is_empty() { if r.style.italic { tl!("Italic").into() } else { tl!("Regular").into() } } else { r.style.font_style.clone() };
         return (fam, style);
     }
-    (photocraft_text::fonts::DEFAULT_FAMILY.into(), tl!("Regular").into())
+    (openphoto_text::fonts::DEFAULT_FAMILY.into(), tl!("Regular").into())
 }
 
-fn char_style_for(family: &str, style: &str) -> photocraft_doc::text::CharStyle {
-    let mut st = photocraft_doc::text::CharStyle { font_family: family.into(), ..Default::default() };
-    photocraft_engine::type_cmds::apply_char_props(&mut st, &json!({ "fontStyle": style }));
+fn char_style_for(family: &str, style: &str) -> openphoto_doc::text::CharStyle {
+    let mut st = openphoto_doc::text::CharStyle { font_family: family.into(), ..Default::default() };
+    openphoto_engine::type_cmds::apply_char_props(&mut st, &json!({ "fontStyle": style }));
     st
 }
 
@@ -552,8 +552,8 @@ fn glyph_texture(ctx: &egui::Context, family: &str, style: &str, c: char, px: u3
     }
     let st = char_style_for(family, style);
     let (n, alpha) = {
-        let mut eng = photocraft_text::shared().lock().unwrap_or_else(|e| e.into_inner());
-        photocraft_text::glyphs::preview(&mut eng, &st, c, px)
+        let mut eng = openphoto_text::shared().lock().unwrap_or_else(|e| e.into_inner());
+        openphoto_text::glyphs::preview(&mut eng, &st, c, px)
     };
     let img = egui::ColorImage::from_rgba_unmultiplied([n as usize, n as usize], &alpha.iter().flat_map(|a| [255, 255, 255, *a]).collect::<Vec<u8>>());
     let tex = ctx.load_texture(format!("glyph-{c}-{px}"), img, TextureOptions::LINEAR);
@@ -568,14 +568,14 @@ fn charmap(ctx: &egui::Context, family: &str, style: &str) -> std::sync::Arc<Vec
         return v;
     }
     let st = char_style_for(family, style);
-    let v = std::sync::Arc::new(photocraft_text::shared().lock().unwrap_or_else(|e| e.into_inner()).fonts.charmap(family, st.weight, st.italic));
+    let v = std::sync::Arc::new(openphoto_text::shared().lock().unwrap_or_else(|e| e.into_inner()).fonts.charmap(family, st.weight, st.italic));
     ctx.data_mut(|d| d.insert_temp(id, v.clone()));
     v
 }
 
 /// Inserts `g` into the type being edited (replacing the selection), else at the end of the
 /// active type layer. Returns whether it was inserted.
-pub fn insert_glyph(app: &mut PhotocraftApp, g: &str) -> bool {
+pub fn insert_glyph(app: &mut OpenPhotoApp, g: &str) -> bool {
     let p = if let Some(ed) = app.ui.text_edit.clone() {
         let (a, b) = (ed.caret.min(ed.anchor), ed.caret.max(ed.anchor));
         json!({ "layer": ed.layer, "text": g, "range": [a, b], "coalesce": ed.session })
@@ -594,7 +594,7 @@ pub fn insert_glyph(app: &mut PhotocraftApp, g: &str) -> bool {
     true
 }
 
-pub fn glyphs_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+pub fn glyphs_panel(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     let ctx = ui.ctx().clone();
     let (family, style) = glyph_font(app);
@@ -617,7 +617,7 @@ pub fn glyphs_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
     let mut cat = if app.ui.type_panels.glyph_category.is_empty() { tl!("Entire Font").to_string() } else { app.ui.type_panels.glyph_category.clone() };
     ui.horizontal(|ui| {
         ui.label(RichText::new(tl!("Show:")).color(t.text_dim).size(11.5));
-        let opts: Vec<(String, &str)> = photocraft_text::glyphs::CATEGORIES.iter().map(|c| (c.to_string(), *c)).collect();
+        let opts: Vec<(String, &str)> = openphoto_text::glyphs::CATEGORIES.iter().map(|c| (c.to_string(), *c)).collect();
         if crate::widgets::dropdown(ui, "glyph-category", &mut cat, &opts, 160.0) {
             app.ui.type_panels.glyph_category = cat.clone();
         }
@@ -653,7 +653,7 @@ pub fn glyphs_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
     ui.add_space(4.0);
     // Grid.
     let cmap = charmap(&ctx, &family, &style);
-    let chars: Vec<char> = cmap.iter().copied().filter(|c| photocraft_text::glyphs::in_category(*c, &cat)).collect();
+    let chars: Vec<char> = cmap.iter().copied().filter(|c| openphoto_text::glyphs::in_category(*c, &cat)).collect();
     // Leave room for the scroll bar.
     let width = ui.available_width() - 12.0;
     let cols = ((width / size).floor() as usize).max(1);
@@ -717,7 +717,7 @@ pub fn glyphs_panel(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
 
 // ------------------------------------------------------------------ spelling
 
-fn refresh_spelling(app: &mut PhotocraftApp) {
+fn refresh_spelling(app: &mut OpenPhotoApp) {
     let Some(d) = app.ui.type_panels.spell.clone() else { return };
     let p = json!({ "action": "list", "allLayers": d.all_layers, "ignore": d.ignore, "suggestions": 8 });
     let items = run(app, "edit.checkSpelling", p).and_then(|r| r["misspellings"].as_array().cloned()).unwrap_or_default();
@@ -728,7 +728,7 @@ fn refresh_spelling(app: &mut PhotocraftApp) {
 }
 
 /// Opens Edit › Check Spelling (returns the misspellings).
-pub fn open_spelling(app: &mut PhotocraftApp, all_layers: bool) -> Result<Value, String> {
+pub fn open_spelling(app: &mut OpenPhotoApp, all_layers: bool) -> Result<Value, String> {
     app.session.execute("edit.checkSpelling", json!({ "action": "list", "allLayers": all_layers })).map_err(|e| e.to_string())?;
     app.ui.type_panels.spell = Some(SpellDialog { all_layers, ..Default::default() });
     refresh_spelling(app);
@@ -736,7 +736,7 @@ pub fn open_spelling(app: &mut PhotocraftApp, all_layers: bool) -> Result<Value,
     Ok(json!({ "dialog": "checkSpelling", "misspellings": d }))
 }
 
-fn spelling_window(app: &mut PhotocraftApp, ctx: &egui::Context) {
+fn spelling_window(app: &mut OpenPhotoApp, ctx: &egui::Context) {
     let t = Tokens::get(ctx);
     let Some(d) = app.ui.type_panels.spell.clone() else { return };
     let item = d.items.get(d.index).cloned();
@@ -868,8 +868,8 @@ fn spelling_window(app: &mut PhotocraftApp, ctx: &egui::Context) {
 mod tests {
     use super::*;
 
-    fn app_with_text(text: &str) -> PhotocraftApp {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), crate::Services::default());
+    fn app_with_text(text: &str) -> OpenPhotoApp {
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), crate::Services::default());
         app.run("file.new", json!({"width": 300, "height": 120, "background": "white"})).unwrap();
         app.run("type.create", json!({"x": 10, "y": 60, "text": text})).unwrap();
         app.sync_views();
@@ -900,7 +900,7 @@ mod tests {
         assert!(insert_glyph(&mut app, "→"));
         assert_eq!(app.ui.type_panels.glyph_recent, vec!["→".to_string(), "€".to_string()]);
         let st = app.session.active().unwrap();
-        let Some(photocraft_doc::LayerContent::Text(t)) = st.active_layer.and_then(|id| st.doc.layer(id)).map(|l| &l.content) else { panic!() };
+        let Some(openphoto_doc::LayerContent::Text(t)) = st.active_layer.and_then(|id| st.doc.layer(id)).map(|l| &l.content) else { panic!() };
         assert_eq!(t.text, "ab→€→");
     }
 

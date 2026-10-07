@@ -2,15 +2,15 @@
 //! properties (board rect, background, preset), View › Clear Selected Artboard Guides, and
 //! File › Export › Artboards to Files / to PDF.
 //!
-//! An artboard is a top-level group with [`photocraft_doc::Artboard`] set; the compositor clips
+//! An artboard is a top-level group with [`openphoto_doc::Artboard`] set; the compositor clips
 //! its children to the board and paints its background. Moving the group (Move tool,
 //! `layer.translate`) moves the board with its contents. The canvas grows to the right and
 //! bottom to fit new boards, like Photoshop's auto-expanding artboard canvas.
 
-use photocraft_color::{Color, ColorMode, PixelFormat, SampleType};
-use photocraft_doc::{Artboard, ArtboardBackground, Document, Layer, LayerContent, LayerId, Size};
-use photocraft_geom::Rect;
-use photocraft_raster::Surface;
+use openphoto_color::{Color, ColorMode, PixelFormat, SampleType};
+use openphoto_doc::{Artboard, ArtboardBackground, Document, Layer, LayerContent, LayerId, Size};
+use openphoto_geom::Rect;
+use openphoto_raster::Surface;
 use serde_json::{Value, json};
 
 use crate::commands::{CommandSpec, color_param, int};
@@ -412,11 +412,11 @@ fn artboards_to_pdf(s: &mut Session, p: &Value) -> Result<Value> {
     let mut pages = Vec::new();
     for id in chosen_artboards(&doc, p) {
         let Some(one) = artboard_document(&doc, id) else { continue };
-        let buf = photocraft_compose::flatten(&one).over_background([1.0, 1.0, 1.0]);
+        let buf = openphoto_compose::flatten(&one).over_background([1.0, 1.0, 1.0]);
         let fmt = PixelFormat::new(ColorMode::Rgb, SampleType::U8, true);
         let mut flat = Document::new(&one.name, one.size, ColorMode::Rgb, SampleType::U8);
         let mut surf = Surface::new(fmt);
-        let vals: Vec<f32> = buf.px.iter().flat_map(|px| photocraft_raster::from_rgba(&fmt, *px)).collect();
+        let vals: Vec<f32> = buf.px.iter().flat_map(|px| openphoto_raster::from_rgba(&fmt, *px)).collect();
         surf.write_region(one.bounds(), &vals);
         flat.layers.push(Layer::new("Background", LayerContent::Raster(surf)));
         let (jpeg, _) = encode(&flat, "page.jpg", quality)?;

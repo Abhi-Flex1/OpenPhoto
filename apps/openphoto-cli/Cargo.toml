@@ -1,0 +1,27 @@
+[package]
+name = "openphoto-cli"
+description = "Headless OpenPhoto: convert, inspect, run commands, batch, MCP server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+name = "openphoto_cli"
+path = "src/lib.rs"
+
+[[bin]]
+name = "openphoto-cli"
+path = "src/main.rs"
+
+[dependencies]
+openphoto-automation = { path = "../../crates/automation" }
+openphoto-engine = { workspace = true }
+openphoto-io = { workspace = true }
+openphoto-format = { path = "../../crates/format" }
+openphoto-codecs = { workspace = true }
+serde_json = { workspace = true }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+

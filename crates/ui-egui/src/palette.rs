@@ -3,7 +3,7 @@
 use egui::{Align2, Color32, CornerRadius, RichText, Sense, Stroke, vec2};
 
 use crate::theme::{self, Tokens};
-use crate::{PhotocraftApp, icons};
+use crate::{OpenPhotoApp, icons};
 
 /// Case-insensitive subsequence match score (higher is better); None = no match.
 pub fn fuzzy_score(query: &str, text: &str) -> Option<i32> {
@@ -36,7 +36,7 @@ pub fn fuzzy_score(query: &str, text: &str) -> Option<i32> {
     Some(score - (t.len() as i32 / 8))
 }
 
-pub fn show(app: &mut PhotocraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut OpenPhotoApp, ctx: &egui::Context) {
     if !app.ui.palette_open {
         return;
     }

@@ -1,10 +1,10 @@
 //! Opening files from disk: File › Open, Open Recent, drag-and-drop onto the window, command-line
 //! paths at launch and the OS's "open these documents" requests (macOS Finder double-click, Open
-//! With, drops on the Dock icon) all go through [`PhotocraftApp::open_file`], so each one names the
+//! With, drops on the Dock icon) all go through [`OpenPhotoApp::open_file`], so each one names the
 //! document after the file, remembers its path (File › Save writes back to it) and adds it to Open
 //! Recent. Failures are shown as errors (status bar + notice); import warnings as a notice.
 
-use crate::{PhotocraftApp, notices};
+use crate::{OpenPhotoApp, notices};
 
 /// A request from the operating system, delivered by the platform shell through
 /// [`Services::os_events`](crate::Services::os_events).
@@ -22,7 +22,7 @@ pub fn display_name(path: &str) -> String {
     std::path::Path::new(path).file_name().map(|n| n.to_string_lossy().to_string()).filter(|n| !n.is_empty()).unwrap_or_else(|| path.to_string())
 }
 
-impl PhotocraftApp {
+impl OpenPhotoApp {
     /// Open `bytes` read from the file at `path`: the document is named after the file, keeps
     /// `path` for File › Save, and `path` goes to the top of Open Recent. Returns the import
     /// warnings (also shown to the user).

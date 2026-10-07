@@ -58,7 +58,7 @@ impl BridgeClient {
                     .map_err(|_| AutomationError::Bridge(format!("timed out connecting to {}", self.addr)))?
                     .map_err(|e| {
                         AutomationError::Bridge(format!(
-                            "cannot connect to {} ({e}); start the app with `photocraft --control <port>` and matching control credentials",
+                            "cannot connect to {} ({e}); start the app with `openphoto --control <port>` and matching control credentials",
                             self.addr
                         ))
                     })?;

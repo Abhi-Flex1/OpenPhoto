@@ -12,7 +12,7 @@
 # Clean-room: every entry was written from the plain meaning of the English label using ordinary
 # Japanese computing vocabulary (レイヤー, ぼかし, 選択範囲 ...). No proprietary localisation
 # resource, string table or product UI was consulted or copied; add entries the same way.
-# Product and technology names (PhotoCraft, ArtCraft, OpenType, CMYK, Lab ...) stay in Latin
+# Product and technology names (OpenPhoto, ArtCraft, OpenType, CMYK, Lab ...) stay in Latin
 # letters; the trailing "…" of dialog commands is kept.
 
 	File	ファイル
@@ -669,9 +669,9 @@
 	Timeline	タイムライン
 	Tool Presets	ツールプリセット
 	Tools	ツール
-	About PhotoCraft	PhotoCraft について
-	PhotoCraft Website	PhotoCraft の Web サイト
-	PhotoCraft on GitHub	GitHub 上の PhotoCraft
+	About OpenPhoto	OpenPhoto について
+	OpenPhoto Website	OpenPhoto の Web サイト
+	OpenPhoto on GitHub	GitHub 上の OpenPhoto
 	ArtCraft Website	ArtCraft の Web サイト
 	Join the ArtCraft Discord…	ArtCraft の Discord に参加…
 	Report an Issue…	問題を報告…
@@ -1191,9 +1191,9 @@
 	Perspective Warp is not active	遠近法ワープは有効ではありません
 	Perspective Warp: draw planes along the image's perspective, then switch to Warp	遠近法ワープ: 画像の遠近に沿って面を描き、ワープに切り替えます
 	Photo Filter	写真フィルター
-	PhotoCraft	PhotoCraft
-	PhotoCraft Manages Colors	PhotoCraft でカラーを管理
-	PhotoCraft — an open-source, native image editor written in Rust.	PhotoCraft — Rust で書かれた、オープンソースのネイティブ画像エディター。
+	OpenPhoto	OpenPhoto
+	OpenPhoto Manages Colors	OpenPhoto でカラーを管理
+	OpenPhoto — an open-source, native image editor written in Rust.	OpenPhoto — Rust で書かれた、オープンソースのネイティブ画像エディター。
 	Pin Depth:	ピンの深さ:
 	Pixel Length:	ピクセル長:
 	Pixels/Centimeter	ピクセル/センチメートル
@@ -1576,7 +1576,7 @@
 	Pen Tilt	ペンの傾き
 	Pen Tool	ペンツール
 	Photo	写真
-	PhotoCraft website	PhotoCraft の Web サイト
+	OpenPhoto website	OpenPhoto の Web サイト
 	Picas	パイカ
 	Pillow Emboss	ピローエンボス
 	Pixel Replacement	ピクセルの置き換え
@@ -1891,7 +1891,7 @@
 	System Info…	システム情報…
 	System Info	システム情報
 	More panels	その他のパネル
-	These settings aren't available in PhotoCraft yet.	これらの設定は PhotoCraft ではまだ使用できません。
+	These settings aren't available in OpenPhoto yet.	これらの設定は OpenPhoto ではまだ使用できません。
 	Graphics	グラフィックス
 	Reset GPU Backend	GPU バックエンドをリセット
 	Applies at next launch.	次回の起動時に適用されます。

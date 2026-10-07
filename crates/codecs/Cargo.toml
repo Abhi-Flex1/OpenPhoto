@@ -1,5 +1,5 @@
 [package]
-name = "photocraft-codecs"
+name = "openphoto-codecs"
 description = "Symmetric, depth- and metadata-preserving codecs for flat raster image formats"
 version.workspace = true
 edition.workspace = true

@@ -1,7 +1,7 @@
 //! Filter › Camera Raw Filter…: a large dialog like Adobe Camera Raw's (preview on the left,
 //! edit panels on the right: Basic, Curve, Detail, Color Mixer, Color Grading, Effects).
 //!
-//! The preview runs [`photocraft_algo::camera_raw::develop`] on a CPU proxy of the layer
+//! The preview runs [`openphoto_algo::camera_raw::develop`] on a CPU proxy of the layer
 //! (≤ 900 px, `pixel_scale` keeps pixel radii true to the full image), recomputed when a
 //! control changes. OK runs `filter.cameraRaw` with the non-default settings, so the result is
 //! one history step (or a smart filter on a smart object) and exactly replayable.
@@ -10,12 +10,12 @@
 //! "commit":true | "cancel":true}}}`; the reply describes the dialog.
 
 use egui::{Align2, Color32, FontId, Pos2, Rect as ERect, Sense, Stroke, TextureHandle, pos2, vec2};
-use photocraft_algo::camera_raw::{CameraRaw, Wheel, curve_lut};
-use photocraft_doc::LayerId;
-use photocraft_geom::Rect;
+use openphoto_algo::camera_raw::{CameraRaw, Wheel, curve_lut};
+use openphoto_doc::LayerId;
+use openphoto_geom::Rect;
 use serde_json::{Value, json};
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 use crate::theme::Tokens;
 use crate::widgets;
 
@@ -71,7 +71,7 @@ impl CameraRawDialog {
         let mut px = self.proxy.clone();
         let mut p = self.params.clone();
         p.pixel_scale = (self.pw as f32 / self.full_w.max(1) as f32).min(1.0);
-        photocraft_algo::camera_raw::develop(&mut px, self.pw, self.ph, &p, self.float);
+        openphoto_algo::camera_raw::develop(&mut px, self.pw, self.ph, &p, self.float);
         let img = Self::image(&px, self.pw, self.ph);
         match &mut self.tex {
             Some(t) => t.set(img, egui::TextureOptions::LINEAR),
@@ -86,8 +86,8 @@ impl CameraRawDialog {
 }
 
 /// Opens the dialog on the active layer.
-pub fn open(app: &mut PhotocraftApp, ctx: &egui::Context) -> Result<(), String> {
-    photocraft_engine::commands::find("filter.cameraRaw").map(|c| (c.enabled)(&app.session)).unwrap_or(Err("unknown command".into()))?;
+pub fn open(app: &mut OpenPhotoApp, ctx: &egui::Context) -> Result<(), String> {
+    openphoto_engine::commands::find("filter.cameraRaw").map(|c| (c.enabled)(&app.session)).unwrap_or(Err("unknown command".into()))?;
     let (layer, surf, _) = crate::distort_ui::active_pixels(app)?;
     let st = app.session.active().ok_or("no document")?;
     let canvas = st.doc.bounds();
@@ -117,7 +117,7 @@ pub fn open(app: &mut PhotocraftApp, ctx: &egui::Context) -> Result<(), String> 
             proxy[py * pw + x] = [a[0] / a[4], a[1] / a[4], a[2] / a[4], a[3] / a[4]];
         }
     }
-    let float = surf.format().sample == photocraft_color::SampleType::F32;
+    let float = surf.format().sample == openphoto_color::SampleType::F32;
     let mut d = CameraRawDialog {
         layer,
         layer_name: name,
@@ -140,7 +140,7 @@ pub fn open(app: &mut PhotocraftApp, ctx: &egui::Context) -> Result<(), String> 
 }
 
 /// Menu / control-channel entry point. `None` when the call isn't for this dialog.
-pub fn menu(app: &mut PhotocraftApp, ctx: &egui::Context, id: &str, params: &Value) -> Option<Result<Value, String>> {
+pub fn menu(app: &mut OpenPhotoApp, ctx: &egui::Context, id: &str, params: &Value) -> Option<Result<Value, String>> {
     if id != "filter.cameraRaw" {
         return None;
     }
@@ -185,7 +185,7 @@ pub fn menu(app: &mut PhotocraftApp, ctx: &egui::Context, id: &str, params: &Val
     Some(Ok(app.camera_raw.as_ref().map(|d| d.describe()).unwrap_or(Value::Null)))
 }
 
-fn commit(app: &mut PhotocraftApp) -> Result<Value, String> {
+fn commit(app: &mut OpenPhotoApp) -> Result<Value, String> {
     let d = app.camera_raw.take().ok_or(tl!("Camera Raw isn't open"))?;
     let mut p = d.command_params();
     p["layer"] = json!(d.layer.0);
@@ -284,7 +284,7 @@ fn curve_editor(ui: &mut egui::Ui, p: &mut CameraRaw, dirty: &mut bool) {
     }
 }
 
-pub fn show(app: &mut PhotocraftApp, ctx: &egui::Context) {
+pub fn show(app: &mut OpenPhotoApp, ctx: &egui::Context) {
     if app.camera_raw.is_none() {
         return;
     }
@@ -376,7 +376,7 @@ pub fn show(app: &mut PhotocraftApp, ctx: &egui::Context) {
                     _ => &mut p.hsl_lum,
                 };
                 for (k, name) in BANDS.iter().enumerate() {
-                    let c = photocraft_algo::camera_raw::HSL_BANDS[k];
+                    let c = openphoto_algo::camera_raw::HSL_BANDS[k];
                     let base = hue_color(c);
                     let grad = [Color32::from_gray(128), base];
                     row(ui, &mut dirty, name, &mut arr[k], -100.0..=100.0, Some(&grad));
@@ -473,7 +473,7 @@ mod tests {
 
     #[test]
     fn dialog_drives_the_engine() {
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), Default::default());
         let ctx = egui::Context::default();
         app.run("file.new", json!({"width": 64, "height": 48})).unwrap();
         app.run("layer.new.layer", json!({})).unwrap();

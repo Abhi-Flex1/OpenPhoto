@@ -1,0 +1,6 @@
+{
+  "layered": {
+    "background": "#0E0E11",
+    "foreground": "$media:foreground"
+  }
+}

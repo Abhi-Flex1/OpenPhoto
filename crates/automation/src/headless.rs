@@ -1,12 +1,12 @@
-//! Headless backend: a `photocraft_engine::Session` plus file I/O. Synchronous
+//! Headless backend: a `openphoto_engine::Session` plus file I/O. Synchronous
 //! and UI-free; the MCP server and the CLI both drive it.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use photocraft_engine::{Session, command_specs};
-use photocraft_format::PcraftWriter;
-use photocraft_io::ExportOptions;
+use openphoto_engine::{Session, command_specs};
+use openphoto_format::PcraftWriter;
+use openphoto_io::ExportOptions;
 use serde_json::{Value, json};
 
 use crate::workspace::authorize_engine_command;
@@ -127,14 +127,14 @@ impl Headless {
         let requested = path.to_str().ok_or_else(|| AutomationError::BadRequest("automation paths must be valid UTF-8".into()))?;
         match &self.filesystem {
             Filesystem::Denied => Err(AutomationError::BadRequest("automation filesystem access is not granted: write authority is absent".into())),
-            Filesystem::TrustedLocal => photocraft_format::atomic_write(path, bytes).map_err(|error| AutomationError::Io(error.to_string())),
+            Filesystem::TrustedLocal => openphoto_format::atomic_write(path, bytes).map_err(|error| AutomationError::Io(error.to_string())),
             Filesystem::Workspace(workspace) => workspace.write(requested, bytes),
         }
     }
 
     pub fn inspect(&self, index: Option<usize>) -> Result<Value, AutomationError> {
         let i = self.doc_index(index)?;
-        Ok(photocraft_engine::inspect::document(&self.session.documents()[i]))
+        Ok(openphoto_engine::inspect::document(&self.session.documents()[i]))
     }
 
     pub fn render_png(&self, index: Option<usize>, max_side: u32) -> Result<Vec<u8>, AutomationError> {
@@ -151,7 +151,7 @@ impl Headless {
     }
 
     pub fn session_list(&self) -> Value {
-        photocraft_engine::inspect::session(&self.session)
+        openphoto_engine::inspect::session(&self.session)
     }
 
     pub fn select(&mut self, index: usize) -> Result<Value, AutomationError> {

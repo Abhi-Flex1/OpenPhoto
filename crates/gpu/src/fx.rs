@@ -1,4 +1,4 @@
-//! Effect maps on the GPU (`photocraft_compose::effects::build_maps`).
+//! Effect maps on the GPU (`openphoto_compose::effects::build_maps`).
 //!
 //! Every enabled effect of a layer becomes a small *map program*: a chain of single-channel
 //! fragment passes over the layer's effect region (shift, dilate, separable Gaussian blur, glow
@@ -23,11 +23,11 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-use photocraft_compose::effects::BevelPaint;
-use photocraft_compose::effects::FieldKind;
-use photocraft_doc::{BevelTechnique, Contour, Effect, GlobalLight, GlowSource, GlowTechnique, Layer, LayerContent, Pattern};
-use photocraft_geom::{Rect, TileCoord};
-use photocraft_raster::{Surface, Tile};
+use openphoto_compose::effects::BevelPaint;
+use openphoto_compose::effects::FieldKind;
+use openphoto_doc::{BevelTechnique, Contour, Effect, GlobalLight, GlowSource, GlowTechnique, Layer, LayerContent, Pattern};
+use openphoto_geom::{Rect, TileCoord};
+use openphoto_raster::{Surface, Tile};
 
 use crate::plan::{Kernel, stroke_widths};
 
@@ -242,7 +242,7 @@ impl B {
 /// Distance up to which a field must be exact for a band / dilation of width `w`
 /// (`clamp(w + 0.5 - d)`, with `d` up to 1.5 px beyond the pixel distance).
 fn reach_for(w: f32) -> i32 {
-    w.clamp(0.0, photocraft_compose::effects::MAX_REACH).ceil() as i32 + 2
+    w.clamp(0.0, openphoto_compose::effects::MAX_REACH).ceil() as i32 + 2
 }
 
 /// `compose::effects::blur`'s kernel (a tent of the effect size): (radius, normalised weights),
@@ -251,14 +251,14 @@ pub(crate) fn blur_kernel(size: f32) -> Option<(i32, Vec<f32>)> {
     if !size.is_finite() {
         return None;
     }
-    let k = photocraft_compose::effects::tent_kernel(size);
+    let k = openphoto_compose::effects::tent_kernel(size);
     (k.0 > 0).then_some(k)
 }
 
 fn contour_lut(c: &Contour) -> Option<Vec<f32>> {
     match c {
         Contour::Linear => None,
-        Contour::Custom { points, .. } => Some(photocraft_compose::adjust::curve_lut(points)),
+        Contour::Custom { points, .. } => Some(openphoto_compose::adjust::curve_lut(points)),
     }
 }
 
@@ -285,7 +285,7 @@ pub(crate) fn program_with(e: &Effect, light: &GlobalLight, vector_shape: bool, 
             let angle = if s.use_global_light { light.angle } else { s.angle };
             let (dx, dy) = offset(angle, s.distance);
             let src = b.shift(In::Shape, dx, dy, if inner { 1.0 } else { 0.0 }, inner);
-            let (r, bw) = photocraft_compose::effects::spread_split(s.size, s.spread);
+            let (r, bw) = openphoto_compose::effects::spread_split(s.size, s.spread);
             let mut m = src;
             if r > 0.0 {
                 // dist_outside of the shifted map is the shifted field (integer offsets; shifted-in
@@ -313,19 +313,19 @@ pub(crate) fn program_with(e: &Effect, light: &GlobalLight, vector_shape: bool, 
                     let solid = g.size * g.spread;
                     let soft = (g.size - solid).max(1e-3);
                     let m = b.push(stage(Kernel::MGlow, Some(d), None, [solid, soft, f32::from(u8::from(center)), 0.0], 0));
-                    b.finish_lut(m, None, false, photocraft_compose::effects::glow_lut(g), inner, 0);
+                    b.finish_lut(m, None, false, openphoto_compose::effects::glow_lut(g), inner, 0);
                 }
                 GlowTechnique::Softer => {
                     // Inner glows (edge, and centre as 1 - the edge result) spread 1 - alpha.
                     let src = if inner { b.shift(In::Shape, 0.0, 0.0, 0.0, true) } else { In::Shape };
-                    let (r, bw) = photocraft_compose::effects::spread_split(g.size, g.spread);
+                    let (r, bw) = openphoto_compose::effects::spread_split(g.size, g.spread);
                     let mut m = src;
                     if r > 0.0 {
                         let d = b.field(if inner { FieldKind::ChokeInside } else { FieldKind::StrokeOutside }, r);
                         m = b.dilate(src, d, r);
                     }
                     let m = b.blur(m, bw);
-                    b.finish_lut(m, None, center, photocraft_compose::effects::glow_lut(g), inner, 0);
+                    b.finish_lut(m, None, center, openphoto_compose::effects::glow_lut(g), inner, 0);
                 }
             }
             1
@@ -334,16 +334,16 @@ pub(crate) fn program_with(e: &Effect, light: &GlobalLight, vector_shape: bool, 
             // satin_map
             let (dx, dy) = offset(s.angle, s.distance);
             let a = b.shift(In::Shape, dx, dy, 0.0, false);
-            let a = b.conv(a, photocraft_compose::effects::tent_kernel(s.size));
+            let a = b.conv(a, openphoto_compose::effects::tent_kernel(s.size));
             let c = b.shift(In::Shape, -dx, -dy, 0.0, false);
-            let c = b.conv(c, photocraft_compose::effects::tent_kernel(s.size));
+            let c = b.conv(c, openphoto_compose::effects::tent_kernel(s.size));
             b.finish(a, Some(c), s.invert, &s.contour, true, 0);
             1
         }
         Effect::BevelEmboss(bv) => {
             // bevel_maps: height map (tent blur of the shape, or chiselled distance ramps), then
             // highlight / shadow shading inside and / or outside the shape.
-            let g = photocraft_compose::effects::bevel_geom(bv);
+            let g = openphoto_compose::effects::bevel_geom(bv);
             let size = bv.size.max(1.0);
             let paint = |p: BevelPaint| match p {
                 BevelPaint::Outer => 0.0,
@@ -351,26 +351,26 @@ pub(crate) fn program_with(e: &Effect, light: &GlobalLight, vector_shape: bool, 
                 BevelPaint::Inner => 2.0,
             };
             let mut h = if bv.technique == BevelTechnique::Smooth {
-                b.conv(In::Shape, photocraft_compose::effects::tent_kernel(g.width))
+                b.conv(In::Shape, openphoto_compose::effects::tent_kernel(g.width))
             } else {
                 let din = b.field(FieldKind::Inside, size);
                 let dout = b.field(FieldKind::Outside, size);
                 let h = b.push(stage(Kernel::MBevelH, Some(din), Some(dout), [paint(g.paint), size, 0.0, 0.0], 0));
-                if g.chisel_soft > 0.0 { b.conv(h, photocraft_compose::effects::tent_kernel(g.chisel_soft)) } else { h }
+                if g.chisel_soft > 0.0 { b.conv(h, openphoto_compose::effects::tent_kernel(g.chisel_soft)) } else { h }
             };
             if let Some(c) = &bv.contour {
                 // Contour element: the height through the contour over its range.
-                let lut = photocraft_compose::effects::ranged_lut(&c.contour, c.range).unwrap_or_else(|| (0..4096).map(|k| k as f32 / 4095.0).collect());
+                let lut = openphoto_compose::effects::ranged_lut(&c.contour, c.range).unwrap_or_else(|| (0..4096).map(|k| k as f32 / 4095.0).collect());
                 let mut st = stage(Kernel::MFinish, Some(h), None, [0.0, 0.0, 1.0, 0.0], 0);
                 st.lut = Some(Arc::new(lut));
                 h = b.push(st);
             }
             if let Some(t) = &bv.texture
-                && let Some(pat) = photocraft_doc::pattern::find(patterns, &t.id, &t.name).filter(|p| !p.is_empty())
+                && let Some(pat) = openphoto_doc::pattern::find(patterns, &t.id, &t.name).filter(|p| !p.is_empty())
             {
                 // Texture element (`effects::bevel_height`): luminance × depth / unit added.
                 let unit = if bv.depth.abs() > 1e-6 { (g.depth / bv.depth).abs().max(1e-3) } else { g.width.max(1.0) };
-                let pl = photocraft_compose::pattern::Placement::anchored(anchor, t.link, t.phase, t.scale, 0.0);
+                let pl = openphoto_compose::pattern::Placement::anchored(anchor, t.link, t.phase, t.scale, 0.0);
                 let (origin, cs, inv) = pl.parts();
                 let mut st = stage(Kernel::MBevelTex, Some(h), None, [t.depth / unit, f32::from(u8::from(t.invert)), 0.0, 0.0], 0);
                 st.p3 = [origin.0 as f32, origin.1 as f32, cs.0 as f32, cs.1 as f32];
@@ -379,7 +379,7 @@ pub(crate) fn program_with(e: &Effect, light: &GlobalLight, vector_shape: bool, 
                 h = b.push(st);
             }
             if bv.soften >= 1.0 {
-                h = b.conv(h, photocraft_compose::effects::tent_kernel(bv.soften));
+                h = b.conv(h, openphoto_compose::effects::tent_kernel(bv.soften));
             }
             let (angle, altitude) = if bv.use_global_light { (light.angle, light.altitude) } else { (bv.angle, bv.altitude) };
             let (sa, ca) = angle.to_radians().sin_cos();
@@ -493,18 +493,18 @@ pub(crate) fn field(kind: FieldKind, reach: i32, shape: &[f32], region: Rect, ou
     let halo = field_radius(kind, reach) + 1;
     let parts = par_map(bands(out, BAND.max(halo)), |band| {
         let win = band.inflate(halo).intersect(&region);
-        let f = photocraft_compose::effects::distance_field(kind, crop(shape, region, win), win.width() as usize, win.height() as usize);
+        let f = openphoto_compose::effects::distance_field(kind, crop(shape, region, win), win.width() as usize, win.height() as usize);
         crop(&f, win, band)
     });
     parts.concat()
 }
 
 /// The layer's shape (`compose::layer_shape`) over `r`, in parallel bands.
-pub(crate) fn shape(doc: &photocraft_doc::Document, layer: &Layer, r: Rect) -> Vec<f32> {
+pub(crate) fn shape(doc: &openphoto_doc::Document, layer: &Layer, r: Rect) -> Vec<f32> {
     if r.is_empty() {
         return Vec::new();
     }
-    par_map(bands(r, BAND), |band| photocraft_compose::layer_shape(doc, layer, band)).concat()
+    par_map(bands(r, BAND), |band| openphoto_compose::layer_shape(doc, layer, band)).concat()
 }
 
 /// Write `v` (row-major over `r`) into the region-sized `shape`.
@@ -561,13 +561,13 @@ pub(crate) fn shape_key(layer: &Layer, canvas: Rect) -> u64 {
     match &layer.content {
         LayerContent::Fill(f) => {
             format!("{f:?}").hash(&mut h);
-            let fr = photocraft_compose::fill_frame(layer, canvas);
+            let fr = openphoto_compose::fill_frame(layer, canvas);
             (fr.x0, fr.y0, fr.x1, fr.y1, content.is_some()).hash(&mut h);
         }
         // A filled shape's effect shape follows its outline too.
         LayerContent::Shape(sh) => {
             std::mem::discriminant(&layer.content).hash(&mut h);
-            if photocraft_compose::effect_outline(layer).is_some() {
+            if openphoto_compose::effect_outline(layer).is_some() {
                 format!("{:?}", sh.path).hash(&mut h);
             }
         }
@@ -641,15 +641,15 @@ pub(crate) fn group_key(layer: &Layer, light: &GlobalLight) -> u64 {
 #[allow(clippy::unreachable)] // clippy.toml exempts unwrap/expect/panic in tests, not unreachable!
 mod tests {
     use super::*;
-    use photocraft_color::BlendMode;
-    use photocraft_doc::FxCommon;
+    use openphoto_color::BlendMode;
+    use openphoto_doc::FxCommon;
 
     #[test]
     fn programs_key_on_geometry_not_colour() {
         let light = GlobalLight::default();
         let Effect::DropShadow(mut s) = Effect::default_drop_shadow() else { unreachable!() };
         let a = program(&Effect::DropShadow(s.clone()), &light, false);
-        s.color = photocraft_color::Color::rgb(1.0, 0.0, 0.0);
+        s.color = openphoto_color::Color::rgb(1.0, 0.0, 0.0);
         s.common = FxCommon::new(BlendMode::Screen, 0.3);
         let b = program(&Effect::DropShadow(s.clone()), &light, false);
         assert_eq!(a.key, b.key);
@@ -694,7 +694,7 @@ mod tests {
             [FieldKind::Outside, FieldKind::Inside, FieldKind::ChokeInside, FieldKind::StrokeOutside, FieldKind::StrokeInside, FieldKind::StrokeOutsideVector]
         {
             let reach = 9;
-            let whole = photocraft_compose::effects::distance_field(kind, shape.clone(), w, h);
+            let whole = openphoto_compose::effects::distance_field(kind, shape.clone(), w, h);
             let banded = field(kind, reach, &shape, region, region);
             let part = Rect::new(40, 30, 170, 120);
             let partial = field(kind, reach, &shape, region, part);

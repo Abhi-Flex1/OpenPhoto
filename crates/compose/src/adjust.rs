@@ -3,9 +3,9 @@
 //! Formulas are documented approximations of Photoshop behaviour. Exact matching is tuned in
 //! milestone M7 against Photoshop-rendered PSD composites (the oracle in `testkit`).
 
-use photocraft_color::convert::rgb_to_gray;
-use photocraft_doc::Adjustment;
-use photocraft_doc::adjust::{CurvePoint, HueRange, LevelsChannel, ToneSpace};
+use openphoto_color::convert::rgb_to_gray;
+use openphoto_doc::Adjustment;
+use openphoto_doc::adjust::{CurvePoint, HueRange, LevelsChannel, ToneSpace};
 
 use crate::Buffer;
 
@@ -24,9 +24,9 @@ pub enum Transfer {
 
 impl Transfer {
     /// Default transfer for a document colour mode.
-    pub fn for_mode(mode: photocraft_color::ColorMode) -> Self {
+    pub fn for_mode(mode: openphoto_color::ColorMode) -> Self {
         match mode {
-            photocraft_color::ColorMode::Grayscale | photocraft_color::ColorMode::Duotone | photocraft_color::ColorMode::Bitmap => Transfer::Gamma(1.732),
+            openphoto_color::ColorMode::Grayscale | openphoto_color::ColorMode::Duotone | openphoto_color::ColorMode::Bitmap => Transfer::Gamma(1.732),
             _ => Transfer::Srgb,
         }
     }
@@ -41,13 +41,13 @@ impl Transfer {
     }
     fn decode(self, v: f32) -> f32 {
         match self {
-            Transfer::Srgb => photocraft_color::convert::srgb_to_linear(v.max(0.0)),
+            Transfer::Srgb => openphoto_color::convert::srgb_to_linear(v.max(0.0)),
             Transfer::Gamma(g) => v.max(0.0).powf(g),
         }
     }
     fn encode(self, v: f32) -> f32 {
         match self {
-            Transfer::Srgb => photocraft_color::convert::linear_to_srgb(v.max(0.0)),
+            Transfer::Srgb => openphoto_color::convert::linear_to_srgb(v.max(0.0)),
             Transfer::Gamma(g) => v.max(0.0).powf(1.0 / g),
         }
     }
@@ -247,7 +247,7 @@ pub fn tone_luts_q(adj: &Adjustment, quantum: Option<f32>) -> [Vec<f32>; 4] {
 /// through the conversions the document's surfaces use. The change is added as a difference of
 /// two round trips, so channels a curve leaves alone (and out-of-gamut colours) stay exact.
 fn tone_in_space(space: ToneSpace, luts: &[Vec<f32>; 4], c: [f32; 3]) -> [f32; 3] {
-    use photocraft_color::convert::{cmyk_to_rgb, lab_to_srgb, rgb_to_cmyk, srgb_to_lab};
+    use openphoto_color::convert::{cmyk_to_rgb, lab_to_srgb, rgb_to_cmyk, srgb_to_lab};
     let (before, after) = match space {
         ToneSpace::Cmyk => {
             let ink = rgb_to_cmyk(c);
@@ -685,7 +685,7 @@ mod lookup_tests {
 #[cfg(test)]
 mod tone_tests {
     use super::*;
-    use photocraft_geom::Rect;
+    use openphoto_geom::Rect;
 
     fn ramp() -> Buffer {
         let rect = Rect::new(0, 0, 8, 8);

@@ -1,0 +1,60 @@
+[package]
+name = "openphoto-ohos"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "OpenPhoto: native HarmonyOS host (Rust native module)"
+publish = false
+
+# HarmonyOS loads the app as a native module (`lib<module>.so`) from an ArkUI XComponent, so the
+# crate is a cdylib. On every other host the crate compiles to nothing (see `src/lib.rs`), which
+# keeps `cargo build` / `cargo test` at the workspace root working.
+[lib]
+name = "openphoto_native"
+crate-type = ["cdylib"]
+
+[lints]
+# Mirrors the workspace table, except `unsafe_code`: the `#[napi]`/`#[ability]` proc-macros emit
+# `#[allow(unsafe_code)]` wrappers around their own FFI glue, which a workspace-level `forbid`
+# turns into E0453. `deny` still forbids every `unsafe` block we could write ourselves (none:
+# this crate contains no `unsafe`, and the workspace `forbid` stays in force everywhere else).
+[lints.rust]
+unsafe_code = "deny"
+[lints.clippy]
+dbg_macro = "warn"
+todo = "warn"
+
+[dependencies]
+# OHOS glue: the Ability entry point (N-API module registration) plus the winit backend that turns
+# HarmonyOS lifecycle, XComponent surface and input callbacks into winit events.
+napi-ohos = "1.2"
+napi-derive-ohos = "1.2"
+openharmony-ability = "=1.0.0-beta.2"
+openharmony-ability-derive = "=1.0.0-beta.1"
+# System file dialogs (open/save picker) through the ArkTS FilesPlugin bridge.
+openharmony-ability-plugin-files = "=1.0.0-beta.1"
+# Resolves picker URIs (`file://media/…`) to readable/writable sandbox paths.
+ohos-fileuri-binding = "=0.2.3"
+ohos-hilog-binding = "0.2"
+winit-core = "=0.31.0-beta.3"
+winit-ohos = "=0.31.0-beta.3"
+
+# Rendering: the same egui + egui-wgpu + wgpu versions the desktop shell uses, so the UI, the
+# paint callbacks and the GPU canvas are byte-for-byte the same code.
+dpi = "0.1"
+egui = { workspace = true }
+egui-wgpu = "0.36"
+wgpu = "30"
+
+# The editor itself.
+openphoto-engine = { workspace = true }
+openphoto-ui-egui = { workspace = true }
+openphoto-doc = { workspace = true }
+openphoto-codecs = { workspace = true }
+openphoto-io = { workspace = true }
+openphoto-format = { workspace = true }
+
+log = { workspace = true }
+
+[build-dependencies]
+napi-build-ohos = "1.2"

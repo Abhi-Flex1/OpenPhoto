@@ -1,6 +1,6 @@
 //! Blurs: Gaussian, box, motion, radial, surface.
 
-use photocraft_geom::Rect;
+use openphoto_geom::Rect;
 
 use crate::image::{Edge, Image, premultiply, unpremultiply};
 use crate::{Ctx, RadialMethod};

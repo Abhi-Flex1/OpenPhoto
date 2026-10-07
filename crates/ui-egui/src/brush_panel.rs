@@ -15,18 +15,18 @@
 //! (`locks` in the brush, applied by the engine). The Brushes tab lives in [`crate::brushes_tab`].
 
 use egui::{Color32, CornerRadius, RichText, Sense, Stroke, vec2};
-use photocraft_engine::BrushSettings;
-use photocraft_engine::paint;
+use openphoto_engine::BrushSettings;
+use openphoto_engine::paint;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 
 use crate::brush_preview;
 use crate::theme::{self, Tokens};
-use crate::{PhotocraftApp, icons, widgets};
+use crate::{OpenPhotoApp, icons, widgets};
 
 pub use crate::brush_preview::{preview_pixels, preview_sig};
 pub use crate::brush_sections::section_body;
-pub use photocraft_engine::brush_cmds::brush_patch;
+pub use openphoto_engine::brush_cmds::brush_patch;
 
 /// Sections in Photoshop's order. The bool says whether the section has an enable box.
 pub const SECTIONS: [(&str, bool); 13] = [
@@ -122,11 +122,11 @@ pub fn section_lock(b: &mut BrushSettings, i: usize) -> Option<&mut bool> {
 }
 
 /// Send the panel's edits (`before` → `after`) through `tools.setBrush`.
-pub fn commit(app: &mut PhotocraftApp, before: &BrushSettings, after: &BrushSettings) {
+pub fn commit(app: &mut OpenPhotoApp, before: &BrushSettings, after: &BrushSettings) {
     send(app, before, after, None);
 }
 
-fn send(app: &mut PhotocraftApp, before: &BrushSettings, after: &BrushSettings, key: Option<String>) -> bool {
+fn send(app: &mut OpenPhotoApp, before: &BrushSettings, after: &BrushSettings, key: Option<String>) -> bool {
     if before == after {
         return false;
     }
@@ -164,7 +164,7 @@ fn gesture(ctx: &egui::Context) -> u64 {
 /// [`commit`] as part of a gesture: every call of one drag carries the same `coalesce` key, so
 /// the engine journals the drag as a single `tools.setBrush` (Rule 1: one command per gesture).
 /// Call it every frame (it tracks presses even when nothing changed).
-pub fn commit_gesture(app: &mut PhotocraftApp, ctx: &egui::Context, before: &BrushSettings, after: &BrushSettings) {
+pub fn commit_gesture(app: &mut OpenPhotoApp, ctx: &egui::Context, before: &BrushSettings, after: &BrushSettings) {
     let g = gesture(ctx);
     if send(app, before, after, Some(format!("brush-ui:{g}"))) && !ctx.input(|i| i.pointer.any_down()) {
         ctx.data_mut(|d| d.get_temp_mut_or_default::<(u64, u64)>(egui::Id::new(GESTURE)).0 += 1);
@@ -209,7 +209,7 @@ pub(crate) fn new_preset_name(presets: &[paint::BrushPreset]) -> String {
     (1..).map(|n| format!("Brush {n}")).find(|n| !presets.iter().any(|p| &p.name == n)).unwrap_or_else(|| "Brush".into())
 }
 
-pub(crate) fn run_or_status(app: &mut PhotocraftApp, id: &str, p: Value) {
+pub(crate) fn run_or_status(app: &mut OpenPhotoApp, id: &str, p: Value) {
     if let Err(e) = app.run(id, p) {
         app.ui.status = e;
     }
@@ -222,7 +222,7 @@ pub(crate) fn full_uv() -> egui::Rect {
 /// The section list: enable boxes, names, locks, the selection. Clicking a name shows the section
 /// and turns it on (Photoshop); clicking a box only toggles it; the lock on the right keeps the
 /// section when another preset is picked.
-fn section_list(app: &mut PhotocraftApp, ui: &mut egui::Ui, b: &mut BrushSettings) {
+fn section_list(app: &mut OpenPhotoApp, ui: &mut egui::Ui, b: &mut BrushSettings) {
     let t = Tokens::get(ui.ctx());
     ui.vertical(|ui| {
         ui.set_width(150.0);
@@ -290,7 +290,7 @@ fn section_list(app: &mut PhotocraftApp, ui: &mut egui::Ui, b: &mut BrushSetting
     });
 }
 
-fn settings_tab(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
+fn settings_tab(app: &mut OpenPhotoApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
     let before = app.session.tools.brush.clone();
     let mut b = before.clone();
@@ -331,7 +331,7 @@ fn settings_tab(app: &mut PhotocraftApp, ui: &mut egui::Ui) {
     commit_gesture(app, ui.ctx(), &before, &b);
 }
 
-pub fn window(app: &mut PhotocraftApp, ctx: &egui::Context) {
+pub fn window(app: &mut OpenPhotoApp, ctx: &egui::Context) {
     if !app.ui.panels.brush_settings {
         return;
     }

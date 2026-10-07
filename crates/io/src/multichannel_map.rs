@@ -6,13 +6,13 @@
 //! solid ink, max = paper. Channel names come from resources 1006 / 1045 and ink colours from
 //! DisplayInfo (1077), exactly as for spot channels in the other modes.
 
-use photocraft_color::{Color, ColorMode, PixelFormat, SampleType};
-use photocraft_doc::{AlphaChannel, Document};
-use photocraft_geom::Rect;
-use photocraft_psd::file::LayerInfoPlacement;
-use photocraft_psd::resources::{ImageResource, ResolutionInfo, ids, version_info_resource};
-use photocraft_psd::{ColorMode as PsdMode, Compression, Header, ImageData, PsdFile, Version};
-use photocraft_raster::Surface;
+use openphoto_color::{Color, ColorMode, PixelFormat, SampleType};
+use openphoto_doc::{AlphaChannel, Document};
+use openphoto_geom::Rect;
+use openphoto_psd::file::LayerInfoPlacement;
+use openphoto_psd::resources::{ImageResource, ResolutionInfo, ids, version_info_resource};
+use openphoto_psd::{ColorMode as PsdMode, Compression, Header, ImageData, PsdFile, Version};
+use openphoto_raster::Surface;
 
 use crate::pixels::{encode_be, psd_depth};
 

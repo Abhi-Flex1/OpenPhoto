@@ -1,7 +1,7 @@
 //! GPU compositor (architecture §7.2, milestone M5).
 //!
 //! Renders a [`Document`] with wgpu, producing the same straight-alpha composite as the CPU
-//! reference (`photocraft-compose`) within ~1/255:
+//! reference (`openphoto-compose`) within ~1/255:
 //!
 //! - **Residency.** Layer and mask surfaces live on the GPU in square *pages* (up to [`PAGE`]²,
 //!   never above the device's texture limit) covering their allocated tiles. A page is uploaded
@@ -40,11 +40,11 @@ use std::collections::HashMap;
 use std::num::NonZeroU64;
 use std::sync::Arc;
 
-use photocraft_color::{PixelFormat, SampleType};
-use photocraft_compose::effects::FieldKind;
-use photocraft_doc::{DocId, Document, Layer, LayerContent, LayerId, Pattern};
-use photocraft_geom::{Rect, TILE_SIZE, TileCoord};
-use photocraft_raster::{Surface, Tile};
+use openphoto_color::{PixelFormat, SampleType};
+use openphoto_compose::effects::FieldKind;
+use openphoto_doc::{DocId, Document, Layer, LayerContent, LayerId, Pattern};
+use openphoto_geom::{Rect, TILE_SIZE, TileCoord};
+use openphoto_raster::{Surface, Tile};
 
 pub use health::{DeviceHealth, Fault};
 pub use plan::{Kernel, Plan, Role, Unsupported, plan};
@@ -707,7 +707,7 @@ impl Compositor {
 
     /// How far beyond a page cell the effect maps of `f` must be computed to be exact in it.
     fn fx_apron(doc: &Document, f: &plan::FxLayer<'_>) -> i32 {
-        let vector_shape = matches!(f.layer.content, LayerContent::Shape(_)) && photocraft_compose::effect_outline(f.layer).is_none();
+        let vector_shape = matches!(f.layer.content, LayerContent::Shape(_)) && openphoto_compose::effect_outline(f.layer).is_none();
         let progs: Vec<fx::MapProgram> = f
             .layer
             .effects
@@ -822,9 +822,9 @@ impl Compositor {
             return Err(Unsupported(f.to_string()));
         }
         // CMYK layers convert through the document's own CMYK profile (uploads and plan colours).
-        let space = photocraft_compose::cmyk_space(doc);
+        let space = openphoto_compose::cmyk_space(doc);
         self.cmyk = space.as_ref().map_or(0, |s| s.id);
-        photocraft_color::convert::with_cmyk_space(space.as_ref(), || self.encode_scoped(device, queue, encoder, doc, region, sink, flush))
+        openphoto_color::convert::with_cmyk_space(space.as_ref(), || self.encode_scoped(device, queue, encoder, doc, region, sink, flush))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1226,7 +1226,7 @@ impl Compositor {
         }
         let format = surface.format();
         let kind = TexKind::for_surface(key.1, format);
-        let cmyk = if format.mode == photocraft_color::ColorMode::Cmyk { self.cmyk } else { 0 };
+        let cmyk = if format.mode == openphoto_color::ColorMode::Cmyk { self.cmyk } else { 0 };
         let stale = self.residents.get(&key).is_none_or(|r| r.region != region || r.kind != kind || r.format != format || r.cmyk != cmyk);
         if stale {
             let texture = device.create_texture(&wgpu::TextureDescriptor {
@@ -1480,7 +1480,7 @@ impl Compositor {
 
         // Programs, and the distance fields they read (max reach per field).
         // Filled shapes stroke their outline (the effect shape); others estimate it.
-        let vector_shape = matches!(layer.content, LayerContent::Shape(_)) && photocraft_compose::effect_outline(layer).is_none();
+        let vector_shape = matches!(layer.content, LayerContent::Shape(_)) && openphoto_compose::effect_outline(layer).is_none();
         let anchor = layer.effects.reference.unwrap_or((f64::from(f.bounds.x0), f64::from(f.bounds.y0)));
         let progs: Vec<fx::MapProgram> =
             layer.effects.items.iter().filter(|e| e.enabled()).map(|e| fx::program_with(e, &doc.global_light, vector_shape, &doc.patterns, anchor)).collect();
@@ -1608,13 +1608,13 @@ impl Compositor {
     }
 }
 
-/// A start time when `PHOTOCRAFT_FX_TRACE=1` (it prints the CPU time of effect shapes and
+/// A start time when `OPENPHOTO_FX_TRACE=1` (it prints the CPU time of effect shapes and
 /// distance fields); never on wasm.
 fn web_time_now() -> Option<std::time::Instant> {
     #[cfg(not(target_arch = "wasm32"))]
     {
         static T: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-        T.get_or_init(|| std::env::var_os("PHOTOCRAFT_FX_TRACE").is_some()).then(std::time::Instant::now)
+        T.get_or_init(|| std::env::var_os("OPENPHOTO_FX_TRACE").is_some()).then(std::time::Instant::now)
     }
     #[cfg(target_arch = "wasm32")]
     None
@@ -1709,11 +1709,11 @@ fn convert_tile(surface: &Surface, tile: Option<&Arc<Tile>>, kind: TexKind, c: T
     for px in raw.chunks_exact(ch) {
         match kind {
             TexKind::Rgba8Direct | TexKind::Rgba8 => {
-                let v = photocraft_raster::to_rgba(&fmt, px);
+                let v = openphoto_raster::to_rgba(&fmt, px);
                 out.extend(v.map(|x| (x.clamp(0.0, 1.0) * 255.0 + 0.5) as u8));
             }
             TexKind::Rgba16F => {
-                let v = photocraft_raster::to_rgba(&fmt, px);
+                let v = openphoto_raster::to_rgba(&fmt, px);
                 for x in v {
                     out.extend(f32_to_f16(x).to_le_bytes());
                 }

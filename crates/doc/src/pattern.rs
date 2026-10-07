@@ -1,9 +1,9 @@
 //! Patterns: tiles used by Pattern Overlay, pattern fill layers, pattern strokes, Edit › Fill
-//! and brush textures. Pure data; rendering lives in `photocraft-compose`, the PSD mapping
-//! (`Patt`/`Pat2`/`Pat3` global blocks) in `photocraft-io`.
+//! and brush textures. Pure data; rendering lives in `openphoto-compose`, the PSD mapping
+//! (`Patt`/`Pat2`/`Pat3` global blocks) in `openphoto-io`.
 
-use photocraft_geom::Rect;
-use photocraft_raster::Surface;
+use openphoto_geom::Rect;
+use openphoto_raster::Surface;
 
 /// One pattern tile. Pixels cover `0..width × 0..height` of `surface`, in any pixel format
 /// (depth and colour model are the pattern's own, as in Photoshop).
@@ -84,7 +84,7 @@ pub fn find<'a>(patterns: &'a [Pattern], id: &str, name: &str) -> Option<&'a Pat
 #[cfg(test)]
 mod tests {
     use super::*;
-    use photocraft_color::PixelFormat;
+    use openphoto_color::PixelFormat;
 
     #[test]
     fn ids_are_deterministic_and_lookup_falls_back_to_names() {

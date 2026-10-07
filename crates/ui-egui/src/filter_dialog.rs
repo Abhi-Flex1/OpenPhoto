@@ -5,10 +5,10 @@
 
 use std::sync::Arc;
 
-use photocraft_doc::Document;
+use openphoto_doc::Document;
 use serde_json::{Map, Value, json};
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 use crate::theme::Tokens;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -163,11 +163,11 @@ pub fn has_dialog(command: &str) -> bool {
                 | "layer.layerStyle.globalLight"
                 | "image.mode.colorTable"
         ))
-        && photocraft_engine::commands::find(command).is_some_and(|c| !parse_spec(c.params).is_empty())
+        && openphoto_engine::commands::find(command).is_some_and(|c| !parse_spec(c.params).is_empty())
 }
 
-pub fn open(app: &mut PhotocraftApp, command: &str) -> Option<u64> {
-    let spec = photocraft_engine::commands::find(command)?;
+pub fn open(app: &mut OpenPhotoApp, command: &str) -> Option<u64> {
+    let spec = openphoto_engine::commands::find(command)?;
     let mut fields = Map::new();
     fields.insert("__command".into(), json!(command));
     fields.insert("__label".into(), json!(spec.label));
@@ -203,7 +203,7 @@ pub fn open(app: &mut PhotocraftApp, command: &str) -> Option<u64> {
 
 /// A filter dialog with live preview for `command` whose parameters follow `spec` (registry
 /// notation) instead of the command's own; `fixed` params (e.g. a plug-in id) are passed through.
-pub fn open_with_spec(app: &mut PhotocraftApp, command: &str, label: &str, spec: &str, fixed: Map<String, Value>) -> u64 {
+pub fn open_with_spec(app: &mut OpenPhotoApp, command: &str, label: &str, spec: &str, fixed: Map<String, Value>) -> u64 {
     let mut fields = fixed;
     fields.insert("__command".into(), json!(command));
     fields.insert("__label".into(), json!(label));
@@ -254,7 +254,7 @@ pub fn body(ui: &mut egui::Ui, f: &mut Map<String, Value>) {
     // Plug-in dialogs carry their own spec (from the plug-in's manifest).
     let spec = match f.get("__spec").and_then(Value::as_str) {
         Some(s) => s.to_string(),
-        None => match photocraft_engine::commands::find(&cmd) {
+        None => match openphoto_engine::commands::find(&cmd) {
             Some(c) => c.params.to_string(),
             None => return,
         },
@@ -376,9 +376,9 @@ pub fn params_of(f: &Map<String, Value>) -> Value {
 }
 
 /// Compute a preview document: run `command` with `params` on the proxy (scaled) copy of `doc`.
-pub fn preview_document(doc: &Document, active: Option<photocraft_doc::LayerId>, command: &str, params: &Value, k: u32) -> Option<Document> {
+pub fn preview_document(doc: &Document, active: Option<openphoto_doc::LayerId>, command: &str, params: &Value, k: u32) -> Option<Document> {
     let proxy = crate::proxy::proxy_document(doc, k);
-    let mut s = photocraft_engine::Session::new();
+    let mut s = openphoto_engine::Session::new();
     s.add_document(proxy, None);
     if let Some(id) = active {
         s.select_layer(id).ok()?;
@@ -401,7 +401,7 @@ pub fn preview_document(doc: &Document, active: Option<photocraft_doc::LayerId>,
 
 /// Cached preview state on the app.
 pub struct FilterPreview {
-    pub doc: photocraft_doc::DocId,
+    pub doc: openphoto_doc::DocId,
     pub revision: u64,
     pub hash: u64,
     pub k: u32,
@@ -457,7 +457,7 @@ mod tests {
 
     #[test]
     fn every_filter_command_spec_parses() {
-        for c in photocraft_engine::command_specs().iter().filter(|c| c.id.starts_with("filter.")) {
+        for c in openphoto_engine::command_specs().iter().filter(|c| c.id.starts_with("filter.")) {
             let _ = parse_spec(c.params);
         }
         assert!(has_dialog("filter.blur.gaussianBlur"));
@@ -468,13 +468,13 @@ mod tests {
     fn preview_runs_engine_command_on_proxy() {
         let mut doc = Document::with_background(
             "p",
-            photocraft_doc::Size::new(64, 64),
-            photocraft_doc::ColorMode::Rgb,
-            photocraft_doc::SampleType::U8,
-            photocraft_doc::Color::WHITE,
+            openphoto_doc::Size::new(64, 64),
+            openphoto_doc::ColorMode::Rgb,
+            openphoto_doc::SampleType::U8,
+            openphoto_doc::Color::WHITE,
         );
         let bg = doc.layers[0].id;
-        doc.layers[0].surface_mut().unwrap().fill_rect(photocraft_geom::Rect::new(0, 0, 32, 64), &[0.0, 0.0, 0.0, 1.0]);
+        doc.layers[0].surface_mut().unwrap().fill_rect(openphoto_geom::Rect::new(0, 0, 32, 64), &[0.0, 0.0, 0.0, 1.0]);
         let out = preview_document(&doc, Some(bg), "filter.blur.gaussianBlur", &json!({"radius": 4.0}), 1).unwrap();
         let p = out.layers[0].surface().unwrap().pixel(32, 32);
         assert!(p[0] > 0.2 && p[0] < 0.8, "edge blurred: {p:?}");

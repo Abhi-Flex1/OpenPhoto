@@ -7,7 +7,7 @@
   </a>
 </p>
 
-<h1 align="center">PhotoCraft</h1>
+<h1 align="center">OpenPhoto</h1>
 
 <p align="center">
   <b>Image editing; an open-source, clean-room reimplementation of Adobe Photoshop, rebuilt in pure Rust.</b><br>
@@ -17,7 +17,7 @@
 
 <p align="center">
   <img alt="100% Rust" src="https://img.shields.io/badge/100%25-Rust-b7410e?style=flat-square&logo=rust">
-  <img alt="macOS · Windows · Linux · FreeBSD · Web" src="https://img.shields.io/badge/macOS%20%C2%B7%20Windows%20%C2%B7%20Linux%20%C2%B7%20FreeBSD%20%C2%B7%20Web-native-2f7bf5?style=flat-square">
+  <img alt="macOS · Windows · Linux · FreeBSD · Web · HarmonyOS" src="https://img.shields.io/badge/macOS%20%C2%B7%20Windows%20%C2%B7%20Linux%20%C2%B7%20FreeBSD%20%C2%B7%20Web%20%C2%B7%20HarmonyOS-native-2f7bf5?style=flat-square">
   <img alt="License: MIT OR Apache-2.0" src="https://img.shields.io/badge/license-MIT%20%2F%20Apache--2.0-3a3a3a?style=flat-square">
   <img alt="Status: early alpha" src="https://img.shields.io/badge/status-early%20alpha-d69e2e?style=flat-square">
 </p>
@@ -27,7 +27,7 @@
 </p>
 
 <p align="center">
-  <a href="https://getartcraft.com/apps/photocraft"><b>PhotoCraft on getartcraft.com</b></a> ·
+  <a href="https://getartcraft.com/apps/photocraft"><b>OpenPhoto on getartcraft.com</b></a> ·
   <a href="https://getartcraft.com/">ArtCraft</a> ·
   <a href="https://getartcraft.com/apps">All Crafting Apps</a>
 </p>
@@ -35,7 +35,7 @@
 <br>
 
 <p align="center">
-  <img src="docs/images/photocraft-demo.jpg" alt="PhotoCraft editing Hokusai's The Great Wave: a caption card with a drop shadow, Title and Credit type layers, Vibrance and Curves adjustment layers, and the Curves editor drawn over the image's histogram" width="100%">
+  <img src="docs/images/openphoto-demo.jpg" alt="OpenPhoto editing Hokusai's The Great Wave: a caption card with a drop shadow, Title and Credit type layers, Vibrance and Curves adjustment layers, and the Curves editor drawn over the image's histogram" width="100%">
   <br>
   <sub>A caption card with a drop shadow, live type, and Vibrance and Curves adjustment layers, with the Curves editor open.<br>
   <i>The Great Wave off Kanagawa</i>, Katsushika Hokusai, c. 1831</sub>
@@ -62,7 +62,7 @@
   <tr>
     <td width="25%" valign="top">
       <h3>🎛️ Familiar by design</h3>
-      The menus, shortcuts, panels and tools are where your hands expect them, from ⌘J to ⇧⌘D. If you know Photoshop, you already know PhotoCraft.
+      The menus, shortcuts, panels and tools are where your hands expect them, from ⌘J to ⇧⌘D. If you know Photoshop, you already know OpenPhoto.
     </td>
     <td width="25%" valign="top">
       <h3>⚡ Native and fast</h3>
@@ -88,7 +88,7 @@ Every screenshot here is the real app at work on public-domain art, rendered off
 <table>
   <tr>
     <td width="50%" valign="top">
-      <img src="docs/images/photocraft-adjustments.jpg" alt="Monet's Impression, Sunrise with Levels and Vibrance adjustment layers; the Levels editor and the Histogram panel with mean, standard deviation and median are open on the right" width="100%">
+      <img src="docs/images/openphoto-adjustments.jpg" alt="Monet's Impression, Sunrise with Levels and Vibrance adjustment layers; the Levels editor and the Histogram panel with mean, standard deviation and median are open on the right" width="100%">
       <br>
       <sub>Levels and Vibrance adjustment layers, with the live Histogram panel.<br><i>Impression, Sunrise</i>, Claude Monet, 1872</sub>
       <h3>Edit without regret</h3>
@@ -97,7 +97,7 @@ Every screenshot here is the real app at work on public-domain art, rendered off
       <b>16 adjustment layers</b> that also apply directly to pixels, including Curves with per-channel editing, Levels with a live histogram, Black &amp; White, Channel Mixer, Gradient Map, Photo Filter, Selective Color and Color Lookup (.cube, .3dl, .look). Plus Shadows/Highlights, Replace Color, Match Color, HDR Toning, Desaturate and Equalize.
     </td>
     <td width="50%" valign="top">
-      <img src="docs/images/photocraft-layer-styles.jpg" alt="The Layer Style dialog editing an Outer Glow on the EARTHRISE type layer, with Stroke also enabled, over the Apollo 8 Earthrise photograph" width="100%">
+      <img src="docs/images/openphoto-layer-styles.jpg" alt="The Layer Style dialog editing an Outer Glow on the EARTHRISE type layer, with Stroke also enabled, over the Apollo 8 Earthrise photograph" width="100%">
       <br>
       <sub>Outer Glow and Stroke on a live type layer, in the Layer Style dialog.<br><i>Earthrise</i>, William Anders / NASA, 1968</sub>
       <h3>Styles that sell the shot</h3>
@@ -108,7 +108,7 @@ Every screenshot here is the real app at work on public-domain art, rendered off
   </tr>
   <tr>
     <td width="50%" valign="top">
-      <img src="docs/images/photocraft-masks.jpg" alt="Vermeer's Girl with a Pearl Earring: an elliptical selection around the face, and a Hue/Saturation layer with an elliptical mask that turns everything outside the face gray" width="100%">
+      <img src="docs/images/openphoto-masks.jpg" alt="Vermeer's Girl with a Pearl Earring: an elliptical selection around the face, and a Hue/Saturation layer with an elliptical mask that turns everything outside the face gray" width="100%">
       <br>
       <sub>An elliptical selection becomes the mask of a Hue/Saturation layer, so only the face keeps its color.<br><i>Girl with a Pearl Earring</i>, Johannes Vermeer, c. 1665</sub>
       <h3>Selections that understand your image</h3>
@@ -117,7 +117,7 @@ Every screenshot here is the real app at work on public-domain art, rendered off
       Feather, expand, contract, smooth, grow, reselect. Turn any selection into a layer mask, a vector path or a shape. Smart selection runs on your machine, with no cloud and no account.
     </td>
     <td width="50%" valign="top">
-      <img src="docs/images/photocraft-type.jpg" alt="Bierstadt's Among the Sierra Nevada with the headline SIERRA NEVADA being edited on the canvas in Georgia, a byline, and a paragraph caption; the Character and Paragraph controls are open" width="100%">
+      <img src="docs/images/openphoto-type.jpg" alt="Bierstadt's Among the Sierra Nevada with the headline SIERRA NEVADA being edited on the canvas in Georgia, a byline, and a paragraph caption; the Character and Paragraph controls are open" width="100%">
       <br>
       <sub>A headline edited in place, with a byline and a paragraph of body text.<br><i>Among the Sierra Nevada, California</i>, Albert Bierstadt, 1868</sub>
       <h3>Type that sets beautifully</h3>
@@ -128,7 +128,7 @@ Every screenshot here is the real app at work on public-domain art, rendered off
   </tr>
   <tr>
     <td width="50%" valign="top">
-      <img src="docs/images/photocraft-vector.jpg" alt="A lotus badge built from shape layers (Lotus, Water, Sun, Badge and Dotted Ring) over Monet's Water Lilies, with the lotus path's anchor points selected" width="100%">
+      <img src="docs/images/openphoto-vector.jpg" alt="A lotus badge built from shape layers (Lotus, Water, Sun, Badge and Dotted Ring) over Monet's Water Lilies, with the lotus path's anchor points selected" width="100%">
       <br>
       <sub>A badge made of shape layers: a gradient-filled lotus, a star and a dotted ring.<br><i>Water Lilies</i>, Claude Monet, 1906</sub>
       <h3>Pixel-perfect vectors</h3>
@@ -137,7 +137,7 @@ Every screenshot here is the real app at work on public-domain art, rendered off
       Combine shapes (unite, subtract, intersect, exclude), keep paths in the Paths panel, use them as vector masks, or stroke and fill them. 116 of 116 shape layers in our PSD corpus match Photoshop's pixels.
     </td>
     <td width="50%" valign="top">
-      <img src="docs/images/photocraft-filters.jpg" alt="The Twirl filter dialog at a 320 degree angle, previewing live inside an elliptical selection on Van Gogh's The Starry Night" width="100%">
+      <img src="docs/images/openphoto-filters.jpg" alt="The Twirl filter dialog at a 320 degree angle, previewing live inside an elliptical selection on Van Gogh's The Starry Night" width="100%">
       <br>
       <sub>Twirl previews live on the canvas, only inside the selection.<br><i>The Starry Night</i>, Vincent van Gogh, 1889</sub>
       <h3>See it before you commit</h3>
@@ -150,7 +150,7 @@ Every screenshot here is the real app at work on public-domain art, rendered off
   </tr>
   <tr>
     <td width="50%" valign="top">
-      <img src="docs/images/photocraft-transform.jpg" alt="Free Transform handles around a rotated copy of Ansel Adams' The Tetons and the Snake River, with the History panel listing Open, Duplicate Layer, Free Transform and other steps" width="100%">
+      <img src="docs/images/openphoto-transform.jpg" alt="Free Transform handles around a rotated copy of Ansel Adams' The Tetons and the Snake River, with the History panel listing Open, Duplicate Layer, Free Transform and other steps" width="100%">
       <br>
       <sub>Free Transform on a rotated print, with every step listed in History.<br><i>The Tetons and the Snake River</i>, Ansel Adams, 1942</sub>
       <h3>Shape it any way you like</h3>
@@ -159,7 +159,7 @@ Every screenshot here is the real app at work on public-domain art, rendered off
       Full history, Toggle Last State and the History Brush mean every step can be undone, even one brush stroke at a time.
     </td>
     <td width="50%" valign="top">
-      <img src="docs/images/photocraft-export-light.jpg" alt="The Export As dialog in the light theme over Klimt's The Kiss: JPG at quality 90, scaled to 50 percent, with a preview and an estimated size of about 684K" width="100%">
+      <img src="docs/images/openphoto-export-light.jpg" alt="The Export As dialog in the light theme over Klimt's The Kiss: JPG at quality 90, scaled to 50 percent, with a preview and an estimated size of about 684K" width="100%">
       <br>
       <sub>Export As in the light theme, with a preview and a file-size estimate.<br><i>The Kiss</i>, Gustav Klimt, 1907–1908</sub>
       <h3>Ship it anywhere</h3>
@@ -211,9 +211,9 @@ Every screenshot here is the real app at work on public-domain art, rendered off
 
 ## PSD without compromise
 
-PhotoCraft's PSD support is a standalone crate written from Adobe's public specification and tested against a corpus of real-world files.
+OpenPhoto's PSD support is a standalone crate written from Adobe's public specification and tested against a corpus of real-world files.
 
-- **Faithful round trips:** opening and re-saving a document renders the same for 307 of the 309 files in the psd-tools test set and 169 of 170 in our mixed ag-psd/psd-tools set (`crates/io/tests/corpus.rs`; fetch the psd-tools set with `cargo xtask corpus --psd-tools`), and anything we don't model yet (raw blocks, descriptors, extras) is carried over instead of being dropped. A re-saved file is not byte-identical to its source: PhotoCraft rewrites image resources, layer records and the composite. Only the standalone `photocraft-psd` crate, parsing and writing a file without the document model, reproduces every parseable corpus file byte for byte (`crates/psd/tests/corpus.rs`).
+- **Faithful round trips:** opening and re-saving a document renders the same for 307 of the 309 files in the psd-tools test set and 169 of 170 in our mixed ag-psd/psd-tools set (`crates/io/tests/corpus.rs`; fetch the psd-tools set with `cargo xtask corpus --psd-tools`), and anything we don't model yet (raw blocks, descriptors, extras) is carried over instead of being dropped. A re-saved file is not byte-identical to its source: OpenPhoto rewrites image resources, layer records and the composite. Only the standalone `openphoto-psd` crate, parsing and writing a file without the document model, reproduces every parseable corpus file byte for byte (`crates/psd/tests/corpus.rs`).
 - **Pixels that match:** a composite oracle compares our render with Photoshop's own merged image, covering gradient interpolation (Classic, Perceptual and Linear), layer effects, shape strokes, clipping and fill opacity.
 - **Large documents:** PSB, 16 and 32-bit files, and CMYK and Lab documents open natively.
 
@@ -223,19 +223,19 @@ Every menu item, tool and dialog runs a command from one registry of 500+ comman
 
 ```sh
 # Headless: open, edit, save
-photocraft-cli run wave.psd \
+openphoto-cli run wave.psd \
   --cmd filter.sharpen.smartSharpen     --params '{"amount":80}' \
   --cmd layer.newAdjustmentLayer.curves --params '{"points":[[0,0],[64,48],[192,212],[255,255]]}' \
   --out wave-final.png
 
 # Apply one action list to a folder of images
-photocraft-cli batch --actions grade.json --in ./raw --out ./graded
+openphoto-cli batch --actions grade.json --in ./raw --out ./graded
 
 # Let an agent drive it over MCP (headless, or bridged to the running app)
-photocraft-cli mcp
+openphoto-cli mcp
 ```
 
-The desktop app also offers an authenticated, loopback-only control channel (`photocraft --control`) for inspecting UI state, driving tools with pointer events, and taking offscreen screenshots. Every image in this README was rendered that way. See [`docs/control-protocol.md`](docs/control-protocol.md).
+The desktop app also offers an authenticated, loopback-only control channel (`openphoto --control`) for inspecting UI state, driving tools with pointer events, and taking offscreen screenshots. Every image in this README was rendered that way. See [`docs/control-protocol.md`](docs/control-protocol.md).
 
 ## Under the hood
 
@@ -250,8 +250,8 @@ The desktop app also offers an authenticated, loopback-only control channel (`ph
 
 ```sh
 git clone https://github.com/storytold/photocraft
-cd photocraft
-cargo run --release -p photocraft -- image.psd   # the desktop app
+cd openphoto
+cargo run --release -p openphoto -- image.psd   # the desktop app
 cargo test --workspace                           # the test suite
 ```
 
@@ -260,26 +260,42 @@ New contributors and AI agents: start with [`AGENTS.md`](AGENTS.md), then [`docs
 Installers for macOS, Windows, Linux, FreeBSD and the web are attached to each [GitHub release](https://github.com/storytold/photocraft/releases). On Linux you can pick an AppImage, a `.deb`, an `.rpm`, a tarball or a Flatpak bundle. The bundle needs the freedesktop runtime from [Flathub](https://flathub.org/setup), which `flatpak` offers to install along with it:
 
 ```sh
-flatpak install --user photocraft-<version>-linux-x86_64.flatpak   # or -linux-aarch64
-flatpak run ai.storyteller.photocraft
+flatpak install --user openphoto-<version>-linux-x86_64.flatpak   # or -linux-aarch64
+flatpak run ai.storyteller.openphoto
 ```
 
 On FreeBSD 14 (x86_64), the release has a tarball laid out like `/usr/local`. Install the runtime libraries, then unpack it there:
 
 ```sh
 pkg install libxkbcommon wayland libX11 libXcursor libXrandr libXi libxcb mesa-libs vulkan-loader gtk3 fontconfig freetype2 alsa-lib
-tar -xzf photocraft-<version>-freebsd-x86_64.tar.gz --strip-components 1 -C /usr/local
-photocraft
+tar -xzf openphoto-<version>-freebsd-x86_64.tar.gz --strip-components 1 -C /usr/local
+openphoto
 ```
 
 Maintainers: [`docs/releasing.md`](docs/releasing.md) explains how releases are built, signed and published.
 
+## HarmonyOS
+
+OpenPhoto runs natively on HarmonyOS (phones, tablets and 2-in-1 PCs) from the same Rust sources:
+a thin native module (`apps/openphoto-ohos`) hosts the shared editor UI inside an ArkTS
+`XComponent` (`harmony/`), rendering with wgpu (Vulkan on devices, OpenGL ES on the emulator).
+
+```sh
+./scripts/ohos-sign.sh            # once per emulator: local debug signing material
+./scripts/ohos-build.sh           # cross-compile, package and sign the HAP
+hdc -t <target> install harmony/entry/build/default/outputs/default/entry-default-signed.hap
+hdc -t <target> shell aa start -a EntryAbility -b ai.storyteller.openphoto
+```
+
+Details, emulator notes and the remaining gaps (system file dialogs, real-keyboard verification)
+are in [`docs/harmonyos.md`](docs/harmonyos.md).
+
 > [!IMPORTANT]
-> **Status:** PhotoCraft is in early alpha, and we want to be straight about where it stands: much of Photoshop's feature surface exists in some form, but **it is not yet a Photoshop replacement for daily professional work**. The biggest gaps are AI/generative features, about twenty missing tools, depth in typography and pro workflows, and plug-in compatibility. Every Photoshop menu item is wired to a command ([`docs/parity.md`](docs/parity.md)), but that measures wiring, not behaviour. The honest, dimension-by-dimension picture and where we're going next are in the [roadmap's parity assessment](docs/roadmap.md#honest-parity-assessment-2026-10-05). Expect rough edges, and please file issues (include your OS, document size, layer count and a screenshot). You can also tell us what broke on [Discord](https://discord.gg/artcraft).
+> **Status:** OpenPhoto is in early alpha, and we want to be straight about where it stands: much of Photoshop's feature surface exists in some form, but **it is not yet a Photoshop replacement for daily professional work**. The biggest gaps are AI/generative features, about twenty missing tools, depth in typography and pro workflows, and plug-in compatibility. Every Photoshop menu item is wired to a command ([`docs/parity.md`](docs/parity.md)), but that measures wiring, not behaviour. The honest, dimension-by-dimension picture and where we're going next are in the [roadmap's parity assessment](docs/roadmap.md#honest-parity-assessment-2026-10-05). Expect rough edges, and please file issues (include your OS, document size, layer count and a screenshot). You can also tell us what broke on [Discord](https://discord.gg/artcraft).
 
 ## Documentation
 
-Developer, architecture, automation, format, and security documentation is maintained in the [PhotoCraft documentation book](book/).
+Developer, architecture, automation, format, and security documentation is maintained in the [OpenPhoto documentation book](book/).
 
 ## Security
 
@@ -287,20 +303,20 @@ Security architecture, threat modeling, parser hardening, fuzzing, and vulnerabi
 
 ## Test corpora
 
-PhotoCraft is tested against real files: our own Photoshop-authored oracle PSDs in
+OpenPhoto is tested against real files: our own Photoshop-authored oracle PSDs in
 [photocraft-corpus](https://github.com/storytold/photocraft-corpus) plus the psd-tools, ag-psd and PngSuite sets, pinned and
 sha256-verified. Fetch them with `cargo xtask corpus --all` and run the tests with
 `cargo xtask test-corpus` (details in [docs/development.md](docs/development.md#test-corpora)).
 
 ## The Crafting Apps
 
-PhotoCraft is one of the **Crafting Apps**: free, open-source creative tools from the
+OpenPhoto is one of the **Crafting Apps**: free, open-source creative tools from the
 [ArtCraft](https://getartcraft.com/) team, each written from scratch in Rust and each able to
 stand on its own.
 
 | | App | What it's for | Code | Learn more |
 |:-:|---|---|---|---|
-| <img src="https://raw.githubusercontent.com/storytold/photocraft/main/assets/app-icon/hicolor/64x64/apps/ai.storyteller.photocraft.png" alt="" width="32" height="32"> | **PhotoCraft** | **Image editing: layers, masks, type and real PSD files · you are here** | [GitHub](https://github.com/storytold/photocraft) | [Website](https://getartcraft.com/apps/photocraft) |
+| <img src="https://raw.githubusercontent.com/storytold/photocraft/main/assets/app-icon/hicolor/64x64/apps/ai.storyteller.photocraft.png" alt="" width="32" height="32"> | **OpenPhoto** | **Image editing: layers, masks, type and real PSD files · you are here** | [GitHub](https://github.com/storytold/photocraft) | [Website](https://getartcraft.com/apps/photocraft) |
 | <img src="https://raw.githubusercontent.com/storytold/vectorcraft/main/assets/app-icon/hicolor/64x64/apps/ai.storyteller.vectorcraft.png" alt="" width="32" height="32"> | **VectorCraft** | Vector illustration | [GitHub](https://github.com/storytold/vectorcraft) | [Website](https://getartcraft.com/apps/vectorcraft) |
 | <img src="https://raw.githubusercontent.com/storytold/filmcraft/main/assets/app-icon/hicolor/64x64/apps/ai.storyteller.filmcraft.png" alt="" width="32" height="32"> | **FilmCraft** | Video editing, color and sound | [GitHub](https://github.com/storytold/filmcraft) | [Website](https://getartcraft.com/apps/filmcraft) |
 | <img src="https://raw.githubusercontent.com/storytold/lightcraft/main/assets/app-icon/hicolor/64x64/apps/ai.storyteller.lightcraft.png" alt="" width="32" height="32"> | **LightCraft** | Photo library and raw development | [GitHub](https://github.com/storytold/lightcraft) | [Website](https://getartcraft.com/apps/lightcraft) |
@@ -331,15 +347,15 @@ The Crafting Apps share the same conventions: clean-room and pure Rust, native o
   <a href="https://discord.gg/artcraft"><b>discord.gg/artcraft</b></a> ·
   <a href="https://getartcraft.com/">getartcraft.com</a> ·
   <a href="https://getartcraft.com/apps">The Crafting Apps</a> ·
-  <a href="https://getartcraft.com/apps/photocraft">PhotoCraft</a>
+  <a href="https://getartcraft.com/apps/photocraft">OpenPhoto</a>
 </p>
 
 ---
 
 ## License and credits
 
-PhotoCraft is dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
-Copyright (c) 2026 ArtCraft Team and the PhotoCraft contributors. Required notices are in [NOTICE](NOTICE).
+OpenPhoto is dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
+Copyright (c) 2026 ArtCraft Team and the OpenPhoto contributors. Required notices are in [NOTICE](NOTICE).
 
 Bundled fonts, icons, images and other assets keep their own open licenses; each one is listed
 with its author, source and license in [ATTRIBUTION.md](ATTRIBUTION.md).
@@ -348,10 +364,10 @@ Every artwork shown is in the public domain (Wikimedia Commons, NASA, U.S. Natio
 
 The ArtCraft name, wordmark and logos in [`docs/brand/`](docs/brand/) are trademarks of the
 ArtCraft Team and are not covered by this license. They may be used only unmodified, and only as
-part of this repository and PhotoCraft, under [`docs/brand/LICENSE-brand.txt`](docs/brand/LICENSE-brand.txt).
+part of this repository and OpenPhoto, under [`docs/brand/LICENSE-brand.txt`](docs/brand/LICENSE-brand.txt).
 Forks and modified versions must remove them.
 
-<sub>Adobe, Photoshop, Illustrator, Premiere Pro, Lightroom, Acrobat, After Effects and InDesign are trademarks or registered trademarks of Adobe Inc. in the United States and/or other countries. PhotoCraft is an independent, open-source project and is not affiliated with, sponsored by or endorsed by Adobe Inc.; these names are used only to describe the workflows it is compatible with.</sub>
+<sub>Adobe, Photoshop, Illustrator, Premiere Pro, Lightroom, Acrobat, After Effects and InDesign are trademarks or registered trademarks of Adobe Inc. in the United States and/or other countries. OpenPhoto is an independent, open-source project and is not affiliated with, sponsored by or endorsed by Adobe Inc.; these names are used only to describe the workflows it is compatible with.</sub>
 
 <p align="center">
   <a href="https://getartcraft.com/"><img alt="ArtCraft" src="docs/brand/artcraft-mark.svg" width="28"></a><br>

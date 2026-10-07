@@ -5,7 +5,7 @@
 
 use std::io::Write;
 
-use photocraft_automation::{AuthorizedWorkspace, PhotocraftMcp};
+use openphoto_automation::{AuthorizedWorkspace, OpenPhotoMcp};
 use rmcp::model::{CallToolRequestParams, CallToolResult, ClientConfig};
 use rmcp::service::RunningService;
 use rmcp::{ClientHandler, RoleClient, ServiceExt};
@@ -25,7 +25,7 @@ async fn connect(root: &std::path::Path) -> Conn {
     let (s, c) = tokio::io::duplex(1 << 20);
     let workspace = AuthorizedWorkspace::new(Some(root), Some(root)).expect("test workspace");
     tokio::spawn(async move {
-        if let Ok(running) = PhotocraftMcp::headless_with_workspace(workspace).serve(s).await {
+        if let Ok(running) = OpenPhotoMcp::headless_with_workspace(workspace).serve(s).await {
             let _ = running.waiting().await;
         }
     });
@@ -82,9 +82,9 @@ fn gradient_png(dir: &std::path::Path) -> &'static str {
             px.extend_from_slice(&[(x * 4) as u8, (y * 5) as u8, 128]);
         }
     }
-    let img = photocraft_codecs::Image::from_u8(w, h, photocraft_codecs::ChannelLayout::Rgb, px).unwrap();
+    let img = openphoto_codecs::Image::from_u8(w, h, openphoto_codecs::ChannelLayout::Rgb, px).unwrap();
     let path = dir.join("gradient.png");
-    std::fs::File::create(&path).unwrap().write_all(&photocraft_codecs::encode(&img, photocraft_codecs::Format::Png, &Default::default()).unwrap()).unwrap();
+    std::fs::File::create(&path).unwrap().write_all(&openphoto_codecs::encode(&img, openphoto_codecs::Format::Png, &Default::default()).unwrap()).unwrap();
     "gradient.png"
 }
 
@@ -109,7 +109,7 @@ async fn agent_completes_ten_scripted_tasks() {
     assert_eq!(t["effects"]["items"][0]["kind"], "Drop Shadow", "task 1: {t}");
     let out = dir.join("card.png");
     tool(&c, "doc_export", json!({"path": "card.png"})).await;
-    let card = photocraft_codecs::decode(&std::fs::read(&out).unwrap()).unwrap();
+    let card = openphoto_codecs::decode(&std::fs::read(&out).unwrap()).unwrap();
     assert_eq!(card.dimensions(), (200, 120), "task 1");
     tool(&c, "doc_close", json!({})).await;
 

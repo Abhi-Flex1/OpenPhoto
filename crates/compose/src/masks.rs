@@ -8,10 +8,10 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex, OnceLock};
 
-use photocraft_color::{ColorMode, PixelFormat, SampleType};
-use photocraft_doc::Layer;
-use photocraft_geom::Rect;
-use photocraft_raster::Surface;
+use openphoto_color::{ColorMode, PixelFormat, SampleType};
+use openphoto_doc::Layer;
+use openphoto_geom::Rect;
+use openphoto_raster::Surface;
 
 const FORMAT: PixelFormat = PixelFormat { mode: ColorMode::Grayscale, sample: SampleType::F32, alpha: false };
 
@@ -115,7 +115,7 @@ pub fn combined_mask(layer: &Layer, canvas: Rect) -> Option<Surface> {
     }
     // Far outside the path the vector mask is constant.
     let far = Rect::from_xywh(canvas.x0 - 1_000_000, canvas.y0 - 1_000_000, 1, 1);
-    let v_out = vm.map_or(1.0, |vm| photocraft_vector::vector_mask_values(vm, far)[0]);
+    let v_out = vm.map_or(1.0, |vm| openphoto_vector::vector_mask_values(vm, far)[0]);
     let p_def = pixel.map_or(1.0, |m| {
         let d = m.surface.default_pixel().first().copied().unwrap_or(1.0);
         1.0 - m.density * (1.0 - d)
@@ -148,7 +148,7 @@ pub fn combined_mask(layer: &Layer, canvas: Rect) -> Option<Surface> {
     if !area.is_empty() {
         let (w, h) = (area.width() as usize, area.height() as usize);
         let mut v = match vm {
-            Some(vm) => photocraft_vector::vector_mask_values(vm, area),
+            Some(vm) => openphoto_vector::vector_mask_values(vm, area),
             None => vec![1.0; w * h],
         };
         gaussian(&mut v, w, h, sv);
@@ -176,7 +176,7 @@ pub fn combined_mask(layer: &Layer, canvas: Rect) -> Option<Surface> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use photocraft_doc::vector::{Knot, Path, Subpath, VectorMask};
+    use openphoto_doc::vector::{Knot, Path, Subpath, VectorMask};
 
     #[test]
     fn matches_the_cpu_mask_and_is_cached() {
@@ -190,7 +190,7 @@ mod tests {
         l.vector_mask = Some(vm);
         let canvas = Rect::new(0, 0, 40, 32);
         let s = combined_mask(&l, canvas).unwrap();
-        let want = photocraft_vector::vector_mask_values(l.vector_mask.as_ref().unwrap(), canvas);
+        let want = openphoto_vector::vector_mask_values(l.vector_mask.as_ref().unwrap(), canvas);
         let mut got = Vec::new();
         s.read_region_into(canvas, &mut got);
         for (a, b) in got.iter().zip(&want) {

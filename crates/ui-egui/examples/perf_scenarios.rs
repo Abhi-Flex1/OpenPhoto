@@ -4,7 +4,7 @@
 //! way the app creates it; the CPU compositor without an adapter).
 //!
 //! ```sh
-//! cargo run --release -p photocraft-ui-egui --example perf_scenarios -- [--quick] [--json out.json] [--only text] [--reps N] [--cpu]
+//! cargo run --release -p openphoto-ui-egui --example perf_scenarios -- [--quick] [--json out.json] [--only text] [--reps N] [--cpu]
 //! ```
 //!
 //! `cargo xtask perf` runs this and maps the rows to scenario ids in `perf/budgets.toml`, so
@@ -16,9 +16,9 @@
 use std::time::Instant;
 
 use eframe::egui_wgpu::RenderState;
-use photocraft_engine::Session;
-use photocraft_testkit::perf::{RssSampler, report, row, write_report};
-use photocraft_ui_egui::gpu_canvas::GpuCanvas;
+use openphoto_engine::Session;
+use openphoto_testkit::perf::{RssSampler, report, row, write_report};
+use openphoto_ui_egui::gpu_canvas::GpuCanvas;
 use serde_json::{Value, json};
 
 type Res<T> = Result<T, String>;
@@ -58,14 +58,13 @@ fn photo_jpeg(w: u32, h: u32) -> Res<Vec<u8>> {
             }
         }
     });
-    let img =
-        photocraft_codecs::Image::from_raw(w, h, photocraft_codecs::ChannelLayout::Rgb, photocraft_codecs::SampleType::U8, px).map_err(|e| e.to_string())?;
-    photocraft_codecs::encode(&img, photocraft_codecs::Format::Jpeg, &Default::default()).map_err(|e| e.to_string())
+    let img = openphoto_codecs::Image::from_raw(w, h, openphoto_codecs::ChannelLayout::Rgb, openphoto_codecs::SampleType::U8, px).map_err(|e| e.to_string())?;
+    openphoto_codecs::encode(&img, openphoto_codecs::Format::Jpeg, &Default::default()).map_err(|e| e.to_string())
 }
 
 fn open_photo(w: u32, h: u32) -> Res<Session> {
     let jpeg = photo_jpeg(w, h)?;
-    let doc = photocraft_io::import("photo.jpg", &jpeg).map_err(|e| e.to_string())?.document;
+    let doc = openphoto_io::import("photo.jpg", &jpeg).map_err(|e| e.to_string())?.document;
     let mut s = Session::new();
     s.open_document(doc, Some("photo.jpg".into()));
     Ok(s)
@@ -73,13 +72,13 @@ fn open_photo(w: u32, h: u32) -> Res<Session> {
 
 /// How far an edit's composite change reaches beyond its damage (layer effects); mirrors
 /// `canvas::effect_reach`.
-fn reach(layers: &[photocraft_doc::Layer]) -> i32 {
+fn reach(layers: &[openphoto_doc::Layer]) -> i32 {
     layers
         .iter()
         .map(|l| {
-            let own = if photocraft_compose::effects::has_effects(l) { photocraft_compose::effects::margin(l) } else { 0 };
+            let own = if openphoto_compose::effects::has_effects(l) { openphoto_compose::effects::margin(l) } else { 0 };
             let kids = match &l.content {
-                photocraft_doc::LayerContent::Group(g) => reach(&g.children),
+                openphoto_doc::LayerContent::Group(g) => reach(&g.children),
                 _ => 0,
             };
             own + kids
@@ -120,7 +119,7 @@ impl Bench {
             None => {
                 let r = damage.unwrap_or(doc.bounds()).intersect(&doc.bounds());
                 if !r.is_empty() {
-                    std::hint::black_box(photocraft_compose::render(doc, r));
+                    std::hint::black_box(openphoto_compose::render(doc, r));
                 }
             }
         }
@@ -179,7 +178,7 @@ impl Bench {
 
 /// A headless GPU canvas on a device created like the app's.
 fn canvas() -> Option<(GpuCanvas, RenderState)> {
-    let setup = photocraft_ui_egui::gpu_canvas::wgpu_setup();
+    let setup = openphoto_ui_egui::gpu_canvas::wgpu_setup();
     let rs = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| egui_kittest::wgpu::create_render_state(setup, Default::default()))).ok()?;
     eprintln!("adapter: {}", rs.adapter.get_info().name);
     Some((GpuCanvas::new(&rs), rs))
@@ -530,13 +529,13 @@ fn job_scenarios(b: &mut Bench, sz: &Sizes) {
         let (w, h) = sz.layered;
         match layered_doc(w, h).and_then(|(s, _)| {
             let d = s.active().ok_or("no document")?.doc.clone();
-            photocraft_io::export(&d, "layered.psd", &Default::default()).map(|o| o.bytes).map_err(|e| e.to_string())
+            openphoto_io::export(&d, "layered.psd", &Default::default()).map(|o| o.bytes).map_err(|e| e.to_string())
         }) {
             Ok(psd) => {
                 let mut holder = Session::new();
                 b.time(open, &mut holder, reps, true, |b, s, _| {
                     let t = Instant::now();
-                    let d = photocraft_io::import("layered.psd", &psd).map_err(|e| e.to_string())?.document;
+                    let d = openphoto_io::import("layered.psd", &psd).map_err(|e| e.to_string())?.document;
                     *s = Session::new();
                     s.open_document(d, Some("layered.psd".into()));
                     Ok(ms(t) + b.refresh(s, true)?)

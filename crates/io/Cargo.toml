@@ -1,6 +1,6 @@
 [package]
-name = "photocraft-io"
-description = "Import/export between photocraft documents and PSD/PSB and flat raster formats"
+name = "openphoto-io"
+description = "Import/export between openphoto documents and PSD/PSB and flat raster formats"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -14,25 +14,25 @@ workspace = true
 corpus = []
 
 [dependencies]
-photocraft-geom = { workspace = true }
-photocraft-color = { workspace = true }
-photocraft-cms = { workspace = true }
-photocraft-raster = { workspace = true }
-photocraft-doc = { workspace = true }
-photocraft-compose = { workspace = true }
-photocraft-algo = { workspace = true }
-photocraft-psd = { workspace = true }
-photocraft-codecs = { workspace = true }
-photocraft-raw = { workspace = true }
-photocraft-text = { workspace = true }
-photocraft-paint = { workspace = true }
-photocraft-vector = { workspace = true }
-photocraft-format = { path = "../format" }
+openphoto-geom = { workspace = true }
+openphoto-color = { workspace = true }
+openphoto-cms = { workspace = true }
+openphoto-raster = { workspace = true }
+openphoto-doc = { workspace = true }
+openphoto-compose = { workspace = true }
+openphoto-algo = { workspace = true }
+openphoto-psd = { workspace = true }
+openphoto-codecs = { workspace = true }
+openphoto-raw = { workspace = true }
+openphoto-text = { workspace = true }
+openphoto-paint = { workspace = true }
+openphoto-vector = { workspace = true }
+openphoto-format = { path = "../format" }
 thiserror = { workspace = true }
 serde_json = { workspace = true }
 blake3 = { version = "1.8", default-features = false, features = ["pure"] }
 
 [dev-dependencies]
-photocraft-psd = { workspace = true, features = ["testgen"] }
-photocraft-raw = { workspace = true, features = ["testgen"] }
+openphoto-psd = { workspace = true, features = ["testgen"] }
+openphoto-raw = { workspace = true, features = ["testgen"] }
 proptest = { workspace = true }

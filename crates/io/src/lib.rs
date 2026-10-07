@@ -1,8 +1,8 @@
-//! # photocraft-io
+//! # openphoto-io
 //!
-//! Import and export between [`photocraft_doc::Document`] and files:
+//! Import and export between [`openphoto_doc::Document`] and files:
 //!
-//! * PSD / PSB (detected by the `8BPS` signature) via `photocraft-psd`, with
+//! * PSD / PSB (detected by the `8BPS` signature) via `openphoto-psd`, with
 //!   fidelity levels 1–3 (raster layers, masks, blend/opacity/fill,
 //!   visibility, names, groups, clipping, adjustment and fill layers).
 //!   Every layer keeps its unmodelled tagged blocks in `Layer::psd_blocks`
@@ -11,13 +11,13 @@
 //!   smart-object layers also keep their pixels as the cached raster, and fill
 //!   layers keep Photoshop's rendering in `Layer::fill_cache`.
 //! * Camera raws (DNG, CR2, uncompressed / lossless TIFF-EP raws) via
-//!   `photocraft-raw`, developed into a 16-bit ProPhoto RGB "Background"
+//!   `openphoto-raw`, developed into a 16-bit ProPhoto RGB "Background"
 //!   layer; unsupported raw variants fall back to the embedded JPEG preview.
-//! * Every other format goes through `photocraft-codecs` as a single
+//! * Every other format goes through `openphoto-codecs` as a single
 //!   "Background" layer (depth and Gray/RGB/CMYK model preserved).
 //!
 //! Exports to PSD render the merged composite with
-//! `photocraft_compose::flatten`; flat exports report what is lost.
+//! `openphoto_compose::flatten`; flat exports report what is lost.
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
@@ -42,9 +42,9 @@ pub mod smart_map;
 pub mod text_styles_map;
 pub mod vector_map;
 
-use photocraft_codecs::{CodecError, EncodeOptions};
-use photocraft_doc::Document;
-use photocraft_psd::{PsdError, PsdFile};
+use openphoto_codecs::{CodecError, EncodeOptions};
+use openphoto_doc::Document;
+use openphoto_psd::{PsdError, PsdFile};
 
 pub use adjust_map::ADJUSTMENT_KEYS;
 pub use flat::document_to_image;
@@ -68,10 +68,10 @@ pub enum IoError {
     Unsupported(String),
     /// Native `.pcraft` bundle failure.
     #[error("pcraft: {0}")]
-    Pcraft(#[from] photocraft_format::FormatError),
+    Pcraft(#[from] openphoto_format::FormatError),
     /// Camera raw decode failure.
     #[error("{0}")]
-    Raw(#[from] photocraft_raw::RawError),
+    Raw(#[from] openphoto_raw::RawError),
 }
 
 /// Result of [`import`].
@@ -107,11 +107,11 @@ pub fn is_psd(bytes: &[u8]) -> bool {
 }
 
 /// Imports a file. PSD/PSB and camera raws are detected by magic; everything
-/// else is decoded with `photocraft-codecs`.
+/// else is decoded with `openphoto-codecs`.
 pub fn import(name: &str, bytes: &[u8]) -> Result<ImportResult, IoError> {
     // A declared native extension must reach its loader so malformed bundles retain format errors.
-    if has_extension(name, photocraft_format::EXTENSION) || photocraft_format::is_pcraft(bytes) {
-        return Ok(ImportResult { document: photocraft_format::load_from_bytes(bytes)?, warnings: Vec::new() });
+    if has_extension(name, openphoto_format::EXTENSION) || openphoto_format::is_pcraft(bytes) {
+        return Ok(ImportResult { document: openphoto_format::load_from_bytes(bytes)?, warnings: Vec::new() });
     }
     if is_psd(bytes) {
         let file = PsdFile::from_bytes(bytes)?;
@@ -137,12 +137,12 @@ fn has_extension(name: &str, expected: &str) -> bool {
 /// bare extension).
 pub fn export(doc: &Document, name_or_ext: &str, opts: &ExportOptions) -> Result<ExportResult, IoError> {
     let ext = extension(name_or_ext);
-    if ext == photocraft_format::EXTENSION {
-        let previews = photocraft_format::SaveOptions {
-            thumbnail: Some(photocraft_compose::thumbnail(doc, 256)),
-            composite: Some(photocraft_compose::thumbnail(doc, 1024)),
+    if ext == openphoto_format::EXTENSION {
+        let previews = openphoto_format::SaveOptions {
+            thumbnail: Some(openphoto_compose::thumbnail(doc, 256)),
+            composite: Some(openphoto_compose::thumbnail(doc, 1024)),
         };
-        return Ok(ExportResult { bytes: photocraft_format::save_to_bytes(doc, &previews)?, warnings: Vec::new() });
+        return Ok(ExportResult { bytes: openphoto_format::save_to_bytes(doc, &previews)?, warnings: Vec::new() });
     }
     if ext == "psd" || ext == "psb" {
         let o = PsdExportOptions { force_psb: opts.force_psb || ext == "psb" };
@@ -150,7 +150,7 @@ pub fn export(doc: &Document, name_or_ext: &str, opts: &ExportOptions) -> Result
         let bytes = file.to_bytes()?;
         return Ok(ExportResult { bytes, warnings });
     }
-    let format = photocraft_codecs::from_extension(&ext).ok_or_else(|| IoError::UnknownFormat(name_or_ext.to_string()))?;
+    let format = openphoto_codecs::from_extension(&ext).ok_or_else(|| IoError::UnknownFormat(name_or_ext.to_string()))?;
     flat::export_flat(doc, format, opts)
 }
 
@@ -162,7 +162,7 @@ pub fn merged_composite(file: &PsdFile) -> Result<Vec<[f32; 4]>, IoError> {
     let h = &file.header;
     // CMYK goes through the colour-managed model conversion (the PSD crate's RGBA preview is a
     // naive, profile-free conversion).
-    if let (Some(img), false) = (img, matches!(h.color_mode, photocraft_psd::ColorMode::Lab | photocraft_psd::ColorMode::Cmyk)) {
+    if let (Some(img), false) = (img, matches!(h.color_mode, openphoto_psd::ColorMode::Lab | openphoto_psd::ColorMode::Cmyk)) {
         let unmatte = file.merged_has_alpha();
         return Ok(img
             .data
@@ -183,10 +183,10 @@ pub fn merged_composite(file: &PsdFile) -> Result<Vec<[f32; 4]>, IoError> {
     // Generic path (Lab, CMYK and others) via the raster model conversion.
     let (doc, _) = psd_to_document(&PsdFile { layer_info: None, ..file.clone() });
     // Multichannel documents keep their channels apart (no layer): composite them.
-    if doc.layers.is_empty() && doc.mode == photocraft_color::ColorMode::Multichannel {
-        return Ok(photocraft_compose::flatten(&doc).px);
+    if doc.layers.is_empty() && doc.mode == openphoto_color::ColorMode::Multichannel {
+        return Ok(openphoto_compose::flatten(&doc).px);
     }
     let l = doc.layers.first().ok_or_else(|| IoError::Unsupported("no merged image".into()))?;
     let s = l.surface().ok_or_else(|| IoError::Unsupported("no merged image".into()))?;
-    Ok(photocraft_compose::surface_to_buffer(s, doc.bounds()).px)
+    Ok(openphoto_compose::surface_to_buffer(s, doc.bounds()).px)
 }

@@ -19,8 +19,8 @@
 //! copied untouched. [`ProxyImage::render`] is the cheap preview path: bilinear field and
 //! bilinear source on a downsampled RGBA copy, re-rendered only where a dab changed things.
 
-use photocraft_geom::Rect;
-use photocraft_raster::Surface;
+use openphoto_geom::Rect;
+use openphoto_raster::Surface;
 use serde::{Deserialize, Serialize};
 
 /// The Liquify tools (Photoshop's left tool strip, minus Hand/Zoom/Face).
@@ -678,7 +678,7 @@ impl ProxyImage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use photocraft_color::{ColorMode, PixelFormat, SampleType};
+    use openphoto_color::{ColorMode, PixelFormat, SampleType};
 
     fn sample(st: SampleType) -> Surface {
         let mut s = Surface::new(PixelFormat::new(ColorMode::Rgb, st, true));

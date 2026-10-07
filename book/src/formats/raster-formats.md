@@ -1,6 +1,6 @@
 # Raster formats
 
-`photocraft-codecs` provides format detection, capability declarations, decode limits, metadata handling, and encoding for flat images. The default build declares read/write support for PNG, JPEG, TIFF, WebP, GIF, BMP, TGA, ICO, Netpbm/PFM, QOI, OpenEXR, and Radiance HDR. AVIF encoding is optional; AVIF decoding is not implemented in the current crate.
+`openphoto-codecs` provides format detection, capability declarations, decode limits, metadata handling, and encoding for flat images. The default build declares read/write support for PNG, JPEG, TIFF, WebP, GIF, BMP, TGA, ICO, Netpbm/PFM, QOI, OpenEXR, and Radiance HDR. AVIF encoding is optional; AVIF decoding is not implemented in the current crate.
 
 Capability details such as sample depth, channel layout, alpha, ICC, EXIF, XMP, DPI, and animation behavior are defined by `crates/codecs/src/format.rs`. Do not infer fidelity from the filename extension alone.
 

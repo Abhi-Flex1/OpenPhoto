@@ -6,7 +6,7 @@
 use egui::{Color32, Mesh, Rect, Sense, Stroke, StrokeKind, pos2, vec2};
 use serde_json::{Map, Value, json};
 
-use crate::PhotocraftApp;
+use crate::OpenPhotoApp;
 use crate::state::DialogKind;
 use crate::theme::Tokens;
 use crate::widgets;
@@ -103,7 +103,7 @@ fn c32(c: [f32; 3]) -> Color32 {
 }
 
 /// Open the picker for the foreground or background colour.
-pub fn open(app: &mut PhotocraftApp, target: &str) -> u64 {
+pub fn open(app: &mut OpenPhotoApp, target: &str) -> u64 {
     let c = if target == "background" { app.session.tools.background } else { app.session.tools.foreground };
     let rgb = [c[0], c[1], c[2]];
     let hsv = rgb_to_hsv(rgb);
@@ -120,7 +120,7 @@ pub fn open(app: &mut PhotocraftApp, target: &str) -> u64 {
 
 /// Open the picker on `rgb` for something other than the tool colours: OK runs `command` with
 /// `params` plus `"color": "#rrggbb"` (e.g. a gradient stop's colour).
-pub fn open_for_command(app: &mut PhotocraftApp, label: &str, rgb: [f32; 3], command: &str, params: Value) -> u64 {
+pub fn open_for_command(app: &mut OpenPhotoApp, label: &str, rgb: [f32; 3], command: &str, params: Value) -> u64 {
     let hsv = rgb_to_hsv(rgb);
     let mut f = Map::new();
     f.insert("__colorPicker".into(), json!("command"));
@@ -249,8 +249,8 @@ pub fn body(ui: &mut egui::Ui, f: &mut Map<String, Value>) {
 /// Component radios and numeric fields: HSB, RGB, Lab, CMYK and hex.
 fn fields(ui: &mut egui::Ui, f: &mut Map<String, Value>, mode: &str, rgb: [f32; 3], hsv: [f32; 3]) {
     let t = Tokens::get(ui.ctx());
-    let lab = photocraft_color::convert::srgb_to_lab(rgb);
-    let cmyk = photocraft_color::convert::rgb_to_cmyk(rgb);
+    let lab = openphoto_color::convert::srgb_to_lab(rgb);
+    let cmyk = openphoto_color::convert::rgb_to_cmyk(rgb);
     let mut edit: Option<([f32; 3], Option<[f32; 3]>)> = None;
     let mut new_mode: Option<&str> = None;
     egui::Grid::new("cp-fields").num_columns(4).spacing([6.0, 4.0]).show(ui, |ui| {
@@ -291,7 +291,7 @@ fn fields(ui: &mut egui::Ui, f: &mut Map<String, Value>, mode: &str, rgb: [f32; 
             if widgets::value_field(ui, &mut x, range, "", 54.0).changed() {
                 let mut l = lab;
                 l[i] = x;
-                edit = Some((photocraft_color::convert::lab_to_srgb(l).map(|c| c.clamp(0.0, 1.0)), None));
+                edit = Some((openphoto_color::convert::lab_to_srgb(l).map(|c| c.clamp(0.0, 1.0)), None));
             }
             ui.label("");
             ui.end_row();
@@ -303,7 +303,7 @@ fn fields(ui: &mut egui::Ui, f: &mut Map<String, Value>, mode: &str, rgb: [f32; 
             if widgets::value_field(ui, &mut x, 0.0..=100.0, "", 54.0).changed() {
                 let mut k = cmyk;
                 k[i] = x / 100.0;
-                edit = Some((photocraft_color::convert::cmyk_to_rgb(k).map(|c| c.clamp(0.0, 1.0)), None));
+                edit = Some((openphoto_color::convert::cmyk_to_rgb(k).map(|c| c.clamp(0.0, 1.0)), None));
             }
             ui.label(egui::RichText::new("%").color(t.text_faint));
             ui.end_row();
@@ -328,7 +328,7 @@ fn fields(ui: &mut egui::Ui, f: &mut Map<String, Value>, mode: &str, rgb: [f32; 
 }
 
 /// OK: set the foreground or background colour.
-pub fn confirm(app: &mut PhotocraftApp, f: &Map<String, Value>) -> Result<Value, String> {
+pub fn confirm(app: &mut OpenPhotoApp, f: &Map<String, Value>) -> Result<Value, String> {
     let target = f.get("__colorPicker").and_then(Value::as_str).unwrap_or("foreground");
     let color = f.get("color").and_then(Value::as_str).unwrap_or("#000000");
     if let Some(cmd) = f.get("__command").and_then(Value::as_str) {
@@ -373,7 +373,7 @@ mod tests {
         f.insert("color".into(), json!("#808080"));
         f.insert("__hsv".into(), json!([200.0, 0.0, 128.0 / 255.0]));
         assert_eq!(current(&f).1[0], 200.0);
-        let mut app = PhotocraftApp::new(photocraft_engine::Session::new(), Default::default());
+        let mut app = OpenPhotoApp::new(openphoto_engine::Session::new(), Default::default());
         let id = open(&mut app, "background");
         let d = app.ui.dialog_mut(id).unwrap();
         d.fields.insert("color".into(), json!("#3366cc"));

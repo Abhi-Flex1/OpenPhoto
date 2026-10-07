@@ -1,9 +1,9 @@
 //! Note tool annotations (Window › Notes, File › Import › Notes…). Notes are document data
-//! ([`photocraft_doc::Note`]), saved in `.pcraft` and as the PSD `Anno` block; each change is
+//! ([`openphoto_doc::Note`]), saved in `.pcraft` and as the PSD `Anno` block; each change is
 //! one history step.
 
-use photocraft_color::Color;
-use photocraft_doc::{Document, Note};
+use openphoto_color::Color;
+use openphoto_doc::{Document, Note};
 use serde_json::{Value, json};
 
 use crate::commands::CommandSpec;
@@ -165,7 +165,7 @@ fn import(s: &mut Session, p: &Value) -> Result<Value> {
 
 /// File › Import › Notes… from file bytes (what a file picker returns).
 pub fn import_notes_from(s: &mut Session, name: &str, bytes: &[u8]) -> Result<Value> {
-    let src = photocraft_io::import(name, bytes).map_err(|e| EngineError::Other(format!("{name}: {e}")))?.document;
+    let src = openphoto_io::import(name, bytes).map_err(|e| EngineError::Other(format!("{name}: {e}")))?.document;
     if src.notes.is_empty() {
         return Err(EngineError::Other(format!("{name} has no notes")));
     }
@@ -295,10 +295,10 @@ mod tests {
     fn import_notes_from_pcraft_and_psd() {
         let dir = std::env::temp_dir().join(format!("pc-notes-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        let mut src = Document::new("src", photocraft_doc::Size::new(400, 400), photocraft_color::ColorMode::Rgb, photocraft_color::SampleType::U8);
+        let mut src = Document::new("src", openphoto_doc::Size::new(400, 400), openphoto_color::ColorMode::Rgb, openphoto_color::SampleType::U8);
         src.notes.push(Note { text: "from pcraft".into(), position: [300.0, 300.0], ..Default::default() });
         let pc = dir.join("a.pcraft");
-        std::fs::write(&pc, photocraft_format::save_to_bytes(&src, &Default::default()).unwrap()).unwrap();
+        std::fs::write(&pc, openphoto_format::save_to_bytes(&src, &Default::default()).unwrap()).unwrap();
         let mut s = session();
         let r = s.execute("file.import.notes", json!({"path": pc.to_str().unwrap()})).unwrap();
         assert_eq!(r["imported"], 1);
@@ -317,7 +317,7 @@ mod tests {
         // A file without notes is an error.
         let empty = dir.join("b.pcraft");
         src.notes.clear();
-        std::fs::write(&empty, photocraft_format::save_to_bytes(&src, &Default::default()).unwrap()).unwrap();
+        std::fs::write(&empty, openphoto_format::save_to_bytes(&src, &Default::default()).unwrap()).unwrap();
         assert!(s.execute("file.import.notes", json!({"path": empty.to_str().unwrap()})).is_err());
         let _ = std::fs::remove_dir_all(&dir);
     }

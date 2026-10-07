@@ -2,9 +2,17 @@
 plan/
 /target
 target/
+/target-ohos
 /dist
 /corpus
 /log
 /secrets
 /temp
 /book/output
+# HarmonyOS shell: build outputs, vendored ArkTS deps and local signing keys.
+harmony/oh_modules/
+harmony/entry/oh_modules/
+harmony/entry/build/
+harmony/entry/libs/
+harmony/.hvigor/
+harmony/signing/

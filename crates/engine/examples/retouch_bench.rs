@@ -1,12 +1,12 @@
 //! Timing: Healing Brush and Spot Healing dab cost on a 6016×6016 document.
-//! `cargo run --release -p photocraft-engine --example retouch_bench [side] [depth]`
+//! `cargo run --release -p openphoto-engine --example retouch_bench [side] [depth]`
 //!
 //! Each measurement is one single-dab stroke through the full command path (`Session::execute`:
 //! undo snapshot, source sampling, solve/fill, composite), on a textured area of the canvas.
 use std::time::Instant;
 
-use photocraft_engine::Session;
-use photocraft_geom::Rect;
+use openphoto_engine::Session;
+use openphoto_geom::Rect;
 use serde_json::json;
 
 fn main() {
@@ -26,7 +26,7 @@ fn main() {
                 let blemish = (x % 400 - 200).abs() < 8 && (y % 400 - 200).abs() < 8;
                 let v =
                     if blemish { [0.05, 0.05, 0.05, 1.0] } else { [0.3 + 0.0002 * x as f32 + n, 0.4 + ((x + y) as f32 * 0.01).sin() * 0.1 + n, 0.5 + n, 1.0] };
-                data.extend(photocraft_raster::from_rgba(&fmt, v));
+                data.extend(openphoto_raster::from_rgba(&fmt, v));
             }
         }
         surf.write_region(area, &data);

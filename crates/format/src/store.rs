@@ -5,9 +5,9 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Weak};
 
-use photocraft_color::{PixelFormat, SampleType};
-use photocraft_doc::Document;
-use photocraft_raster::{Rgba8Image, Tile};
+use openphoto_color::{PixelFormat, SampleType};
+use openphoto_doc::Document;
+use openphoto_raster::{Rgba8Image, Tile};
 
 use crate::convert::{self, Fetch, Loader, Sink, is_valid_hash, swap_to_le};
 use crate::manifest::{FORMAT_VERSION, Hash, Manifest};
@@ -44,9 +44,9 @@ fn hash_bytes(b: &[u8]) -> Hash {
 }
 
 fn png(img: &Rgba8Image) -> Result<Vec<u8>> {
-    let image = photocraft_codecs::Image::from_u8(img.width, img.height, photocraft_codecs::ChannelLayout::Rgba, img.pixels.clone())
+    let image = openphoto_codecs::Image::from_u8(img.width, img.height, openphoto_codecs::ChannelLayout::Rgba, img.pixels.clone())
         .map_err(|e| FormatError::Unsupported(format!("preview: {e}")))?;
-    photocraft_codecs::encode(&image, photocraft_codecs::Format::Png, &Default::default()).map_err(|e| FormatError::Unsupported(format!("preview: {e}")))
+    openphoto_codecs::encode(&image, openphoto_codecs::Format::Png, &Default::default()).map_err(|e| FormatError::Unsupported(format!("preview: {e}")))
 }
 
 // ---------------------------------------------------------------------------
@@ -325,7 +325,7 @@ impl PcraftWriter {
         }
         let manifest = Manifest {
             format_version: FORMAT_VERSION,
-            generator: format!("photocraft-format {}", env!("CARGO_PKG_VERSION")),
+            generator: format!("openphoto-format {}", env!("CARGO_PKG_VERSION")),
             document,
             thumbnail: opts.thumbnail.as_ref().map(|_| THUMB.to_owned()),
             composite: opts.composite.as_ref().map(|_| COMPOSITE.to_owned()),

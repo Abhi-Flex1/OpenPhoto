@@ -1,4 +1,4 @@
-//! # photocraft-algo
+//! # openphoto-algo
 //!
 //! CPU image filters (Photoshop's Filter menu): blur, sharpen, noise,
 //! pixelate, stylize and distort. Every filter is
@@ -78,9 +78,9 @@ pub use params_ext::*;
 
 mod params_ext;
 
-use photocraft_color::ColorMode;
-use photocraft_geom::Rect;
-use photocraft_raster::Surface;
+use openphoto_color::ColorMode;
+use openphoto_geom::Rect;
+use openphoto_raster::Surface;
 use serde::{Deserialize, Serialize};
 
 /// How far outside an output tile a filter reads.

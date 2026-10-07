@@ -1,8 +1,8 @@
 use super::*;
-use photocraft_doc::{Layer, LayerContent};
+use openphoto_doc::{Layer, LayerContent};
 
 fn tmp(name: &str) -> String {
-    let d = std::env::temp_dir().join(format!("photocraft-web-{}-{name}", std::process::id()));
+    let d = std::env::temp_dir().join(format!("openphoto-web-{}-{name}", std::process::id()));
     let _ = std::fs::remove_dir_all(&d);
     std::fs::create_dir_all(&d).unwrap();
     d.to_string_lossy().into_owned()
@@ -17,10 +17,10 @@ fn session(depth: u32) -> Session {
         let fmt = doc.pixel_format();
         let mut l = Layer::raster("Logo", fmt);
         let surf = l.surface_mut().unwrap();
-        surf.fill_rect(Rect::new(8, 8, 32, 32), &photocraft_raster::from_rgba(&fmt, [1.0, 0.0, 0.0, 1.0]));
-        surf.fill_rect(Rect::new(32, 8, 34, 32), &photocraft_raster::from_rgba(&fmt, [1.0, 0.0, 0.0, 0.4]));
+        surf.fill_rect(Rect::new(8, 8, 32, 32), &openphoto_raster::from_rgba(&fmt, [1.0, 0.0, 0.0, 1.0]));
+        surf.fill_rect(Rect::new(32, 8, 34, 32), &openphoto_raster::from_rgba(&fmt, [1.0, 0.0, 0.0, 0.4]));
         for x in 0..64 {
-            surf.fill_rect(Rect::new(x, 36, x + 1, 48), &photocraft_raster::from_rgba(&fmt, [x as f32 / 63.0, 0.5, 1.0 - x as f32 / 63.0, 1.0]));
+            surf.fill_rect(Rect::new(x, 36, x + 1, 48), &openphoto_raster::from_rgba(&fmt, [x as f32 / 63.0, 0.5, 1.0 - x as f32 / 63.0, 1.0]));
         }
         let id = doc.insert_above(None, l);
         *active = Some(id);
@@ -30,8 +30,8 @@ fn session(depth: u32) -> Session {
     s
 }
 
-fn decode(path: &str) -> photocraft_codecs::Image {
-    photocraft_codecs::decode(&std::fs::read(path).unwrap()).unwrap()
+fn decode(path: &str) -> openphoto_codecs::Image {
+    openphoto_codecs::decode(&std::fs::read(path).unwrap()).unwrap()
 }
 
 #[test]
@@ -64,7 +64,7 @@ fn gif_and_png8_keep_transparency_and_palette() {
     let gif = format!("{dir}/a.gif");
     let r = s.execute("file.export.saveForWebLegacy", json!({"format": "gif", "colors": 8, "dither": "none", "path": gif})).unwrap();
     assert_eq!(r["files"][0], json!(gif));
-    let img = decode(&gif).convert(photocraft_codecs::ChannelLayout::Rgba, photocraft_codecs::SampleType::U8);
+    let img = decode(&gif).convert(openphoto_codecs::ChannelLayout::Rgba, openphoto_codecs::SampleType::U8);
     let px = |x: usize, y: usize| img.data()[(y * 64 + x) * 4..(y * 64 + x) * 4 + 4].to_vec();
     assert_eq!(px(0, 0)[3], 0, "transparent background");
     assert_eq!(px(16, 16), vec![255, 0, 0, 255]);
@@ -77,7 +77,7 @@ fn gif_and_png8_keep_transparency_and_palette() {
     // Transparency off: everything over the matte.
     let png8 = format!("{dir}/a.png");
     s.execute("file.export.saveForWebLegacy", json!({"format": "png8", "transparency": false, "matte": "#00ff00", "path": png8})).unwrap();
-    let img = decode(&png8).convert(photocraft_codecs::ChannelLayout::Rgba, photocraft_codecs::SampleType::U8);
+    let img = decode(&png8).convert(openphoto_codecs::ChannelLayout::Rgba, openphoto_codecs::SampleType::U8);
     assert_eq!(&img.data()[..4], &[0, 255, 0, 255]);
 }
 
@@ -107,7 +107,7 @@ fn slices_export_with_html_table() {
     s.execute("slice.new", json!({"rect": [40, 0, 24, 20], "kind": "noImage", "cellText": "Hello & bye"})).unwrap();
     let r = s.execute("file.export.saveForWebLegacy", json!({"format": "png24", "dir": dir, "html": true})).unwrap();
     let files: Vec<String> = r["files"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
-    let n = photocraft_doc::slices::resolve(&s.active().unwrap().doc).len();
+    let n = openphoto_doc::slices::resolve(&s.active().unwrap().doc).len();
     assert_eq!(files.len(), n - 1, "every slice but the no-image one");
     let logo = files.iter().find(|f| f.ends_with("images/logo.png")).unwrap();
     assert_eq!(decode(logo).dimensions(), (24, 24));
@@ -205,7 +205,7 @@ fn image_assets_are_generated_now_and_on_save() {
     let s2 = session(8);
     let doc = s2.active().unwrap().doc.clone();
     let mut d = (*doc).clone();
-    d.layers.push(Layer::new("default 200% @2x", LayerContent::Group(photocraft_doc::Group { children: vec![], expanded: false, artboard: None })));
+    d.layers.push(Layer::new("default 200% @2x", LayerContent::Group(openphoto_doc::Group { children: vec![], expanded: false, artboard: None })));
     let lid = d.layers[1].id;
     d.layer_mut(lid).unwrap().name = "icon.png".into();
     let (files, errors) = generate_assets(&d, &dir);
@@ -232,7 +232,7 @@ fn previews_show_the_optimised_pixels() {
     let s = session(8);
     let doc = s.active().unwrap().doc.clone();
     let (wd, _, _) = web_document(&doc, &json!({}), &WebSettings::default()).unwrap();
-    let buf = photocraft_compose::flatten(&wd);
+    let buf = openphoto_compose::flatten(&wd);
     for f in ["jpeg", "gif", "png8", "png24", "wbmp"] {
         let st = WebSettings::from_params(&json!({"format": f, "quality": 90, "transparency": false}), "x").unwrap();
         let o = optimize(&buf.px, 64, wd.bounds(), &st, None, None, 72.0, true).unwrap();

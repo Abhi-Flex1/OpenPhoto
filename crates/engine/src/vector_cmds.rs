@@ -10,20 +10,20 @@
 //! ```
 //!
 //! A knot given as `[x, y]` is a corner with retracted handles; `in`/`out` default to the
-//! anchor. The serde form of `photocraft_doc::Path` is accepted too. Colours are `"#rrggbb"`,
+//! anchor. The serde form of `openphoto_doc::Path` is accepted too. Colours are `"#rrggbb"`,
 //! `"#rrggbbaa"` or `[r,g,b,a]` (0..1); opacities are percentages (0..100).
 //!
-//! Every edit re-renders the shape layer's cache with `photocraft-vector` in one undoable step.
-//! PSD blocks stay byte-identical while they still decode to the model (see `photocraft-io`).
+//! Every edit re-renders the shape layer's cache with `openphoto-vector` in one undoable step.
+//! PSD blocks stay byte-identical while they still decode to the model (see `openphoto-io`).
 
-use photocraft_algo::selection::{self as sel, SelectionMode};
-use photocraft_color::{BlendMode, Color};
-use photocraft_doc::{
+use openphoto_algo::selection::{self as sel, SelectionMode};
+use openphoto_color::{BlendMode, Color};
+use openphoto_doc::{
     Document, Fill, FillRule, GradientStyle, Knot, Layer, LayerContent, LayerId, LineCap, LineJoin, LiveShape, NamedPath, Path, PathOp, ShapeLayer,
     ShapeStroke, StrokeAlign, Subpath, VectorMask,
 };
-use photocraft_geom::{Affine, Point, Rect};
-use photocraft_vector as vector;
+use openphoto_geom::{Affine, Point, Rect};
+use openphoto_vector as vector;
 use serde_json::{Value, json};
 
 use crate::commands::{CommandSpec, blend_from_str};
@@ -601,7 +601,7 @@ fn shape_rasterize(s: &mut Session, p: &Value) -> Result<Value> {
             refresh_shape(&snapshot, sh);
         }
         let fmt = snapshot.pixel_format();
-        let surface = sh.cache.take().unwrap_or_else(|| photocraft_raster::Surface::new(fmt));
+        let surface = sh.cache.take().unwrap_or_else(|| openphoto_raster::Surface::new(fmt));
         let surface = if surface.format() == fmt { surface } else { surface.convert(fmt) };
         l.content = LayerContent::Raster(surface);
         l.psd_blocks.retain(|(k, _)| !SHAPE_BLOCKS.contains(&k));
@@ -815,7 +815,7 @@ fn path_fill(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 /// Composites `src` × coverage onto a surface over `area` (any pixel format).
-fn paint_coverage(surf: &mut photocraft_raster::Surface, area: Rect, cov: &[f32], src: [f32; 4], opacity: f32, mode: BlendMode, lock_alpha: bool) {
+fn paint_coverage(surf: &mut openphoto_raster::Surface, area: Rect, cov: &[f32], src: [f32; 4], opacity: f32, mode: BlendMode, lock_alpha: bool) {
     let fmt = surf.format();
     let ch = fmt.channels();
     let mut vals = surf.read_region(area);
@@ -823,12 +823,12 @@ fn paint_coverage(surf: &mut photocraft_raster::Surface, area: Rect, cov: &[f32]
         if *c <= 0.0 {
             continue;
         }
-        let dst = photocraft_raster::to_rgba(&fmt, px);
-        let mut out = photocraft_compose::psblend::composite(mode, dst, [src[0], src[1], src[2], src[3] * c], opacity);
+        let dst = openphoto_raster::to_rgba(&fmt, px);
+        let mut out = openphoto_compose::psblend::composite(mode, dst, [src[0], src[1], src[2], src[3] * c], opacity);
         if lock_alpha {
             out[3] = dst[3];
         }
-        photocraft_raster::from_rgba_into(&fmt, out, px);
+        openphoto_raster::from_rgba_into(&fmt, out, px);
     }
     surf.write_region(area, &vals);
     surf.prune();
@@ -839,7 +839,7 @@ fn path_stroke(s: &mut Session, p: &Value) -> Result<Value> {
     let tool = p.get("tool").and_then(Value::as_str).unwrap_or("brush");
     let base = s.tools.brush.clone();
     let fg = s.tools.foreground;
-    let mut brush = photocraft_paint::BrushSettings {
+    let mut brush = openphoto_paint::BrushSettings {
         size: f64p(p, "size").map_or(base.size, |v| v as f32),
         hardness: f64p(p, "hardness").map_or(base.hardness, |v| v as f32),
         opacity: f64p(p, "opacity").map_or(base.opacity, |v| (v / 100.0) as f32),
@@ -873,7 +873,7 @@ fn path_stroke(s: &mut Session, p: &Value) -> Result<Value> {
         }
         let mut dmg = Rect::EMPTY;
         for pl in &lines {
-            let mut pts: Vec<photocraft_paint::StrokePoint> = pl.pts.iter().map(|&(x, y)| photocraft_paint::StrokePoint::new(x, y, 1.0)).collect();
+            let mut pts: Vec<openphoto_paint::StrokePoint> = pl.pts.iter().map(|&(x, y)| openphoto_paint::StrokePoint::new(x, y, 1.0)).collect();
             if pl.closed
                 && let Some(first) = pts.first().copied()
             {
@@ -882,7 +882,7 @@ fn path_stroke(s: &mut Session, p: &Value) -> Result<Value> {
             if pts.is_empty() {
                 continue;
             }
-            let r = photocraft_paint::apply_stroke(surf, &photocraft_paint::Stroke { brush: brush.clone(), points: pts }, sel.as_ref(), lock);
+            let r = openphoto_paint::apply_stroke(surf, &openphoto_paint::Stroke { brush: brush.clone(), points: pts }, sel.as_ref(), lock);
             dmg = if dmg.is_empty() { r } else { dmg.union(&r) };
         }
         Ok(dmg)
@@ -989,9 +989,9 @@ fn vector_mask_rasterize(s: &mut Session, p: &Value) -> Result<Value> {
         let vm = l.vector_mask.take().ok_or_else(|| EngineError::Other("layer has no vector mask".into()))?;
         let vals = vector::vector_mask_values(&vm, area);
         let mut mask = l.mask.take().unwrap_or_else(|| {
-            let mut m = photocraft_doc::LayerMask::reveal_all();
+            let mut m = openphoto_doc::LayerMask::reveal_all();
             m.surface =
-                photocraft_raster::Surface::with_default(photocraft_color::PixelFormat::new(photocraft_color::ColorMode::Grayscale, depth, false), &[1.0]);
+                openphoto_raster::Surface::with_default(openphoto_color::PixelFormat::new(openphoto_color::ColorMode::Grayscale, depth, false), &[1.0]);
             m
         });
         // Outside the canvas the vector mask is 0 unless it is empty/inverted; keep the old default there.

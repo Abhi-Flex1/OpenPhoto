@@ -3,12 +3,12 @@
 
 use std::sync::Arc;
 
-use photocraft_cms::synth::{CmykParams, cmyk_profile};
-use photocraft_cms::{Builtin, Intent, Profile, Transform};
-use photocraft_color::{Color, ColorMode, PixelFormat, SampleType};
-use photocraft_doc::{Document, Layer, LayerContent, Size};
-use photocraft_geom::Rect;
-use photocraft_raster::Surface;
+use openphoto_cms::synth::{CmykParams, cmyk_profile};
+use openphoto_cms::{Builtin, Intent, Profile, Transform};
+use openphoto_color::{Color, ColorMode, PixelFormat, SampleType};
+use openphoto_doc::{Document, Layer, LayerContent, Size};
+use openphoto_geom::Rect;
+use openphoto_raster::Surface;
 use serde_json::json;
 
 use crate::Session;
@@ -48,7 +48,7 @@ fn test_cmyk() -> Profile {
 
 /// What the CPU canvas shows at the centre pixel (RGBA8).
 fn shown(s: &Session, d: &Document) -> [f32; 3] {
-    let buf = photocraft_compose::flatten(d);
+    let buf = openphoto_compose::flatten(d);
     let img = s.color.canvas_display(d).unwrap().to_rgba8(&buf);
     let i = (4 * d.size.width as usize + 4) * 4;
     [0, 1, 2].map(|k| img.pixels[i + k] as f32)
@@ -141,15 +141,15 @@ fn embedded_cmyk_profile_is_used_for_display_and_flat_export() {
     // Untagged documents keep the built-in coated CMYK.
     assert!(close(shown(&s, &cmyk_doc(None, ink)), coated, TOL));
     // Flat export of the (layered) document writes sRGB through the embedded profile.
-    let r = photocraft_io::export(&d, "out.png", &photocraft_io::ExportOptions::default()).unwrap();
-    let img = photocraft_codecs::decode(&r.bytes).unwrap().convert(photocraft_codecs::ChannelLayout::Rgba, photocraft_codecs::SampleType::U8);
+    let r = openphoto_io::export(&d, "out.png", &openphoto_io::ExportOptions::default()).unwrap();
+    let img = openphoto_codecs::decode(&r.bytes).unwrap().convert(openphoto_codecs::ChannelLayout::Rgba, openphoto_codecs::SampleType::U8);
     let px = &img.data()[(4 * 8 + 4) * 4..][..3];
     assert!(close([px[0] as f32, px[1] as f32, px[2] as f32], want, TOL), "export {px:?} vs {want:?}");
     // A single-layer CMYK document exported to a format without CMYK converts the same way.
     let mut one = d.clone();
     one.layers.truncate(1);
-    let r = photocraft_io::export(&one, "out.png", &photocraft_io::ExportOptions::default()).unwrap();
-    let img = photocraft_codecs::decode(&r.bytes).unwrap().convert(photocraft_codecs::ChannelLayout::Rgba, photocraft_codecs::SampleType::U8);
+    let r = openphoto_io::export(&one, "out.png", &openphoto_io::ExportOptions::default()).unwrap();
+    let img = openphoto_codecs::decode(&r.bytes).unwrap().convert(openphoto_codecs::ChannelLayout::Rgba, openphoto_codecs::SampleType::U8);
     let px = &img.data()[(4 * 8 + 4) * 4..][..3];
     assert!(close([px[0] as f32, px[1] as f32, px[2] as f32], want, TOL), "single-layer export {px:?} vs {want:?}");
 }
@@ -162,12 +162,12 @@ fn linear_documents_are_encoded_for_the_texture() {
     let cd = s.color.canvas_display(&d).unwrap();
     assert!(cd.encode_srgb && cd.transform.is_none(), "linear sRGB = sRGB primaries: encoding is all it takes");
     assert!(close(shown(&s, &d), [123.5; 3], 1.0), "{:?}", shown(&s, &d));
-    let buf = photocraft_compose::flatten(&d);
+    let buf = openphoto_compose::flatten(&d);
     let tex = cd.texture_buffer(&buf);
     assert!((tex.px[0][0] - 0.4845).abs() < 1e-3);
     // An sRGB document is passed through untouched.
     let srgb = rgb_doc(None, [0.2; 3], SampleType::F32);
-    let b2 = photocraft_compose::flatten(&srgb);
+    let b2 = openphoto_compose::flatten(&srgb);
     assert!(matches!(s.color.canvas_display(&srgb).unwrap().texture_buffer(&b2), std::borrow::Cow::Borrowed(_)));
 }
 
@@ -177,8 +177,8 @@ fn exr_round_trip_is_linear() {
     // An sRGB document exported to EXR is linearised; re-opened it is tagged linear sRGB and
     // displays as before.
     let d = rgb_doc(None, [0.5, 0.25, 0.75], SampleType::F32);
-    let r = photocraft_io::export(&d, "x.exr", &photocraft_io::ExportOptions::default()).unwrap();
-    let back = photocraft_io::import("x.exr", &r.bytes).unwrap().document;
+    let r = openphoto_io::export(&d, "x.exr", &openphoto_io::ExportOptions::default()).unwrap();
+    let back = openphoto_io::import("x.exr", &r.bytes).unwrap().document;
     let icc = back.icc_profile.clone().expect("tagged");
     assert_eq!(Profile::parse(&icc).unwrap().content_hash(), Builtin::LinearSrgb.profile().content_hash());
     let v = back.layers[0].surface().unwrap().pixel(1, 1);

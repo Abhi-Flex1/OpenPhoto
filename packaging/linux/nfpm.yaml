@@ -3,7 +3,7 @@
 # exports VERSION and NFPM_ARCH.
 #
 #   nfpm package -f packaging/linux/nfpm.yaml -p deb -t dist/release/
-name: photocraft
+name: openphoto
 arch: ${NFPM_ARCH}
 platform: linux
 version: ${VERSION}
@@ -12,7 +12,7 @@ version_schema: semver
 release: 1
 section: graphics
 priority: optional
-maintainer: ${PHOTOCRAFT_MAINTAINER}
+maintainer: ${OPENPHOTO_MAINTAINER}
 vendor: Learning Machines LLC
 homepage: https://getartcraft.com/apps/photocraft
 license: MIT OR Apache-2.0
@@ -20,7 +20,7 @@ description: |-
   Open-source, native image editor that works the way Photoshop users expect.
   Layers, masks, adjustment layers, layer styles, type and brushes; opens and
   saves layered PSD/PSB files; 8/16/32-bit documents; GPU compositing (wgpu).
-  Includes photocraft-cli, a headless converter and command runner.
+  Includes openphoto-cli, a headless converter and command runner.
 
 # The binaries link only glibc and libgcc_s directly. Windowing (X11/Wayland, xkbcommon) and the
 # GPU (Vulkan, EGL/GL) are loaded at runtime with dlopen, so they aren't ELF NEEDED entries and
@@ -29,7 +29,7 @@ description: |-
 # libxkbcommon-x11 panicked in #201); for Wayland: libwayland-client and libxkbcommon. wgpu needs
 # libvulkan or libEGL. RandR goes through x11rb's protocol code and fonts are found by scanning
 # directories, so libXrandr and fontconfig aren't loaded. The app also checks for these at start
-# (apps/photocraft/src/linux_libs.rs) and names the missing package instead of crashing.
+# (apps/openphoto/src/linux_libs.rs) and names the missing package instead of crashing.
 overrides:
   deb:
     depends:
@@ -66,11 +66,11 @@ overrides:
       - xdg-desktop-portal
 
 contents:
-  - src: ${STAGE}/usr/bin/photocraft
-    dst: /usr/bin/photocraft
+  - src: ${STAGE}/usr/bin/openphoto
+    dst: /usr/bin/openphoto
     file_info: { mode: 0755 }
-  - src: ${STAGE}/usr/bin/photocraft-cli
-    dst: /usr/bin/photocraft-cli
+  - src: ${STAGE}/usr/bin/openphoto-cli
+    dst: /usr/bin/openphoto-cli
     file_info: { mode: 0755 }
   - src: ${STAGE}/usr/share/
     dst: /usr/share/

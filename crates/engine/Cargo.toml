@@ -1,5 +1,5 @@
 [package]
-name = "photocraft-engine"
+name = "openphoto-engine"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -12,31 +12,31 @@ workspace = true
 corpus = []
 
 [dependencies]
-photocraft-geom = { workspace = true }
-photocraft-color = { workspace = true }
-photocraft-cms = { workspace = true }
-photocraft-raster = { workspace = true }
-photocraft-doc = { workspace = true }
-photocraft-ops = { workspace = true }
-photocraft-compose = { workspace = true }
+openphoto-geom = { workspace = true }
+openphoto-color = { workspace = true }
+openphoto-cms = { workspace = true }
+openphoto-raster = { workspace = true }
+openphoto-doc = { workspace = true }
+openphoto-ops = { workspace = true }
+openphoto-compose = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 rayon = { workspace = true }
-photocraft-paint = { workspace = true }
-photocraft-algo = { workspace = true }
-photocraft-text = { workspace = true }
-photocraft-vector = { workspace = true }
-photocraft-io = { workspace = true }
-photocraft-psd = { workspace = true }
-photocraft-format = { workspace = true }
-photocraft-plugins = { workspace = true }
+openphoto-paint = { workspace = true }
+openphoto-algo = { workspace = true }
+openphoto-text = { workspace = true }
+openphoto-vector = { workspace = true }
+openphoto-io = { workspace = true }
+openphoto-psd = { workspace = true }
+openphoto-format = { workspace = true }
+openphoto-plugins = { workspace = true }
 blake3 = { version = "1.8", default-features = false, features = ["pure"] }
-photocraft-codecs = { workspace = true }
+openphoto-codecs = { workspace = true }
 flate2 = { workspace = true }
 
 [dev-dependencies]
 # Synthetic camera raw files for the open tests.
-photocraft-raw = { workspace = true, features = ["testgen"] }
+openphoto-raw = { workspace = true, features = ["testgen"] }
 # WebAssembly text -> binary for plug-in test modules (Apache-2.0 WITH LLVM-exception).
 wat = "1.228"

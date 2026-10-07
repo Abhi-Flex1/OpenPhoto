@@ -1,7 +1,7 @@
 # Simplified Chinese catalog
 
 The `zh-hans` catalog targets the i18n interface proposed in
-[PhotoCraft PR #169](https://github.com/storytold/photocraft/pull/169), commit
+[OpenPhoto PR #169](https://github.com/storytold/photocraft/pull/169), commit
 `c1fb8909c4b3b176eead12d66b04338a103cf63d`. It translates the English source keys
 from that revision's catalog. The Chinese wording is original and uses ordinary
 image-editing terminology; no proprietary translation resources were extracted
@@ -28,7 +28,7 @@ changes.
 Keep English source keys, contexts, command IDs, placeholders and escapes intact.
 Retain the trailing `…` on commands that open a dialog. Missing translations use
 the framework's English fallback. User-supplied names and document data are not
-translated. Product names and technology names such as PhotoCraft, ArtCraft,
+translated. Product names and technology names such as OpenPhoto, ArtCraft,
 OpenType, RGB, CMYK and Lab retain their spelling.
 
 The #169 locale resolver recognizes `zh`, `zh-CN`, `zh-SG` and `zh-Hans`
@@ -55,7 +55,7 @@ of the i18n foundation; manual language selection works independently of it.
 
 ## Validation and maintenance
 
-Run `cargo test -p photocraft-ui-egui`, the touched-crate all-target clippy check,
+Run `cargo test -p openphoto-ui-egui`, the touched-crate all-target clippy check,
 `cargo xtask layers` and `cargo xtask wasm`. The shared catalog tests validate
 duplicate keys, placeholders, ellipses, menu coverage, `tl!` literals and blend
 modes. Chinese-specific tests cover locale selection, fallback, plural messages

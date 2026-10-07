@@ -8,16 +8,16 @@
 //!
 //! Compositing stays in document space for RGB and gray documents. CMYK and Lab documents are
 //! composited in sRGB after a per-layer conversion with the built-in profiles (see
-//! `photocraft_color::convert`), so their [`composite_profile`] is sRGB; documents tagged with
+//! `openphoto_color::convert`), so their [`composite_profile`] is sRGB; documents tagged with
 //! a different CMYK profile therefore display approximately until compositing is mode-native.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, Weak};
 
-use photocraft_cms::{Builtin, ColorSpace, GamutCheck, Intent, Lut3d, Profile, SampleKind, Transform};
-use photocraft_color::{Color, ColorMode, PixelFormat, SampleType};
-use photocraft_doc::{DocId, Document, Effect, Fill, FxPaint, Layer, LayerContent};
-use photocraft_raster::Surface;
+use openphoto_cms::{Builtin, ColorSpace, GamutCheck, Intent, Lut3d, Profile, SampleKind, Transform};
+use openphoto_color::{Color, ColorMode, PixelFormat, SampleType};
+use openphoto_doc::{DocId, Document, Effect, Fill, FxPaint, Layer, LayerContent};
+use openphoto_raster::Surface;
 use serde_json::{Value, json};
 
 use crate::commands::CommandSpec;
@@ -121,7 +121,7 @@ pub struct ColorSettings {
     pub bpc: bool,
     pub dither: bool,
     /// Advanced › "Blend Text Colors Using Gamma" (1 = off; Photoshop's default 1.45): type
-    /// layers mix anti-aliased edges in this gamma (`photocraft_compose::psblend::set_text_gamma`).
+    /// layers mix anti-aliased edges in this gamma (`openphoto_compose::psblend::set_text_gamma`).
     pub blend_text_gamma: f32,
     /// Monitor profile the canvas is displayed in: `auto` (the main display's profile when the
     /// platform supplies it, else sRGB), a built-in RGB profile id or an `.icc` path.
@@ -143,7 +143,7 @@ impl Default for ColorSettings {
             intent: Intent::RelativeColorimetric.id().into(),
             bpc: true,
             dither: true,
-            blend_text_gamma: photocraft_compose::psblend::TEXT_GAMMA,
+            blend_text_gamma: openphoto_compose::psblend::TEXT_GAMMA,
             monitor_profile: "auto".into(),
         }
     }
@@ -279,7 +279,7 @@ impl ColorState {
 
     /// Proofing state of a document (defaults: coated CMYK, relative colorimetric + BPC, off).
     pub fn proof(&self, doc: DocId) -> ProofView {
-        self.proofs.get(&doc).cloned().unwrap_or_else(|| ProofView { gamut_threshold: photocraft_cms::gamut::DEFAULT_THRESHOLD, ..Default::default() })
+        self.proofs.get(&doc).cloned().unwrap_or_else(|| ProofView { gamut_threshold: openphoto_cms::gamut::DEFAULT_THRESHOLD, ..Default::default() })
     }
 
     /// The document's proofing state when it was ever changed (no default allocated).
@@ -288,7 +288,7 @@ impl ColorState {
     }
 
     pub(crate) fn proof_mut(&mut self, doc: DocId) -> &mut ProofView {
-        self.proofs.entry(doc).or_insert_with(|| ProofView { gamut_threshold: photocraft_cms::gamut::DEFAULT_THRESHOLD, ..Default::default() })
+        self.proofs.entry(doc).or_insert_with(|| ProofView { gamut_threshold: openphoto_cms::gamut::DEFAULT_THRESHOLD, ..Default::default() })
     }
 
     /// Transform from the canvas texture values (the composite, `CanvasDisplay::source`) to
@@ -381,7 +381,7 @@ fn merge(mut a: Value, b: Value) -> Value {
     a
 }
 
-fn cms_err(e: photocraft_cms::CmsError) -> EngineError {
+fn cms_err(e: openphoto_cms::CmsError) -> EngineError {
     EngineError::Other(format!("colour management: {e}"))
 }
 
@@ -409,11 +409,11 @@ fn space_mode(cs: ColorSpace) -> Option<ColorMode> {
 
 /// Working (default) profile of a mode.
 pub fn working_profile(mode: ColorMode) -> Arc<Profile> {
-    Arc::new(photocraft_cms::builtin::default_for(mode_space(mode)).unwrap_or(Builtin::Srgb.profile()).clone())
+    Arc::new(openphoto_cms::builtin::default_for(mode_space(mode)).unwrap_or(Builtin::Srgb.profile()).clone())
 }
 
 /// Parses ICC bytes, caching by allocation so repeated lookups for the same document are free.
-pub fn profile_from_bytes(bytes: &Arc<Vec<u8>>) -> std::result::Result<Arc<Profile>, photocraft_cms::CmsError> {
+pub fn profile_from_bytes(bytes: &Arc<Vec<u8>>) -> std::result::Result<Arc<Profile>, openphoto_cms::CmsError> {
     type Cache = Mutex<Vec<(Weak<Vec<u8>>, Arc<Profile>)>>;
     static CACHE: std::sync::OnceLock<Cache> = std::sync::OnceLock::new();
     let cache = CACHE.get_or_init(Default::default);
@@ -523,7 +523,7 @@ pub fn convert_surface(s: &Surface, from: ColorMode, to: PixelFormat, t: &Transf
     let mut out = Surface::with_default(to, &dpo);
     // Convert all tiles in one parallel pass into a staging buffer, then store them.
     let tiles: Vec<_> = s.tiles().map(|(c, t)| (*c, t.clone())).collect();
-    let tile_px = (photocraft_geom::TILE_SIZE * photocraft_geom::TILE_SIZE) as usize;
+    let tile_px = (openphoto_geom::TILE_SIZE * openphoto_geom::TILE_SIZE) as usize;
     let dst_len = tile_px * to.bytes_per_pixel();
     let mut staging = vec![0u8; dst_len * tiles.len()];
     let jobs: Vec<(&[u8], &mut [u8])> = tiles.iter().map(|(_, t)| t.bytes()).zip(staging.chunks_mut(dst_len.max(1))).collect();
@@ -678,7 +678,7 @@ pub fn convert_mode(s: &mut Session, mode: ColorMode, p: &Value) -> Result<Value
 /// canvas pixel (255 = out of gamut, transparent pixels never are), plus the count.
 pub fn gamut_mask(doc: &Document, setup: &ProofSetup, threshold: f32) -> Result<(Vec<u8>, usize)> {
     let check = GamutCheck::new(&composite_profile(doc), &setup.profile, threshold).map_err(cms_err)?;
-    let buf = photocraft_compose::flatten(doc);
+    let buf = openphoto_compose::flatten(doc);
     let mut count = 0;
     let mask = buf
         .px
@@ -848,7 +848,7 @@ fn color_settings(s: &mut Session, p: &Value) -> Result<Value> {
     }
     match p.get("blendTextGamma") {
         Some(Value::Bool(false)) => next.blend_text_gamma = 1.0,
-        Some(Value::Bool(true)) => next.blend_text_gamma = photocraft_compose::psblend::TEXT_GAMMA,
+        Some(Value::Bool(true)) => next.blend_text_gamma = openphoto_compose::psblend::TEXT_GAMMA,
         Some(v) => {
             let g = v
                 .as_f64()
@@ -860,7 +860,7 @@ fn color_settings(s: &mut Session, p: &Value) -> Result<Value> {
     }
     validate_settings(&next).map_err(|msg| EngineError::BadParams { cmd: cmd.into(), msg })?;
     if next != s.color.settings {
-        photocraft_compose::psblend::set_text_gamma(next.blend_text_gamma);
+        openphoto_compose::psblend::set_text_gamma(next.blend_text_gamma);
         s.color.settings = next;
         // Persisted with the preferences.
         s.prefs.edit(|_| ());
@@ -996,7 +996,7 @@ pub fn specs() -> Vec<CommandSpec> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use photocraft_geom::Rect;
+    use openphoto_geom::Rect;
 
     fn session(mode: &str, depth: u32) -> Session {
         let mut s = Session::new();
@@ -1012,7 +1012,7 @@ mod tests {
             surf.fill_rect(Rect::new(0, 0, 16, 16), &[1.0, 0.0, 0.0, 1.0]);
             surf.fill_rect(Rect::new(16, 0, 32, 16), &[0.0, 0.0, 1.0, 1.0]);
             surf.fill_rect(Rect::new(32, 0, 48, 16), &[0.5, 0.5, 0.5, 0.5]);
-            l.mask = Some(photocraft_doc::LayerMask::reveal_all());
+            l.mask = Some(openphoto_doc::LayerMask::reveal_all());
             Ok(())
         })
         .unwrap();
@@ -1159,7 +1159,7 @@ mod tests {
         assert_eq!(composite_profile(doc(&s)).description, "sRGB IEC61966-2.1");
     }
 
-    /// `cargo test -p photocraft-engine --release -- --ignored bench_cmyk --nocapture`
+    /// `cargo test -p openphoto-engine --release -- --ignored bench_cmyk --nocapture`
     #[test]
     #[ignore]
     fn bench_cmyk_conversion_6016() {
@@ -1195,7 +1195,7 @@ mod settings_tests {
     use super::*;
 
     fn tagged(spec: &str) -> Document {
-        let mut d = Document::with_background("t", photocraft_doc::Size::new(8, 8), ColorMode::Rgb, SampleType::U8, Color::rgba(0.2, 0.6, 0.9, 1.0));
+        let mut d = Document::with_background("t", openphoto_doc::Size::new(8, 8), ColorMode::Rgb, SampleType::U8, Color::rgba(0.2, 0.6, 0.9, 1.0));
         d.icc_profile = Some(Builtin::from_id(spec).unwrap().profile().to_bytes());
         d
     }

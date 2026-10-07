@@ -1,5 +1,5 @@
 [package]
-name = "photocraft-compose"
+name = "openphoto-compose"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,11 +8,11 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-photocraft-geom = { workspace = true }
-photocraft-color = { workspace = true }
-photocraft-raster = { workspace = true }
-photocraft-doc = { workspace = true }
-photocraft-vector = { workspace = true }
+openphoto-geom = { workspace = true }
+openphoto-color = { workspace = true }
+openphoto-raster = { workspace = true }
+openphoto-doc = { workspace = true }
+openphoto-vector = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 rayon = { workspace = true }
@@ -20,7 +20,7 @@ rayon = { workspace = true }
 [dev-dependencies]
 proptest = { workspace = true }
 criterion = { workspace = true }
-photocraft-paint = { workspace = true }
+openphoto-paint = { workspace = true }
 
 [[bench]]
 name = "compose"

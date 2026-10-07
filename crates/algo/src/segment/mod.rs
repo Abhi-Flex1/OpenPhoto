@@ -34,8 +34,8 @@ pub mod sky;
 pub mod slic;
 pub mod subject;
 
-use photocraft_geom::Rect;
-use photocraft_raster::Surface;
+use openphoto_geom::Rect;
+use openphoto_raster::Surface;
 
 pub use crate::selection::Region;
 use gmm::Gmm;
